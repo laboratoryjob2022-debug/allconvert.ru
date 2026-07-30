@@ -171,9 +171,12 @@ export const Navbar: React.FC = () => {
         <div className="flex flex-col gap-2 sm:hidden">
           {/* Row 1: Brand Title + Share & Settings */}
           <div className="flex items-center justify-between gap-2 w-full">
-            <h1 className="text-base font-bold text-white tracking-tight truncate">
-              All<span className="text-cyan-400 font-extrabold">Convert</span>
-            </h1>
+            <div className="flex items-center space-x-2 truncate">
+              <img src="/favicon-32x32.png" alt="AllConvert" className="w-6 h-6 rounded-lg object-cover border border-cyan-500/30 shrink-0" />
+              <h1 className="text-base font-bold text-white tracking-tight truncate">
+                All<span className="text-cyan-400 font-extrabold">Convert</span>
+              </h1>
+            </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setGuideOpen(true)}
@@ -219,10 +222,8 @@ export const Navbar: React.FC = () => {
         <div className="hidden sm:flex items-center justify-between w-full">
           {/* Brand Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center shrink-0">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Layers className="w-5 h-5 text-cyan-400 animate-pulse" />
-              </div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center shrink-0 overflow-hidden">
+              <img src="/apple-touch-icon.png" alt="AllConvert Logo" className="w-full h-full object-cover rounded-[10px]" />
             </div>
             <div>
               <div className="flex items-center flex-wrap gap-2">
