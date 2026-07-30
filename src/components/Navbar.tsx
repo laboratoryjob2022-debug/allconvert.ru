@@ -268,11 +268,11 @@ export const Navbar: React.FC = () => {
               onClick={() => {
                 showToast(t.bookmarkToast, 'info');
               }}
-              className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:text-amber-200 transition-all flex items-center space-x-1.5 shadow-sm text-xs font-bold cursor-pointer hover:scale-105 active:scale-95"
+              className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-300 hover:text-amber-700 dark:hover:text-amber-200 transition-all flex items-center space-x-1.5 shadow-sm text-xs font-bold cursor-pointer hover:scale-105 active:scale-95"
               title={t.bookmarkBtn}
             >
-              <Bookmark className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="hidden sm:inline">{t.bookmarkBtn}</span>
+              <Bookmark className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
+              <span className="hidden sm:inline text-amber-600 dark:text-amber-300">{t.bookmarkBtn}</span>
             </button>
 
             {/* Share / Copy Link Button */}
