@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useConverterStore } from '../store/useConverterStore';
+import { getTranslation } from '../lib/i18n';
 import { getAvailableTargets } from '../lib/formatSpecs';
 import {
   Play,
@@ -32,7 +33,10 @@ export const BatchControls: React.FC = () => {
     downloadAllZip,
     clearCompleted,
     clearQueue,
+    language,
   } = useConverterStore();
+
+  const t = getTranslation(language || 'ru');
 
   const [selectedBatchFormat, setSelectedBatchFormat] = useState<string>(globalTargetFormat);
 
@@ -114,7 +118,7 @@ export const BatchControls: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-bold text-slate-100 flex flex-wrap items-center gap-2">
-                <span>Общий прогресс конвертации</span>
+                <span>{t.queueOverallProgress}</span>
                 <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold border ${
                   isConvertingAny
                     ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
@@ -122,19 +126,18 @@ export const BatchControls: React.FC = () => {
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                     : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}>
-                  {processedCount} из {totalQueueCount} файлов ({completedInBatch} готово)
+                  {t.queueFilesProcessed(processedCount, totalQueueCount, completedInBatch)}
                 </span>
               </div>
               <div className="text-xs text-slate-400 truncate mt-0.5 h-4">
                 {isConvertingAny && activeConvertingItem ? (
-                  <>
-                    Конвертируется: <span className="text-slate-200 font-medium">{activeConvertingItem.name}</span>
-                    <span className="text-cyan-400 font-mono ml-2 font-bold">({activeConvertingItem.progress}% — {activeConvertingItem.statusText})</span>
-                  </>
+                  <span>
+                    {t.queueConvertingFile(activeConvertingItem.name, activeConvertingItem.progress, activeConvertingItem.statusText || '')}
+                  </span>
                 ) : completedInBatch === totalQueueCount && totalQueueCount > 0 ? (
-                  <span className="text-emerald-400 font-medium">Все файлы успешно обработаны</span>
+                  <span className="text-emerald-400 font-medium">{t.queueAllProcessed}</span>
                 ) : (
-                  <span className="text-slate-500">Очередь готова к конвертации</span>
+                  <span className="text-slate-500">{t.queueReadyStatus}</span>
                 )}
               </div>
             </div>
@@ -179,12 +182,12 @@ export const BatchControls: React.FC = () => {
               <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs shadow-md border border-cyan-300 shrink-0">
                 <Sparkles className="w-4 h-4 text-slate-950" />
                 <span>
-                  {selectedCountInSector} {selectedCountInSector === 1 ? 'файл выбран' : 'файлов выбрано'}
+                  {t.selectedCount(selectedCountInSector)}
                   {activeSector !== 'all' && ` (${activeSector})`}
                 </span>
                 {totalSelectedCount > selectedCountInSector && (
                   <span className="text-[10px] opacity-80 font-normal">
-                    (всего {totalSelectedCount})
+                    ({totalSelectedCount})
                   </span>
                 )}
               </div>
@@ -198,16 +201,15 @@ export const BatchControls: React.FC = () => {
                 ) : (
                   <Square className="w-3.5 h-3.5 text-slate-400" />
                 )}
-                <span>{allSelectedInSector ? 'Снять выделение' : 'Выбрать все'}</span>
+                <span>{allSelectedInSector ? t.deselectAll : t.selectAll}</span>
               </button>
 
               <button
                 onClick={() => clearSelection(activeSector)}
                 className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-xs font-bold text-slate-200 hover:text-rose-300 border border-slate-600 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:shadow-md"
-                title="Сбросить выделение этой категории"
               >
                 <X className="w-3.5 h-3.5" />
-                <span>Сбросить ({activeSector})</span>
+                <span>{t.clearSelection} ({activeSector})</span>
               </button>
             </div>
 
@@ -215,7 +217,7 @@ export const BatchControls: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
               {/* Target Format Dropdown */}
               <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-sm">
-                <span className="text-xs text-slate-300 font-bold hidden sm:inline">Формат:</span>
+                <span className="text-xs text-slate-300 font-bold hidden sm:inline">{t.quickTarget}</span>
                 <select
                   value={selectedBatchFormat}
                   onChange={(e) => {
@@ -236,10 +238,9 @@ export const BatchControls: React.FC = () => {
               <button
                 onClick={handleApplyToSelected}
                 className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-cyan-500/50 shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
-                title="Применить формат к выбранным файлам категории"
               >
                 <Check className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Применить</span>
+                <span>{t.applyFormat}</span>
               </button>
 
               {/* Convert Selected Button */}
@@ -249,7 +250,7 @@ export const BatchControls: React.FC = () => {
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
               >
                 <Play className="w-3.5 h-3.5 fill-slate-950" />
-                <span>Конвертировать ({selectedIdleInSector})</span>
+                <span>{t.convertSelected(selectedIdleInSector)}</span>
               </button>
 
               {/* Download Selected */}
@@ -258,17 +259,16 @@ export const BatchControls: React.FC = () => {
                 className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all border border-emerald-400/50 shadow-md flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
               >
                 <Download className="w-3.5 h-3.5 text-white" />
-                <span>Скачать ({selectedCountInSector})</span>
+                <span>{t.downloadSelected(selectedCountInSector)}</span>
               </button>
 
               {/* Delete Selected */}
               <button
                 onClick={() => removeSelected(activeSector)}
                 className="px-3.5 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-bold text-xs transition-all border border-rose-400/60 shadow-md flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
-                title="Удалить выбранные файлы этой категории из очереди"
               >
                 <Trash2 className="w-3.5 h-3.5 text-white" />
-                <span>Удалить ({selectedCountInSector})</span>
+                <span>{t.deleteSelected(selectedCountInSector)}</span>
               </button>
             </div>
           </div>
@@ -284,12 +284,12 @@ export const BatchControls: React.FC = () => {
               className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-100 transition-all border border-slate-600 shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
             >
               <Square className="w-4 h-4 text-slate-300" />
-              <span>Выбрать все ({filteredQueue.length})</span>
+              <span>{t.selectAll} ({filteredQueue.length})</span>
             </button>
 
             {/* Global Target Format Selector */}
             <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-              <span className="text-xs text-slate-300 font-medium">Конвертировать ВСЕ в:</span>
+              <span className="text-xs text-slate-300 font-medium">{t.quickTarget}</span>
               <select
                 value={globalTargetFormat}
                 onChange={(e) => setGlobalTargetFormat(e.target.value)}
@@ -314,7 +314,7 @@ export const BatchControls: React.FC = () => {
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
               >
                 <Play className="w-4 h-4 fill-slate-950" />
-                <span>Конвертировать все ({totalIdleCount})</span>
+                <span>{t.convertAll(totalIdleCount)}</span>
               </button>
             )}
 
@@ -325,7 +325,7 @@ export const BatchControls: React.FC = () => {
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all border border-emerald-400/50 flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110 shadow-md"
               >
                 <FileArchive className="w-3.5 h-3.5" />
-                <span>Скачать все ZIP ({completedCount})</span>
+                <span>{t.downloadAllZip(completedCount)}</span>
               </button>
             )}
 

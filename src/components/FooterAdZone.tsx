@@ -6,7 +6,6 @@ import { getTranslation } from '../lib/i18n';
 export const FooterAdZone: React.FC = () => {
   const { language } = useConverterStore();
   const t = getTranslation(language || 'ru');
-  const isRu = (language || 'ru') === 'ru';
 
   const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | null>(null);
 
@@ -23,9 +22,7 @@ export const FooterAdZone: React.FC = () => {
           </div>
           <span className="hidden md:inline text-slate-700">|</span>
           <p className="text-slate-400 text-xs max-w-md">
-            {isRu 
-              ? '100% клиентская конвертация файлов в браузере. Данные не передаются на сервер.' 
-              : '100% client-side file converter. Data is processed locally in your browser.'}
+            {t.footerDesc}
           </p>
         </div>
 
@@ -36,20 +33,20 @@ export const FooterAdZone: React.FC = () => {
             className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>{isRu ? 'Политика конфиденциальности' : 'Privacy Policy'}</span>
+            <span>{t.privacyPolicy}</span>
           </button>
           <button
             onClick={() => setActiveModal('terms')}
             className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <FileText className="w-4 h-4 text-purple-400" />
-            <span>{isRu ? 'Условия использования' : 'Terms of Use'}</span>
+            <span>{t.termsOfService}</span>
           </button>
         </div>
 
         {/* Copyright */}
         <div className="text-slate-500 text-xs text-center md:text-right">
-          © {new Date().getFullYear()} AllConvert.ru. {isRu ? 'Все права защищены' : 'All rights reserved.'}
+          © {new Date().getFullYear()} AllConvert.ru. {t.footerCopyright}
         </div>
       </div>
 
@@ -63,8 +60,8 @@ export const FooterAdZone: React.FC = () => {
                 {activeModal === 'privacy' && <ShieldCheck className="w-6 h-6 text-emerald-400" />}
                 {activeModal === 'terms' && <FileText className="w-6 h-6 text-purple-400" />}
                 <h3 className="text-lg font-bold text-slate-100">
-                  {activeModal === 'privacy' && (isRu ? 'Политика конфиденциальности' : 'Privacy Policy')}
-                  {activeModal === 'terms' && (isRu ? 'Условия использования' : 'Terms of Use')}
+                  {activeModal === 'privacy' && t.privacyPolicy}
+                  {activeModal === 'terms' && t.termsOfService}
                 </h3>
               </div>
               <button
@@ -80,44 +77,30 @@ export const FooterAdZone: React.FC = () => {
               {activeModal === 'privacy' && (
                 <div className="space-y-4">
                   <p className="font-semibold text-emerald-400">
-                    {isRu 
-                      ? 'Главный принцип AllConvert — 100% локальная обработка данных без загрузки на сервер.' 
-                      : 'The core principle of AllConvert is 100% local data processing with zero server uploads.'}
+                    {t.privacyPrinciple}
                   </p>
                   
-                  <h4 className="font-bold text-slate-100 text-base pt-2">1. Сбор и обработка файлов</h4>
-                  <p>
-                    Все загружаемые вами файлы (изображения, видео, документы, аудио) обрабатываются исключительно в оперативной памяти вашего браузера (RAM) с использованием технологий WebAssembly и JavaScript. Файлы не передаются на наш сервер или сторонним сервисам.
-                  </p>
+                  <h4 className="font-bold text-slate-100 text-base pt-2">{t.privacySec1Title}</h4>
+                  <p>{t.privacySec1Text}</p>
 
-                  <h4 className="font-bold text-slate-100 text-base pt-2">2. Локальное хранение данных</h4>
-                  <p>
-                    Настройки интерфейса и история проведенных конвертаций сохраняются локально на вашем устройстве в базу данных IndexedDB браузера. Вы можете в любой момент очистить историю или кэш.
-                  </p>
+                  <h4 className="font-bold text-slate-100 text-base pt-2">{t.privacySec2Title}</h4>
+                  <p>{t.privacySec2Text}</p>
 
-                  <h4 className="font-bold text-slate-100 text-base pt-2">3. Файлы куки (Cookies) и Аналитика</h4>
-                  <p>
-                    Для анализа посещаемости и оценки работы сервиса используется веб-аналитика Yandex.Metrika. Аналитика не получает доступ к содержимому конвертируемых файлов.
-                  </p>
+                  <h4 className="font-bold text-slate-100 text-base pt-2">{t.privacySec3Title}</h4>
+                  <p>{t.privacySec3Text}</p>
                 </div>
               )}
 
               {activeModal === 'terms' && (
                 <div className="space-y-4">
-                  <h4 className="font-bold text-slate-100 text-base">1. Принятие условий</h4>
-                  <p>
-                    Используя веб-сайт AllConvert, вы соглашаетесь с настоящими условиями использования. Сервис предоставляется на бесплатной основе «как есть» (As Is) без гарантий любого рода.
-                  </p>
+                  <h4 className="font-bold text-slate-100 text-base">{t.termsSec1Title}</h4>
+                  <p>{t.termsSec1Text}</p>
 
-                  <h4 className="font-bold text-slate-100 text-base pt-2">2. Использование сервиса</h4>
-                  <p>
-                    Вы обязуетесь не использовать сервис в противоправных целях. Пользователь самостоятельно несет ответственность за законность конвертируемого содержимого и соблюдение авторских прав.
-                  </p>
+                  <h4 className="font-bold text-slate-100 text-base pt-2">{t.termsSec2Title}</h4>
+                  <p>{t.termsSec2Text}</p>
 
-                  <h4 className="font-bold text-slate-100 text-base pt-2">3. Ограничение ответственности</h4>
-                  <p>
-                    Разработчики AllConvert не несут ответственности за возможные потери данных или сбои браузера, возникшие в процессе конвертации файлов большого объема.
-                  </p>
+                  <h4 className="font-bold text-slate-100 text-base pt-2">{t.termsSec3Title}</h4>
+                  <p>{t.termsSec3Text}</p>
                 </div>
               )}
             </div>
