@@ -760,19 +760,19 @@ async function convertVideo(
         // High quality animated GIF palette filter
         args.push('-vf', 'fps=10,scale=480:-1:flags=lanczos', '-c:v', 'gif');
       } else if (targetFormat === 'MP3_EXTRACT' || targetFormat === 'MP3') {
-        args.push('-vn', '-c:a', 'libmp3lame', '-b:a', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
+        args.push('-vn', '-acodec', 'libmp3lame', '-b:a', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
       } else if (targetFormat === 'WAV') {
-        args.push('-vn', '-c:a', 'pcm_s16le', '-ar', '44100', '-ac', '2');
+        args.push('-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', '-f', 'wav');
       } else if (targetFormat === 'AAC') {
-        args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts', '-strict', '-2');
+        args.push('-vn', '-acodec', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts', '-strict', '-2');
       } else if (targetFormat === 'M4A') {
-        args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-strict', '-2');
+        args.push('-vn', '-acodec', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'ipod', '-strict', '-2');
       } else if (targetFormat === 'OGG') {
-        args.push('-vn', '-c:a', 'libvorbis', '-q:a', '4');
+        args.push('-vn', '-acodec', 'libvorbis', '-q:a', '4', '-f', 'ogg');
       } else if (targetFormat === 'FLAC') {
-        args.push('-vn', '-c:a', 'flac', '-compression_level', '5');
+        args.push('-vn', '-acodec', 'flac', '-compression_level', '5', '-f', 'flac');
       } else if (targetFormat === 'OPUS') {
-        args.push('-vn', '-c:a', 'libopus', '-b:a', '128k');
+        args.push('-vn', '-acodec', 'libopus', '-b:a', '128k', '-f', 'opus');
       } else if (targetFormat === 'MP4' || targetFormat === 'MOV' || targetFormat === 'MKV') {
         args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac');
       } else if (targetFormat === 'WEBM') {
@@ -825,6 +825,38 @@ async function convertVideo(
       return { blob, fileName: `${baseName}.${outExt}` };
     } catch (e) {
       console.warn('FFmpeg video transcode error, falling back to WebMediaRecorder:', e);
+    }
+  }
+
+  // Fallback Web Audio API for audio extraction from video
+  const isAudioTarget = ['MP3', 'MP3_EXTRACT', 'WAV', 'AAC', 'M4A', 'OGG', 'FLAC', 'OPUS'].includes(targetFormat.toUpperCase());
+  if (isAudioTarget) {
+    try {
+      onProgress(15, 'Extracting audio track via Web Audio API...');
+      const arrayBuf = await file.arrayBuffer();
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuf);
+
+      if (targetFormat === 'WAV') {
+        onProgress(80, 'Encoding WAV PCM audio...');
+        const blob = audioBufferToWav(decodedBuffer);
+        audioCtx.close();
+        onProgress(100, 'WAV extraction complete!');
+        return { blob, fileName: `${baseName}.wav` };
+      }
+
+      if (targetFormat === 'MP3' || targetFormat === 'MP3_EXTRACT') {
+        onProgress(60, 'Encoding MP3 audio...');
+        const kbps = parseInt(settings.audioBitrate || '256', 10) || 256;
+        const blob = audioBufferToMp3(decodedBuffer, kbps, (p) => onProgress(60 + Math.round(p * 0.35), 'Encoding MP3...'));
+        audioCtx.close();
+        onProgress(100, 'MP3 extraction complete!');
+        return { blob, fileName: `${baseName}.mp3` };
+      }
+
+      return await encodeAudioBufferViaMediaRecorder(audioCtx, decodedBuffer, targetFormat, baseName, onProgress);
+    } catch (audioErr) {
+      console.warn('AudioContext extraction fallback error:', audioErr);
     }
   }
 
