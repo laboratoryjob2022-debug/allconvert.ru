@@ -179,20 +179,46 @@ async function convertImage(
   baseName: string,
   onProgress: (percent: number, text: string) => void
 ): Promise<{ blob: Blob; fileName: string }> {
-  onProgress(20, 'Loading image into memory...');
+  onProgress(15, 'Loading image into memory...');
+
+  let sourceFile = file;
+  const isHeic =
+    sourceFormat === 'HEIC' ||
+    sourceFormat === 'HEIF' ||
+    file.name.toLowerCase().endsWith('.heic') ||
+    file.name.toLowerCase().endsWith('.heif') ||
+    file.type.includes('heic') ||
+    file.type.includes('heif');
+
+  if (isHeic) {
+    onProgress(25, 'Decoding Apple HEIC/HEIF image via WASM...');
+    try {
+      const heic2anyModule = await import('heic2any');
+      const heic2any = (heic2anyModule.default || heic2anyModule) as any;
+      const convertedResult = await heic2any({
+        blob: file,
+        toType: 'image/png',
+      });
+      const pngBlob = Array.isArray(convertedResult) ? convertedResult[0] : convertedResult;
+      sourceFile = new File([pngBlob], `${baseName}.png`, { type: 'image/png' });
+    } catch (err: any) {
+      console.error('HEIC decoding failed:', err);
+      throw new Error('Не удалось декодировать HEIC файл. Проверьте цельность изображения.');
+    }
+  }
 
   // Target: PDF
   if (targetFormat === 'PDF') {
     onProgress(40, 'Generating PDF document from image...');
     const pdfDoc = await PDFDocument.create();
-    const imageBytes = new Uint8Array(await file.arrayBuffer());
+    const imageBytes = new Uint8Array(await sourceFile.arrayBuffer());
     
     let embedImage;
-    if (sourceFormat === 'JPG' || sourceFormat === 'JPEG') {
+    if ((sourceFormat === 'JPG' || sourceFormat === 'JPEG') && !isHeic) {
       embedImage = await pdfDoc.embedJpg(imageBytes);
     } else {
       // Convert to PNG first
-      const pngBlob = await convertImageToCanvasBlob(file, 'image/png', 1.0, settings);
+      const pngBlob = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
       const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
       embedImage = await pdfDoc.embedPng(pngBytes);
     }
@@ -226,8 +252,8 @@ async function convertImage(
   const targetMime = mimeMap[targetFormat.toUpperCase()] || 'image/png';
   const quality = settings.imageQuality ?? 1.0;
 
-  onProgress(50, `Rendering canvas with ${targetFormat} settings...`);
-  const blob = await convertImageToCanvasBlob(file, targetMime, quality, settings);
+  onProgress(60, `Rendering canvas with ${targetFormat} settings...`);
+  const blob = await convertImageToCanvasBlob(sourceFile, targetMime, quality, settings);
   
   onProgress(100, 'Image conversion complete!');
   const ext = targetFormat.toLowerCase() === 'jpeg' ? 'jpg' : targetFormat.toLowerCase();

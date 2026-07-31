@@ -11,6 +11,7 @@ export const SUPPORTED_FORMATS: FormatOption[] = [
   { id: 'SVG', name: 'SVG Vector', extension: 'svg', mimeType: 'image/svg+xml', category: 'image', description: 'Scalable Vector Graphics' },
   { id: 'TIFF', name: 'TIFF Image', extension: 'tiff', mimeType: 'image/tiff', category: 'image', description: 'Tag Image File Format for printing', niche: true },
   { id: 'AVIF', name: 'AVIF Image', extension: 'avif', mimeType: 'image/avif', category: 'image', description: 'Next-gen highly compressed image format', niche: true },
+  { id: 'HEIC', name: 'HEIC / HEIF Image', extension: 'heic', mimeType: 'image/heic', category: 'image', description: 'High Efficiency Image Format (Apple iOS)', popular: true },
 
   // AUDIO FORMATS
   { id: 'MP3', name: 'MP3 Audio', extension: 'mp3', mimeType: 'audio/mpeg', category: 'audio', description: 'Universal compressed audio format', popular: true },
@@ -84,6 +85,7 @@ export function getDefaultTargetForCategory(
   const normFormat = currentFormat?.toUpperCase();
   switch (category) {
     case 'image':
+      if (normFormat === 'HEIC' || normFormat === 'HEIF') return 'JPG';
       return normFormat === 'PNG' ? 'WEBP' : 'PNG';
     case 'audio':
       return normFormat === 'MP3' ? 'WAV' : 'MP3';

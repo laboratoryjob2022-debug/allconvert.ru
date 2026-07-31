@@ -18,6 +18,7 @@ interface ConverterState {
   queue: FileItem[];
   activeSector: ConversionCategory;
   globalTargetFormat: string;
+  presetTargetFormat: string | null;
   selectedIds: string[];
   
   // Sorting & Search
@@ -73,6 +74,7 @@ interface ConverterState {
   
   setTargetFormat: (id: string, format: string) => void;
   setGlobalTargetFormat: (format: string) => void;
+  setPresetTargetFormat: (format: string | null) => void;
   updateSettings: (id: string, settings: Partial<ConversionSettings>) => void;
   
   toggleSelectItem: (id: string) => void;
@@ -111,6 +113,7 @@ export const useConverterStore = create<ConverterState>()(
       queue: [],
   activeSector: 'all',
   globalTargetFormat: 'PNG',
+  presetTargetFormat: null,
   selectedIds: [],
   
   searchQuery: '',
@@ -151,14 +154,17 @@ export const useConverterStore = create<ConverterState>()(
   showToast: (message, type = 'info') => set({ toastMessage: message, toastType: type }),
   clearToast: () => set({ toastMessage: null }),
 
+  setPresetTargetFormat: (presetTargetFormat) => set({ presetTargetFormat }),
+
   addFiles: async (files: File[]) => {
     const newItems: FileItem[] = [];
     const currentSector = get().activeSector;
+    const preset = get().presetTargetFormat;
     const nonMatchingCategoriesCount: Record<string, number> = {};
 
     for (const file of files) {
       const magicResult = await detectMagicBytes(file);
-      const defaultTarget = getDefaultTargetForCategory(magicResult.category, magicResult.format);
+      const defaultTarget = preset || getDefaultTargetForCategory(magicResult.category, magicResult.format);
       
       const item: FileItem = {
         id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),

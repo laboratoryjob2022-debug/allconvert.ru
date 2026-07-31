@@ -85,6 +85,7 @@ export const DropZone: React.FC = () => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileSelect}
+          accept="image/*,video/*,audio/*,.heic,.heif,application/pdf,text/*"
           multiple
           className="hidden"
         />

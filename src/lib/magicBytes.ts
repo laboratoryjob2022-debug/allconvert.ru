@@ -75,14 +75,25 @@ export async function detectMagicBytes(file: File): Promise<MagicByteResult> {
     };
   }
 
-  // 3. Check Video
+  // 3. Check ftyp Container (HEIC, MP4, MOV, M4A, 3GP)
   if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-    // MP4, MOV, M4A, 3GP
-    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
-    if (brand.includes('M4A')) {
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]).toLowerCase();
+    const fileNameLower = file.name.toLowerCase();
+    if (
+      brand.includes('heic') ||
+      brand.includes('heix') ||
+      brand.includes('hevc') ||
+      brand.includes('mif1') ||
+      brand.includes('msf1') ||
+      fileNameLower.endsWith('.heic') ||
+      fileNameLower.endsWith('.heif')
+    ) {
+      return { format: 'HEIC', mime: 'image/heic', category: 'image', hex };
+    }
+    if (brand.includes('m4a')) {
       return { format: 'M4A', mime: 'audio/mp4', category: 'audio', hex };
     }
-    if (brand.includes('qt') || file.name.toLowerCase().endsWith('.mov')) {
+    if (brand.includes('qt') || fileNameLower.endsWith('.mov')) {
       return { format: 'MOV', mime: 'video/quicktime', category: 'video', hex };
     }
     return { format: 'MP4', mime: 'video/mp4', category: 'video', hex };
@@ -133,7 +144,7 @@ export async function detectMagicBytes(file: File): Promise<MagicByteResult> {
   const categoryMap: Record<string, ConversionCategory> = {
     // Image
     JPG: 'image', JPEG: 'image', PNG: 'image', WEBP: 'image', GIF: 'image', BMP: 'image',
-    SVG: 'image', ICO: 'image', TIFF: 'image', AVIF: 'image', HEIC: 'image',
+    SVG: 'image', ICO: 'image', TIFF: 'image', AVIF: 'image', HEIC: 'image', HEIF: 'image',
     // Audio
     MP3: 'audio', WAV: 'audio', OGG: 'audio', FLAC: 'audio', AAC: 'audio', M4A: 'audio',
     OPUS: 'audio', WMA: 'audio', AIFF: 'audio',
