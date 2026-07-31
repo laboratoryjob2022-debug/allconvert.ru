@@ -41,9 +41,11 @@ export const SectorNav: React.FC = () => {
     { slug: 'png-to-jpg', label: 'PNG в JPG' },
     { slug: 'jpg-to-png', label: 'JPG в PNG' },
     { slug: 'webp-to-jpg', label: 'WEBP в JPG' },
-    { slug: 'pdf-to-jpg', label: 'PDF в JPG' },
     { slug: 'mp4-to-mp3', label: 'MP4 в MP3' },
-    { slug: 'mov-to-mp4', label: 'MOV в MP4' },
+    { slug: 'mov-to-mp3', label: 'MOV в MP3' },
+    { slug: 'wav-to-mp3', label: 'WAV в MP3' },
+    { slug: 'xlsx-to-csv', label: 'XLSX в CSV' },
+    { slug: 'pdf-to-txt', label: 'PDF в TXT' },
   ];
 
   const handleDirectionClick = (slug: string) => {
