@@ -140,16 +140,16 @@ export async function convertFileClientSide(
   onProgress(10, 'Initializing conversion engine...');
 
   // ROUTING ACCORDING TO CATEGORY & FORMATS
+  if (category === 'video') {
+    return await convertVideo(file, detectedFormat, targetFormat, settings, baseName, onProgress);
+  }
+
   if (category === 'image' || isImageTarget(targetFormat)) {
     return await convertImage(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
   if (category === 'audio' || targetFormat === 'MP3_EXTRACT' || isAudioTarget(targetFormat)) {
     return await convertAudio(file, detectedFormat, targetFormat, settings, baseName, onProgress);
-  }
-
-  if (category === 'video') {
-    return await convertVideo(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
   if (category === 'document' || isDocumentTarget(targetFormat)) {
@@ -759,8 +759,20 @@ async function convertVideo(
       if (targetFormat === 'GIF_VID') {
         // High quality animated GIF palette filter
         args.push('-vf', 'fps=10,scale=480:-1:flags=lanczos', '-c:v', 'gif');
-      } else if (targetFormat === 'MP3_EXTRACT') {
-        args.push('-vn', '-ab', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
+      } else if (targetFormat === 'MP3_EXTRACT' || targetFormat === 'MP3') {
+        args.push('-vn', '-c:a', 'libmp3lame', '-b:a', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
+      } else if (targetFormat === 'WAV') {
+        args.push('-vn', '-c:a', 'pcm_s16le', '-ar', '44100', '-ac', '2');
+      } else if (targetFormat === 'AAC') {
+        args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts', '-strict', '-2');
+      } else if (targetFormat === 'M4A') {
+        args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-strict', '-2');
+      } else if (targetFormat === 'OGG') {
+        args.push('-vn', '-c:a', 'libvorbis', '-q:a', '4');
+      } else if (targetFormat === 'FLAC') {
+        args.push('-vn', '-c:a', 'flac', '-compression_level', '5');
+      } else if (targetFormat === 'OPUS') {
+        args.push('-vn', '-c:a', 'libopus', '-b:a', '128k');
       } else if (targetFormat === 'MP4' || targetFormat === 'MOV' || targetFormat === 'MKV') {
         args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac');
       } else if (targetFormat === 'WEBM') {
@@ -794,6 +806,12 @@ async function convertVideo(
         webm: 'video/webm',
         gif: 'image/gif',
         mp3: 'audio/mpeg',
+        wav: 'audio/wav',
+        aac: 'audio/aac',
+        m4a: 'audio/mp4',
+        ogg: 'audio/ogg',
+        flac: 'audio/flac',
+        opus: 'audio/opus',
         avi: 'video/x-msvideo',
         mov: 'video/quicktime',
         mkv: 'video/x-matroska',

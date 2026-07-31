@@ -49,7 +49,7 @@ export const SUPPORTED_FORMATS: FormatOption[] = [
 export const TARGET_FORMATS_BY_CATEGORY: Record<string, string[]> = {
   image: ['PNG', 'JPG', 'WEBP', 'GIF', 'BMP', 'ICO', 'AVIF', 'PDF'],
   audio: ['MP3', 'WAV', 'OGG', 'FLAC', 'AAC', 'M4A', 'OPUS'],
-  video: ['MP4', 'WEBM', 'MOV', 'AVI', 'MKV', 'GIF_VID', 'MP3_EXTRACT'],
+  video: ['MP4', 'WEBM', 'MOV', 'AVI', 'MKV', 'GIF_VID', 'MP3_EXTRACT', 'MP3', 'WAV', 'AAC', 'M4A', 'OGG', 'FLAC'],
   document: ['PDF', 'TXT', 'MD', 'HTML', 'JSON', 'CSV', 'XLSX', 'XML'],
 };
 
