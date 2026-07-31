@@ -11,6 +11,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { GuideModal } from './components/GuideModal';
 import { ToastNotification } from './components/ToastNotification';
 import { FooterAdZone } from './components/FooterAdZone';
+import { InfoSection } from './components/InfoSection';
 import { useConverterStore } from './store/useConverterStore';
 import { getTranslation } from './lib/i18n';
 import { ShieldCheck, Layers, HardDrive, Sparkles, CheckCircle2, Lock } from 'lucide-react';
@@ -47,9 +48,9 @@ export default function App() {
 
         {/* Empty State Features / Hero Showcase when queue is empty */}
         {queue.length === 0 && (
-          <div className="w-full max-w-7xl mx-auto px-4 mt-12 mb-12">
+          <div className="w-full max-w-7xl mx-auto px-4 mt-8">
             {/* Top Highlight Badge Banner */}
-            <div className="mb-8 p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-blue-500/10 border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-blue-500/10 border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-md shadow-emerald-500/10">
                   <Lock className="w-6 h-6 animate-pulse" />
@@ -77,43 +78,11 @@ export default function App() {
                 </span>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Feature 1 */}
-              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-cyan-500/30 transition-all backdrop-blur-md">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-4 font-bold">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-bold text-white mb-2">{t.localProcessTitle}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {t.localProcessDesc}
-                </p>
-              </div>
-
-              {/* Feature 2 */}
-              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-purple-500/30 transition-all backdrop-blur-md">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-4 font-bold">
-                  <Layers className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-bold text-white mb-2">{t.magicTitle}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {t.magicDesc}
-                </p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 hover:border-emerald-500/30 transition-all backdrop-blur-md">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4 font-bold">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-bold text-white mb-2">{t.unlimitedTitle}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {t.unlimitedDesc}
-                </p>
-              </div>
-            </div>
           </div>
         )}
+
+        {/* Detailed Info Section: Step-by-Step Guide, Benefits Showcase, and FAQ */}
+        <InfoSection />
       </main>
 
       <FooterAdZone />
