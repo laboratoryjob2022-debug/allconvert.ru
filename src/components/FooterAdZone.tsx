@@ -16,7 +16,7 @@ export const FooterAdZone: React.FC = () => {
         {/* Brand info */}
         <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
           <div className="flex items-center space-x-2">
-            <img src="/favicon-32x32.png" alt="AllConvert" className="w-7 h-7 rounded-lg object-cover border border-cyan-500/30" />
+            <img src="/favicon.svg" alt="AllConvert" className="w-7 h-7 shrink-0" />
             <span className="font-extrabold text-slate-100 text-base tracking-tight">
               All<span className="text-cyan-400">Convert</span>
             </span>
