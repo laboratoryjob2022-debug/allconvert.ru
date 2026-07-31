@@ -87,6 +87,12 @@ export interface TranslationDictionary {
   shareFileLocalNote: string;
   bookmarkBtn: string;
   bookmarkToast: string;
+  onlineConverterBadge: string;
+  aboutFormatTitle: (from: string, to: string) => string;
+  howToConvertStepsTitle: (from: string, to: string) => string;
+  faqTitle: string;
+  homeBreadcrumb: string;
+  converterBreadcrumb: string;
 }
 
 export const translations: Record<LanguageCode, TranslationDictionary> = {
@@ -176,6 +182,12 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     shareFileLocalNote: '100% Приватность: файл передается напрямую из памяти браузера без загрузки на внешние серверы.',
     bookmarkBtn: 'В закладки',
     bookmarkToast: 'Нажмите Ctrl+D (Cmd+D на Mac), чтобы добавить сайт в закладки!',
+    onlineConverterBadge: 'Онлайн Конвертер',
+    aboutFormatTitle: (from, to) => `О формате ${from} и конвертации в ${to}`,
+    howToConvertStepsTitle: (from, to) => `Как сконвертировать ${from} в ${to} за 3 простых шага`,
+    faqTitle: 'Часто задаваемые вопросы (FAQ)',
+    homeBreadcrumb: 'Главная',
+    converterBreadcrumb: 'Конвертер',
   },
   en: {
     appName: 'AllConvert',
@@ -263,6 +275,12 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     shareFileLocalNote: '100% Privacy: File is shared directly from browser memory without uploading to external servers.',
     bookmarkBtn: 'Bookmark',
     bookmarkToast: 'Press Ctrl+D (Cmd+D on Mac) to bookmark this page!',
+    onlineConverterBadge: 'Online Converter',
+    aboutFormatTitle: (from, to) => `About ${from} format and conversion to ${to}`,
+    howToConvertStepsTitle: (from, to) => `How to convert ${from} to ${to} in 3 simple steps`,
+    faqTitle: 'Frequently Asked Questions (FAQ)',
+    homeBreadcrumb: 'Home',
+    converterBreadcrumb: 'Converter',
   },
   es: {
     appName: 'AllConvert',
@@ -350,6 +368,12 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     shareFileLocalNote: '100% Privacidad: El archivo se comparte directamente desde la memoria del navegador sin subirlo a servidores.',
     bookmarkBtn: 'Añadir a marcadores',
     bookmarkToast: '¡Presione Ctrl+D (Cmd+D en Mac) para guardar en marcadores!',
+    onlineConverterBadge: 'Convertidor en línea',
+    aboutFormatTitle: (from, to) => `Acerca del formato ${from} y la conversión a ${to}`,
+    howToConvertStepsTitle: (from, to) => `Cómo convertir ${from} a ${to} en 3 sencillos pasos`,
+    faqTitle: 'Preguntas Frecuentes (FAQ)',
+    homeBreadcrumb: 'Inicio',
+    converterBreadcrumb: 'Convertidor',
   },
   de: {
     appName: 'AllConvert',
@@ -437,6 +461,12 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     shareFileLocalNote: '100% Datenschutz: Die Datei wird direkt aus dem Browser-Speicher ohne Server-Upload geteilt.',
     bookmarkBtn: 'Lesezeichen',
     bookmarkToast: 'Drücken Sie Strg+D (Cmd+D auf Mac), um die Seite zu speichern!',
+    onlineConverterBadge: 'Online-Konverter',
+    aboutFormatTitle: (from, to) => `Über das ${from}-Format und die Konvertierung in ${to}`,
+    howToConvertStepsTitle: (from, to) => `In 3 einfachen Schritten ${from} in ${to} konvertieren`,
+    faqTitle: 'Häufig gestellte Fragen (FAQ)',
+    homeBreadcrumb: 'Startseite',
+    converterBreadcrumb: 'Konverter',
   },
   zh: {
     appName: 'AllConvert',
@@ -524,6 +554,12 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     shareFileLocalNote: '100% 隐私保护：文件直接从浏览器内存中共享，绝不会上传到任何外部服务器。',
     bookmarkBtn: '收藏本站',
     bookmarkToast: '按 Ctrl+D (Mac 请按 Cmd+D) 即可将本站加入书签！',
+    onlineConverterBadge: '在线转换器',
+    aboutFormatTitle: (from, to) => `关于 ${from} 格式与转换为 ${to}`,
+    howToConvertStepsTitle: (from, to) => `只需 3 个简单步骤即可将 ${from} 转换为 ${to}`,
+    faqTitle: '常见问题解答 (FAQ)',
+    homeBreadcrumb: '首页',
+    converterBreadcrumb: '转换器',
   },
   fr: {
     appName: 'AllConvert',
@@ -611,6 +647,12 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     shareFileLocalNote: '100% Confidentialité : Le fichier est partagé directement depuis la mémoire du navigateur sans envoi sur serveur.',
     bookmarkBtn: 'Mettre en favoris',
     bookmarkToast: 'Appuyez sur Ctrl+D (Cmd+D sur Mac) pour ajouter en favoris !',
+    onlineConverterBadge: 'Convertisseur en ligne',
+    aboutFormatTitle: (from, to) => `À propos du format ${from} et de la conversion en ${to}`,
+    howToConvertStepsTitle: (from, to) => `Comment convertir ${from} en ${to} en 3 étapes simples`,
+    faqTitle: 'Foire Aux Questions (FAQ)',
+    homeBreadcrumb: 'Accueil',
+    converterBreadcrumb: 'Convertisseur',
   },
 };
 

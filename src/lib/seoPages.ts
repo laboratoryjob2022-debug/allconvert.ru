@@ -649,3 +649,168 @@ export function getSeoPageDataBySlug(slug: string): SeoConversionRoute {
     ]
   };
 }
+
+export function getLocalizedSeoRoute(route: SeoConversionRoute, langCode: string): SeoConversionRoute {
+  const supported = ['ru', 'en', 'zh', 'es', 'de', 'fr'];
+  // Fallback to English if non-Russian language is selected and not directly mapped
+  const lang = supported.includes(langCode) ? langCode : (langCode === 'ru' ? 'ru' : 'en');
+
+  if (lang === 'ru') {
+    return route;
+  }
+
+  const from = route.fromFormat;
+  const to = route.toFormat;
+
+  const templates: Record<string, {
+    title: string;
+    metaDescription: string;
+    h1: string;
+    subtitle: string;
+    descriptionParagraphs: string[];
+    steps: { step: number; title: string; text: string }[];
+    features: { title: string; text: string }[];
+    faqs: { q: string; a: string }[];
+  }> = {
+    en: {
+      title: `Online ${from} to ${to} Converter — Fast & Free | AllConvert`,
+      metaDescription: `Free online ${from} to ${to} converter. Convert your ${from} files to ${to} directly in your browser without quality loss or server uploads.`,
+      h1: `Online ${from} to ${to} Converter`,
+      subtitle: `Instant conversion of ${from} files to ${to} format with 100% in-browser privacy (zero server uploads)`,
+      descriptionParagraphs: [
+        `The ${from} format is widely used, but converting to ${to} ensures maximum compatibility across all devices and operating systems. AllConvert allows you to convert ${from} to ${to} instantly inside your browser using WebAssembly technology.`,
+        `Your personal files never leave your device memory, guaranteeing 100% confidentiality, zero tracking, and ultra-fast processing speed.`
+      ],
+      steps: [
+        { step: 1, title: `Select or drop ${from} files`, text: `Drag & drop your ${from} files into the dropzone or click "Choose Files".` },
+        { step: 2, title: `Configure ${to} settings`, text: `Verify that ${to} is selected as the target format and adjust quality if needed.` },
+        { step: 3, title: `Convert & Download ${to}`, text: `Click "Convert" to process files instantly and save them individually or as a ZIP archive.` }
+      ],
+      features: [
+        { title: '🔒 100% In-Browser Privacy', text: 'Processing is executed locally inside your browser memory. Your files never leave your device.' },
+        { title: '⚡ Fast Batch Processing', text: 'Convert dozens of files at once without limits and download them in a single ZIP archive.' },
+        { title: '🎯 High Quality Output', text: 'Preserves maximum detail, clarity, and original media quality parameters.' }
+      ],
+      faqs: [
+        { q: `How does the online ${from} to ${to} conversion work?`, a: `Conversion runs directly inside your web browser using WebAssembly and WebCodecs technology. Your files are never uploaded to any external servers.` },
+        { q: `Is it safe to convert ${from} files on AllConvert?`, a: `Yes, 100%. All files are processed strictly locally on your computer or phone. Nobody else can access or view your files.` },
+        { q: `Can I convert multiple ${from} files at once?`, a: `Yes, AllConvert supports unlimited batch conversion and allows you to download all converted files in one ZIP archive.` }
+      ]
+    },
+    zh: {
+      title: `在线 ${from} 转 ${to} 转换器 — 快速且免费 | AllConvert`,
+      metaDescription: `免费在线 ${from} 转 ${to} 转换器。在浏览器中直接将 ${from} 文件转换为 ${to} 格式，无质量损失，无服务器上传。`,
+      h1: `在线 ${from} 转 ${to} 转换器`,
+      subtitle: `将 ${from} 文件瞬间转换为 ${to} 格式，100% 浏览器本地处理（零服务器上传，保护隐私）`,
+      descriptionParagraphs: [
+        `${from} 格式被广泛使用，但转换为 ${to} 格式可确保在所有设备和操作系统上的最佳兼容性。AllConvert 允许您通过 WebAssembly 技术在浏览器内部瞬间完成 ${from} 到 ${to} 的转换。`,
+        `您的文件绝不会离开您的设备内存，从而保障 100% 的隐私安全、零数据追踪和极速转换体验。`
+      ],
+      steps: [
+        { step: 1, title: `选择或拖放 ${from} 文件`, text: `将您的 ${from} 文件拖入上传区域，或点击“选择文件”按钮。` },
+        { step: 2, title: `确认 ${to} 参数`, text: `确认目标格式为 ${to}，必要时可在设置中微调质量与比特率。` },
+        { step: 3, title: `转换并下载 ${to}`, text: `点击“转换”，即可单独或打包为 ZIP 压缩包快速保存您的 ${to} 文件。` }
+      ],
+      features: [
+        { title: '🔒 100% 本地极速隐私', text: '所有转换均在您的浏览器内存中本地执行，文件绝不会上传或离开您的设备。' },
+        { title: '⚡ 批量高效转换', text: '一键同时转换数十个文件，无数量限制，并可直接打包导出为 ZIP。' },
+        { title: '🎯 高清品质输出', text: '最大程度保留原文件的细节、清晰度与音视频品质参数。' }
+      ],
+      faqs: [
+        { q: `${from} 转 ${to} 的在线转换是如何工作的？`, a: `转换直接在您的 Web 浏览器中使用 WebAssembly 与 WebCodecs 技术完成。您的文件绝对不会上传到任何外部服务器。` },
+        { q: `在 AllConvert 上转换 ${from} 文件安全吗？`, a: `是的，绝对安全。所有文件均仅在您的电脑或手机本地处理。除了您自己之外，没有人能访问或查看您的文件。` },
+        { q: `我可以一次转换多个 ${from} 文件吗？`, a: `可以，AllConvert 支持无限制批量上传转换，并支持一键下载包含所有已完成文件的 ZIP 包。` }
+      ]
+    },
+    es: {
+      title: `Convertidor de ${from} a ${to} en línea gratis | AllConvert`,
+      metaDescription: `Convertidor en línea gratuito de ${from} a ${to}. Convierta sus archivos ${from} a ${to} directamente en el navegador sin pérdida de calidad ni carga en el servidor.`,
+      h1: `Convertidor en línea de ${from} a ${to}`,
+      subtitle: `Conversión instantánea de archivos ${from} a formato ${to} con 100% de privacidad en el navegador (sin cargas en el servidor)`,
+      descriptionParagraphs: [
+        `El formato ${from} se utiliza ampliamente, pero convertirlo a ${to} garantiza la máxima compatibilidad en todos los dispositivos y sistemas operativos. AllConvert le permite convertir ${from} a ${to} al instante dentro de su navegador mediante tecnología WebAssembly.`,
+        `Sus archivos personales nunca salen de la memoria de su dispositivo, lo que garantiza una confidencialidad del 100%, cero seguimiento y una velocidad ultra rápida.`
+      ],
+      steps: [
+        { step: 1, title: `Seleccione o arrastre archivos ${from}`, text: `Arrastre sus archivos ${from} a la zona de carga o haga clic en "Elegir Archivos".` },
+        { step: 2, title: `Configure los ajustes para ${to}`, text: `Verifique que ${to} esté seleccionado como formato de destino y ajuste la calidad si es necesario.` },
+        { step: 3, title: `Convertir y Descargar ${to}`, text: `Haga clic en "Convertir" para procesar archivos e instantáneamente guardarlos individualmente o en ZIP.` }
+      ],
+      features: [
+        { title: '🔒 100% Privacidad en navegador', text: 'El procesamiento se ejecuta localmente en la memoria del navegador. Sus archivos nunca salen de su dispositivo.' },
+        { title: '⚡ Procesamiento en lote rápido', text: 'Convierta docenas de archivos a la vez sin límites y descárguelos en un solo archivo ZIP.' },
+        { title: '🎯 Calidad de salida superior', text: 'Conserva el máximo detalle, claridad y parámetros de calidad originales.' }
+      ],
+      faqs: [
+        { q: `¿Cómo funciona la conversión en línea de ${from} a ${to}?`, a: `La conversión se ejecuta directamente en su navegador web utilizando tecnología WebAssembly. Sus archivos nunca se cargan en servidores externos.` },
+        { q: `¿Es seguro convertir archivos ${from} en AllConvert?`, a: `Sí, 100% seguro. Todos los archivos se procesan estrictamente de forma local en su ordenador o teléfono. Nadie más tiene acceso a sus datos.` },
+        { q: `¿Puedo convertir varios archivos ${from} a la vez?`, a: `Sí, AllConvert admite conversión en lote ilimitada y le permite descargar todos los archivos en un solo ZIP.` }
+      ]
+    },
+    de: {
+      title: `Kostenloser Online-${from}-zu-${to}-Konverter | AllConvert`,
+      metaDescription: `Kostenloser Online-${from}-zu-${to}-Konverter. Konvertieren Sie Ihre ${from}-Dateien direkt im Browser in ${to} ohne Qualitätsverlust und ohne Server-Upload.`,
+      h1: `Online-${from}-zu-${to}-Konverter`,
+      subtitle: `Sofortige Konvertierung von ${from}-Dateien in das ${to}-Format mit 100% Browser-Datenschutz (ohne Server-Upload)`,
+      descriptionParagraphs: [
+        `Das Format ${from} ist weit verbreitet, aber die Konvertierung in ${to} gewährleistet maximale Kompatibilität auf allen Geräten und Betriebssystemen. AllConvert ermöglicht Ihnen die sofortige Konvertierung von ${from} in ${to} direkt im Browser über WebAssembly-Technologie.`,
+        `Ihre persönlichen Dateien verlassen niemals den Speicher Ihres Geräts. Das garantiert 100% Vertraulichkeit und maximale Geschwindigkeit.`
+      ],
+      steps: [
+        { step: 1, title: `${from}-Dateien auswählen oder ablegen`, text: `Ziehen Sie Ihre ${from}-Dateien in den Bereich oder klicken Sie auf "Dateien auswählen".` },
+        { step: 2, title: `Einstellungen für ${to} anpassen`, text: `Stellen Sie sicher, dass ${to} als Zielformat ausgewählt ist, und passen Sie bei Bedarf die Qualität an.` },
+        { step: 3, title: `Konvertieren & ${to} herunterladen`, text: `Klicken Sie auf "Konvertieren", um Dateien verarbeiten zu lassen und einzeln oder als ZIP zu speichern.` }
+      ],
+      features: [
+        { title: '🔒 100% Browser-Datenschutz', text: 'Die Verarbeitung erfolgt lokal in Ihrem Browser. Ihre Dateien verlassen niemals Ihr Gerät.' },
+        { title: '⚡ Schnelle Stapelverarbeitung', text: 'Konvertieren Sie Dutzende von Dateien gleichzeitig ohne Einschränkungen und laden Sie diese als ZIP herunter.' },
+        { title: '🎯 Höchste Ausgabequalität', text: 'Bewahrt maximale Details, Klarheit und originale Qualitätsparameter.' }
+      ],
+      faqs: [
+        { q: `Wie funktioniert die Online-Konvertierung von ${from} in ${to}?`, a: `Die Konvertierung läuft direkt in Ihrem Browser mithilfe von WebAssembly. Ihre Dateien werden niemals auf externe Server hochgeladen.` },
+        { q: `Ist es sicher, ${from}-Dateien auf AllConvert zu konvertieren?`, a: `Ja, absolut. Alle Dateien werden streng lokal auf Ihrem Computer oder Telefon verarbeitet. Niemand sonst hat Zugriff auf Ihre Daten.` },
+        { q: `Kann ich mehrere ${from}-Dateien gleichzeitig konvertieren?`, a: `Ja, AllConvert unterstützt unbegrenzte Stapelverarbeitung und ermöglicht den Download aller Dateien in einem ZIP-Archiv.` }
+      ]
+    },
+    fr: {
+      title: `Convertisseur ${from} en ${to} en ligne gratuit | AllConvert`,
+      metaDescription: `Convertisseur en ligne gratuit de ${from} en ${to}. Convertissez vos fichiers ${from} en ${to} directement dans votre navigateur sans perte de qualité ni envoi sur un serveur.`,
+      h1: `Convertisseur en ligne ${from} en ${to}`,
+      subtitle: `Conversion instantanée des fichiers ${from} au format ${to} avec 100% de confidentialité dans le navigateur (zéro envoi sur serveur)`,
+      descriptionParagraphs: [
+        `Le format ${from} est très répandu, mais la conversion vers ${to} garantit une compatibilité maximale sur tous les appareils et systèmes d'exploitation. AllConvert vous permet de convertir ${from} en ${to} instantanément dans votre navigateur via la technologie WebAssembly.`,
+        `Vos fichiers personnels ne quittent jamais la mémoire de votre appareil, garantissant 100% de confidentialité et une vitesse ultra-rapide.`
+      ],
+      steps: [
+        { step: 1, title: `Sélectionnez ou déposez des fichiers ${from}`, text: `Glissez-déposez vos fichiers ${from} dans la zone de dépôt ou cliquez sur « Choisir des fichiers ».` },
+        { step: 2, title: `Configurez les paramètres ${to}`, text: `Vérifiez que ${to} est sélectionné comme format cible et ajustez la qualité si nécessaire.` },
+        { step: 3, title: `Convertir & Télécharger ${to}`, text: `Cliquez sur « Convertir » et enregistrez vos fichiers ${to} individuellement ou en archive ZIP.` }
+      ],
+      features: [
+        { title: '🔒 100% Confidentialité locale', text: 'Le traitement est exécuté localement dans votre navigateur. Vos fichiers ne quittent jamais votre appareil.' },
+        { title: '⚡ Traitement en lot rapide', text: 'Convertissez des dizaines de fichiers à la fois sans limite et téléchargez-les dans une archive ZIP.' },
+        { title: '🎯 Qualité de sortie supérieure', text: 'Conserve le maximum de détails, de clarté et de paramètres de qualité d\'origine.' }
+      ],
+      faqs: [
+        { q: `Comment fonctionne la conversion en ligne de ${from} en ${to} ?`, a: `La conversion s'exécute directement dans votre navigateur grâce aux technologies WebAssembly. Vos fichiers ne sont jamais envoyés vers des serveurs externes.` },
+        { q: `Est-ce sûr de convertir des fichiers ${from} sur AllConvert ?`, a: `Oui, absolument. Tous les fichiers sont traités strictement en local sur votre ordinateur ou téléphone. Personne d'autre n'a accès à vos données.` },
+        { q: `Puis-je convertir plusieurs fichiers ${from} à la fois ?`, a: `Oui, AllConvert prend en charge la conversion par lot illimitée et vous permet de tout télécharger dans un seul fichier ZIP.` }
+      ]
+    }
+  };
+
+  const localized = templates[lang] || templates.en;
+
+  return {
+    ...route,
+    title: localized.title,
+    metaDescription: localized.metaDescription,
+    h1: localized.h1,
+    subtitle: localized.subtitle,
+    descriptionParagraphs: localized.descriptionParagraphs,
+    steps: localized.steps,
+    features: localized.features,
+    faqs: localized.faqs
+  };
+}
+

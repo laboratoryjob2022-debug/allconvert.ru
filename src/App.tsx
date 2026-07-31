@@ -15,7 +15,7 @@ import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
 import { useConverterStore } from './store/useConverterStore';
 import { getTranslation } from './lib/i18n';
-import { getSeoPageDataBySlug, SeoConversionRoute } from './lib/seoPages';
+import { getSeoPageDataBySlug, SeoConversionRoute, getLocalizedSeoRoute } from './lib/seoPages';
 import { ShieldCheck, Layers, HardDrive, Sparkles, CheckCircle2, Lock } from 'lucide-react';
 
 function getSlugFromPath(): string {
@@ -57,7 +57,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
 
-  // Update meta tags and converter preset target format when route changes
+  // Update meta tags and converter preset target format when route or language changes
   useEffect(() => {
     let canonicalLink = document.querySelector('link[rel="canonical"]');
     if (!canonicalLink) {
@@ -74,22 +74,45 @@ export default function App() {
     }
     robotsMeta.setAttribute('content', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
 
+    // Manage hreflang links dynamically
+    const hreflangs = [
+      { code: 'ru', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}` : 'https://allconvert.ru/' },
+      { code: 'en', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=en` : 'https://allconvert.ru/?lang=en' },
+      { code: 'zh', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=zh` : 'https://allconvert.ru/?lang=zh' },
+      { code: 'es', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=es` : 'https://allconvert.ru/?lang=es' },
+      { code: 'de', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=de` : 'https://allconvert.ru/?lang=de' },
+      { code: 'x-default', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}` : 'https://allconvert.ru/' },
+    ];
+
+    hreflangs.forEach(({ code, href }) => {
+      let link = document.querySelector(`link[rel="alternate"][hreflang="${code}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', 'alternate');
+        link.setAttribute('hreflang', code);
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', href);
+    });
+
     if (!currentSlug) {
       setSeoData(null);
       setPresetTargetFormat(null);
-      document.title = 'AllConvert — 100% Приватный конвертер файлов в браузере';
+      document.title = `${t.appName} — ${t.appSub}`;
       canonicalLink.setAttribute('href', 'https://allconvert.ru/');
       return;
     }
 
-    const data = getSeoPageDataBySlug(currentSlug);
-    setSeoData(data);
-    setPresetTargetFormat(data.toFormat);
-    setActiveSector(data.category);
+    const rawData = getSeoPageDataBySlug(currentSlug);
+    const localizedData = getLocalizedSeoRoute(rawData, language);
+
+    setSeoData(localizedData);
+    setPresetTargetFormat(localizedData.toFormat);
+    setActiveSector(localizedData.category);
 
     // Update document title & canonical & meta description for SEO
-    document.title = data.title;
-    canonicalLink.setAttribute('href', `https://allconvert.ru/convert/${data.slug}`);
+    document.title = localizedData.title;
+    canonicalLink.setAttribute('href', `https://allconvert.ru/convert/${localizedData.slug}`);
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
@@ -97,7 +120,7 @@ export default function App() {
       metaDesc.setAttribute('name', 'description');
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute('content', data.metaDescription);
+    metaDesc.setAttribute('content', localizedData.metaDescription);
 
     let ogTitle = document.querySelector('meta[property="og:title"]');
     if (!ogTitle) {
@@ -105,7 +128,7 @@ export default function App() {
       ogTitle.setAttribute('property', 'og:title');
       document.head.appendChild(ogTitle);
     }
-    ogTitle.setAttribute('content', data.title);
+    ogTitle.setAttribute('content', localizedData.title);
 
     let ogDesc = document.querySelector('meta[property="og:description"]');
     if (!ogDesc) {
@@ -113,8 +136,8 @@ export default function App() {
       ogDesc.setAttribute('property', 'og:description');
       document.head.appendChild(ogDesc);
     }
-    ogDesc.setAttribute('content', data.metaDescription);
-  }, [currentSlug, setPresetTargetFormat, setActiveSector]);
+    ogDesc.setAttribute('content', localizedData.metaDescription);
+  }, [currentSlug, language, setPresetTargetFormat, setActiveSector, t.appName, t.appSub]);
 
   const handleNavigateRoute = (slug: string) => {
     const newPath = slug ? `/convert/${slug}` : '/';
