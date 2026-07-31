@@ -59,10 +59,26 @@ export default function App() {
 
   // Update meta tags and converter preset target format when route changes
   useEffect(() => {
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    if (!robotsMeta) {
+      robotsMeta = document.createElement('meta');
+      robotsMeta.setAttribute('name', 'robots');
+      document.head.appendChild(robotsMeta);
+    }
+    robotsMeta.setAttribute('content', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+
     if (!currentSlug) {
       setSeoData(null);
       setPresetTargetFormat(null);
-      document.title = 'AllConvert — Всеформатный браузерный конвертер';
+      document.title = 'AllConvert — 100% Приватный конвертер файлов в браузере';
+      canonicalLink.setAttribute('href', 'https://allconvert.ru/');
       return;
     }
 
@@ -71,8 +87,9 @@ export default function App() {
     setPresetTargetFormat(data.toFormat);
     setActiveSector(data.category);
 
-    // Update document title & meta description for SEO
+    // Update document title & canonical & meta description for SEO
     document.title = data.title;
+    canonicalLink.setAttribute('href', `https://allconvert.ru/convert/${data.slug}`);
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
