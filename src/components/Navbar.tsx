@@ -165,7 +165,7 @@ export const Navbar: React.FC = () => {
   );
 
   return (
-    <nav className="w-full bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/80 sticky top-[37px] z-30 px-3 sm:px-4 py-2.5 sm:py-3 shadow-md">
+    <nav className="w-full bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/80 relative z-30 px-3 sm:px-4 py-2.5 sm:py-3 shadow-md">
       <div className="max-w-7xl mx-auto">
         {/* Mobile Layout (< sm) */}
         <div className="flex flex-col gap-2 sm:hidden">
