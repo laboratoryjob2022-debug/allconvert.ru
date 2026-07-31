@@ -1,7 +1,7 @@
 import React from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { ConversionCategory } from '../types/converter';
-import { getTranslation } from '../lib/i18n';
+import { getTranslation, formatDirectionLabel } from '../lib/i18n';
 import {
   Globe,
   Music,
@@ -17,6 +17,13 @@ interface SectorTab {
   icon: React.ElementType;
   color: string;
   badge: string;
+}
+
+interface PopularRoute {
+  slug: string;
+  from: string;
+  to: string;
+  suffix?: 'audio' | 'favicon';
 }
 
 export const SectorNav: React.FC = () => {
@@ -37,53 +44,53 @@ export const SectorNav: React.FC = () => {
   };
 
   // Map of popular conversion routes grouped by activeSector category
-  const popularRoutesByCategory: Record<ConversionCategory, { slug: string; label: string }[]> = {
+  const popularRoutesByCategory: Record<ConversionCategory, PopularRoute[]> = {
     all: [
-      { slug: 'heic-to-jpg', label: 'HEIC в JPG' },
-      { slug: 'png-to-jpg', label: 'PNG в JPG' },
-      { slug: 'webp-to-jpg', label: 'WEBP в JPG' },
-      { slug: 'mp4-to-mp3', label: 'MP4 в MP3' },
-      { slug: 'mov-to-mp3', label: 'MOV в MP3' },
-      { slug: 'wav-to-mp3', label: 'WAV в MP3' },
-      { slug: 'xlsx-to-csv', label: 'XLSX в CSV' },
-      { slug: 'pdf-to-txt', label: 'PDF в TXT' },
-      { slug: 'avif-to-jpg', label: 'AVIF в JPG' },
-      { slug: 'pdf-to-png', label: 'PDF в PNG' },
+      { slug: 'heic-to-jpg', from: 'HEIC', to: 'JPG' },
+      { slug: 'png-to-jpg', from: 'PNG', to: 'JPG' },
+      { slug: 'webp-to-jpg', from: 'WEBP', to: 'JPG' },
+      { slug: 'mp4-to-mp3', from: 'MP4', to: 'MP3' },
+      { slug: 'mov-to-mp3', from: 'MOV', to: 'MP3' },
+      { slug: 'wav-to-mp3', from: 'WAV', to: 'MP3' },
+      { slug: 'xlsx-to-csv', from: 'XLSX', to: 'CSV' },
+      { slug: 'pdf-to-txt', from: 'PDF', to: 'TXT' },
+      { slug: 'avif-to-jpg', from: 'AVIF', to: 'JPG' },
+      { slug: 'pdf-to-png', from: 'PDF', to: 'PNG' },
     ],
     image: [
-      { slug: 'heic-to-jpg', label: 'HEIC в JPG' },
-      { slug: 'png-to-jpg', label: 'PNG в JPG' },
-      { slug: 'jpg-to-png', label: 'JPG в PNG' },
-      { slug: 'webp-to-jpg', label: 'WEBP в JPG' },
-      { slug: 'avif-to-jpg', label: 'AVIF в JPG' },
-      { slug: 'webp-to-png', label: 'WEBP в PNG' },
-      { slug: 'jpg-to-webp', label: 'JPG в WEBP' },
-      { slug: 'png-to-ico', label: 'PNG в ICO (Favicon)' },
+      { slug: 'heic-to-jpg', from: 'HEIC', to: 'JPG' },
+      { slug: 'png-to-jpg', from: 'PNG', to: 'JPG' },
+      { slug: 'jpg-to-png', from: 'JPG', to: 'PNG' },
+      { slug: 'webp-to-jpg', from: 'WEBP', to: 'JPG' },
+      { slug: 'avif-to-jpg', from: 'AVIF', to: 'JPG' },
+      { slug: 'webp-to-png', from: 'WEBP', to: 'PNG' },
+      { slug: 'jpg-to-webp', from: 'JPG', to: 'WEBP' },
+      { slug: 'png-to-ico', from: 'PNG', to: 'ICO', suffix: 'favicon' },
     ],
     audio: [
-      { slug: 'mp4-to-mp3', label: 'MP4 в MP3' },
-      { slug: 'mov-to-mp3', label: 'MOV в MP3' },
-      { slug: 'wav-to-mp3', label: 'WAV в MP3' },
-      { slug: 'm4a-to-mp3', label: 'M4A в MP3' },
-      { slug: 'flac-to-mp3', label: 'FLAC в MP3' },
-      { slug: 'ogg-to-mp3', label: 'OGG в MP3' },
-      { slug: 'aac-to-mp3', label: 'AAC в MP3' },
-      { slug: 'avi-to-mp3', label: 'AVI в MP3' },
+      { slug: 'mp4-to-mp3', from: 'MP4', to: 'MP3' },
+      { slug: 'mov-to-mp3', from: 'MOV', to: 'MP3' },
+      { slug: 'wav-to-mp3', from: 'WAV', to: 'MP3' },
+      { slug: 'm4a-to-mp3', from: 'M4A', to: 'MP3' },
+      { slug: 'flac-to-mp3', from: 'FLAC', to: 'MP3' },
+      { slug: 'ogg-to-mp3', from: 'OGG', to: 'MP3' },
+      { slug: 'aac-to-mp3', from: 'AAC', to: 'MP3' },
+      { slug: 'avi-to-mp3', from: 'AVI', to: 'MP3' },
     ],
     video: [
-      { slug: 'mov-to-mp4', label: 'MOV в MP4' },
-      { slug: 'mov-to-mp3', label: 'MOV в MP3 (Аудио)' },
-      { slug: 'avi-to-mp3', label: 'AVI в MP3 (Аудио)' },
-      { slug: 'mkv-to-mp3', label: 'MKV в MP3 (Аудио)' },
-      { slug: 'webm-to-mp3', label: 'WEBM в MP3 (Аудио)' },
-      { slug: 'mp4-to-mp3', label: 'MP4 в MP3' },
+      { slug: 'mov-to-mp4', from: 'MOV', to: 'MP4' },
+      { slug: 'mov-to-mp3', from: 'MOV', to: 'MP3', suffix: 'audio' },
+      { slug: 'avi-to-mp3', from: 'AVI', to: 'MP3', suffix: 'audio' },
+      { slug: 'mkv-to-mp3', from: 'MKV', to: 'MP3', suffix: 'audio' },
+      { slug: 'webm-to-mp3', from: 'WEBM', to: 'MP3', suffix: 'audio' },
+      { slug: 'mp4-to-mp3', from: 'MP4', to: 'MP3' },
     ],
     document: [
-      { slug: 'pdf-to-jpg', label: 'PDF в JPG' },
-      { slug: 'pdf-to-png', label: 'PDF в PNG' },
-      { slug: 'xlsx-to-csv', label: 'XLSX в CSV' },
-      { slug: 'json-to-csv', label: 'JSON в CSV' },
-      { slug: 'pdf-to-txt', label: 'PDF в TXT' },
+      { slug: 'pdf-to-jpg', from: 'PDF', to: 'JPG' },
+      { slug: 'pdf-to-png', from: 'PDF', to: 'PNG' },
+      { slug: 'xlsx-to-csv', from: 'XLSX', to: 'CSV' },
+      { slug: 'json-to-csv', from: 'JSON', to: 'CSV' },
+      { slug: 'pdf-to-txt', from: 'PDF', to: 'TXT' },
     ],
   };
 
@@ -134,7 +141,7 @@ export const SectorNav: React.FC = () => {
         <div className="flex items-center text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm shrink-0 mr-1">
           <Zap className="w-4 h-4 text-cyan-400 mr-1.5 shrink-0" />
           <span>
-            {language === 'ru' ? 'Популярные направления конвертации:' : 'Popular conversion directions:'}
+            {t.popularDirectionsTitle}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -145,7 +152,7 @@ export const SectorNav: React.FC = () => {
               onClick={(e) => handleDirectionClick(e, item.slug)}
               className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/60 hover:text-cyan-500 dark:hover:text-cyan-400 text-slate-800 dark:text-slate-200 transition-all font-bold text-xs sm:text-sm shadow-xs cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center"
             >
-              {item.label}
+              {formatDirectionLabel(item.from, item.to, item.suffix, language)}
             </a>
           ))}
         </div>

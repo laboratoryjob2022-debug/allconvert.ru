@@ -18,7 +18,6 @@ import { getTranslation } from '../lib/i18n';
 export const InfoSection: React.FC = () => {
   const { language } = useConverterStore();
   const t = getTranslation(language || 'ru');
-  const isRu = (language || 'ru') === 'ru';
 
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -26,28 +25,22 @@ export const InfoSection: React.FC = () => {
     {
       step: '01',
       icon: Upload,
-      title: isRu ? 'Загрузите файлы' : 'Upload Files',
-      desc: isRu 
-        ? 'Перетащите нужные файлы в область загрузки или нажмите «Выбрать файлы». Поддерживается пакетная обработка нескольких файлов одновременно.'
-        : 'Drag & drop your files into the upload area or click "Choose Files". Batch processing of multiple files is supported.',
+      title: t.infoStep1Title,
+      desc: t.infoStep1Desc,
       color: 'from-cyan-500 to-blue-500'
     },
     {
       step: '02',
       icon: Settings2,
-      title: isRu ? 'Выберите формат и настройки' : 'Select Format & Settings',
-      desc: isRu 
-        ? 'Укажите желаемый целевой формат для каждого файла или примените один формат ко всей очереди. Выберите пресет качества при необходимости.'
-        : 'Select the target format for each file or apply one format to the entire queue. Choose quality presets if needed.',
+      title: t.infoStep2Title,
+      desc: t.infoStep2Desc,
       color: 'from-purple-500 to-indigo-500'
     },
     {
       step: '03',
       icon: Download,
-      title: isRu ? 'Конвертируйте и скачайте' : 'Convert & Download',
-      desc: isRu 
-        ? 'Нажмите «Конвертировать». Все вычисления выполняются прямо в памяти вашего браузера. Сохраните файлы по отдельности или единым ZIP-архивом.'
-        : 'Click "Convert". All computations occur locally in your browser RAM. Save files individually or as a single ZIP archive.',
+      title: t.infoStep3Title,
+      desc: t.infoStep3Desc,
       color: 'from-emerald-500 to-teal-500'
     }
   ];
@@ -55,54 +48,40 @@ export const InfoSection: React.FC = () => {
   const benefits = [
     {
       icon: Lock,
-      title: isRu ? '100% Абсолютная Приватность' : '100% Complete Privacy',
-      desc: isRu 
-        ? 'Ваши файлы никогда не покидают ваше устройство и не отправляются ни на какие внешние сервера. Вся обработка происходит локально в памяти браузера.'
-        : 'Your files never leave your device or travel to external servers. All processing happens locally in browser memory.',
-      badge: isRu ? 'Zero Server Upload' : 'Zero Server Upload'
+      title: t.infoBenefit1Title,
+      desc: t.infoBenefit1Desc,
+      badge: t.infoBenefit1Badge
     },
     {
       icon: Layers,
-      title: isRu ? 'Пакетная Конвертация Файлов (Batch)' : 'Batch File Conversion',
-      desc: isRu 
-        ? 'Конвертируйте десятки и сотни файлов пачками в один клик. Мгновенная массовая обработка в браузере и скачивание готовых архивов ZIP.'
-        : 'Convert dozens or hundreds of files at once in one click. Instant batch processing in browser and ZIP downloading.',
-      badge: isRu ? 'Batch & ZIP' : 'Batch & ZIP'
+      title: t.infoBenefit2Title,
+      desc: t.infoBenefit2Desc,
+      badge: t.infoBenefit2Badge
     },
     {
       icon: FileCheck,
-      title: isRu ? 'Без Регистрации и Лимитов' : 'No Registration & Limits',
-      desc: isRu 
-        ? 'Никаких подписок, ввода личных данных или скрытых платежей. Бесплатный доступ ко всем форматам для документов, видео, аудио и графики.'
-        : 'No subscriptions, account sign-ups, or hidden fees. Free unlimited access to all document, video, audio, and image formats.',
-      badge: isRu ? '100% Free' : '100% Free'
+      title: t.infoBenefit3Title,
+      desc: t.infoBenefit3Desc,
+      badge: t.infoBenefit3Badge
     }
   ];
 
   const faqs = [
     {
-      q: isRu ? 'Безопасно ли конвертировать конфиденциальные документы и фото?' : 'Is it safe to convert sensitive documents and photos?',
-      a: isRu 
-        ? 'Да, абсолютно безопасно. В отличие от традиционных онлайн-конвертеров, AllConvert обрабатывает файлы исключительно в оперативной памяти вашего браузера через WebAssembly. Ни один байт ваших данных не передается в сеть.'
-        : 'Yes, 100% safe. Unlike traditional online converters, AllConvert processes files strictly within your browser RAM using WebAssembly. Not a single byte of your data is sent over the network.'
+      q: t.infoFaqQ1,
+      a: t.infoFaqA1
     },
     {
-      q: isRu ? 'Какие типы файлов и форматы поддерживаются?' : 'What file types and formats are supported?',
-      a: isRu 
-        ? 'AllConvert поддерживает более 50 медиа-форматов: Видео (MP4, WEBM, AVI, MOV, MKV, GIF), Аудио (MP3, WAV, AAC, OGG, FLAC), Изображения (JPG, PNG, WEBP, AVIF, HEIC, SVG) и Документы (PDF, TXT, HTML, XLSX, CSV).'
-        : 'AllConvert supports over 50 formats: Video (MP4, WEBM, AVI, MOV, MKV, GIF), Audio (MP3, WAV, AAC, OGG, FLAC), Images (JPG, PNG, WEBP, AVIF, HEIC, SVG), and Documents (PDF, TXT, HTML, XLSX, CSV).'
+      q: t.infoFaqQ2,
+      a: t.infoFaqA2
     },
     {
-      q: isRu ? 'Нужна ли регистрация или установка сторонних программ?' : 'Is registration or software installation required?',
-      a: isRu 
-        ? 'Нет. Сервис полностью готов к работе сразу при открытии страницы. Вам не нужно регистрироваться, входить через Google/Яндекс или скачивать программы. Все библиотеки загружаются один раз в ваш браузер.'
-        : 'No. The service is ready immediately upon opening the page. No registration, login, or software installation is needed. All libraries load directly into your browser memory.'
+      q: t.infoFaqQ3,
+      a: t.infoFaqA3
     },
     {
-      q: isRu ? 'Работает ли сервис без доступа к интернету?' : 'Does the service work without an internet connection?',
-      a: isRu 
-        ? 'Да! После первоначальной загрузки веб-страницы AllConvert может работать полностью автономно в оффлайн-режиме, так как все модули конвертации сохранены в кэше браузера.'
-        : 'Yes! After the initial page load, AllConvert can work completely offline as all conversion modules are stored locally in your browser cache.'
+      q: t.infoFaqQ4,
+      a: t.infoFaqA4
     }
   ];
 
@@ -113,16 +92,14 @@ export const InfoSection: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800/80 pb-6">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 inline-block mb-2">
-              {isRu ? 'Надежность & Скорость' : 'Reliability & Speed'}
+              {t.infoWhyBadge}
             </span>
             <h2 className="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">
-              {isRu ? 'Почему пользователи выбирают AllConvert' : 'Why Users Choose AllConvert'}
+              {t.infoWhyTitle}
             </h2>
           </div>
           <p className="text-xs text-slate-400 max-w-md">
-            {isRu 
-              ? 'Сочетание клиентских технологий WebAssembly и современного интерфейса без передачи данных сторонним сервисам.' 
-              : 'Combining client-side WebAssembly technology and modern interface without sending data to third parties.'}
+            {t.infoWhyDesc}
           </p>
         </div>
 
@@ -151,13 +128,13 @@ export const InfoSection: React.FC = () => {
       <div className="space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 inline-block">
-            {isRu ? 'Инструкция' : 'Quick Guide'}
+            {t.infoStepsBadge}
           </span>
           <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-            {isRu ? 'Как конвертировать файлы за 3 простых шага' : 'How to Convert Files in 3 Easy Steps'}
+            {t.infoStepsTitle}
           </h2>
           <p className="text-sm text-slate-400">
-            {isRu ? 'Интуитивно понятный процесс без сложной настройки' : 'Intuitive process without complex configuration'}
+            {t.infoStepsDesc}
           </p>
         </div>
 
@@ -193,13 +170,13 @@ export const InfoSection: React.FC = () => {
       <div className="space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-purple-400 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 inline-block">
-            {isRu ? 'Вопросы и ответы' : 'FAQ'}
+            {t.infoFaqBadge}
           </span>
           <h2 className="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">
-            {isRu ? 'Часто задаваемые вопросы' : 'Frequently Asked Questions'}
+            {t.infoFaqTitle}
           </h2>
           <p className="text-sm text-slate-400">
-            {isRu ? 'Все, что вам нужно знать о работе нашего сервиса' : 'Everything you need to know about our service'}
+            {t.infoFaqDesc}
           </p>
         </div>
 

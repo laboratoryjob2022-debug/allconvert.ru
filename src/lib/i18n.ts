@@ -132,6 +132,42 @@ export interface TranslationDictionary {
   queueConvertingFile: (name: string, progress: number, statusText: string) => string;
   queueAllProcessed: string;
   queueReadyStatus: string;
+  popularDirectionsTitle: string;
+  toDirection: (from: string, to: string) => string;
+  audioSuffix: string;
+  faviconSuffix: string;
+  infoWhyBadge: string;
+  infoWhyTitle: string;
+  infoWhyDesc: string;
+  infoBenefit1Title: string;
+  infoBenefit1Desc: string;
+  infoBenefit1Badge: string;
+  infoBenefit2Title: string;
+  infoBenefit2Desc: string;
+  infoBenefit2Badge: string;
+  infoBenefit3Title: string;
+  infoBenefit3Desc: string;
+  infoBenefit3Badge: string;
+  infoStepsBadge: string;
+  infoStepsTitle: string;
+  infoStepsDesc: string;
+  infoStep1Title: string;
+  infoStep1Desc: string;
+  infoStep2Title: string;
+  infoStep2Desc: string;
+  infoStep3Title: string;
+  infoStep3Desc: string;
+  infoFaqBadge: string;
+  infoFaqTitle: string;
+  infoFaqDesc: string;
+  infoFaqQ1: string;
+  infoFaqA1: string;
+  infoFaqQ2: string;
+  infoFaqA2: string;
+  infoFaqQ3: string;
+  infoFaqA3: string;
+  infoFaqQ4: string;
+  infoFaqA4: string;
 }
 
 export const translations: Record<LanguageCode, TranslationDictionary> = {
@@ -266,6 +302,42 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConvertingFile: (name, progress, statusText) => `Конвертируется: ${name} (${progress}% — ${statusText})`,
     queueAllProcessed: 'Все файлы успешно обработаны',
     queueReadyStatus: 'Очередь готова к конвертации',
+    popularDirectionsTitle: 'Популярные направления конвертации:',
+    toDirection: (from, to) => `${from} в ${to}`,
+    audioSuffix: ' (Аудио)',
+    faviconSuffix: ' (Favicon)',
+    infoWhyBadge: 'Надежность & Скорость',
+    infoWhyTitle: 'Почему пользователи выбирают AllConvert',
+    infoWhyDesc: 'Сочетание клиентских технологий WebAssembly и современного интерфейса без передачи данных сторонним сервисам.',
+    infoBenefit1Title: '100% Абсолютная Приватность',
+    infoBenefit1Desc: 'Ваши файлы никогда не покидают ваше устройство и не отправляются ни на какие внешние сервера. Вся обработка происходит локально в памяти браузера.',
+    infoBenefit1Badge: 'Zero Server Upload',
+    infoBenefit2Title: 'Пакетная Конвертация Файлов (Batch)',
+    infoBenefit2Desc: 'Конвертируйте десятки и сотни файлов пачками в один клик. Мгновенная массовая обработка в браузере и скачивание готовых архивов ZIP.',
+    infoBenefit2Badge: 'Batch & ZIP',
+    infoBenefit3Title: 'Без Регистрации и Лимитов',
+    infoBenefit3Desc: 'Никаких подписок, ввода личных данных или скрытых платежей. Бесплатный доступ ко всем форматам для документов, видео, аудио и графики.',
+    infoBenefit3Badge: '100% Free',
+    infoStepsBadge: 'Инструкция',
+    infoStepsTitle: 'Как конвертировать файлы за 3 простых шага',
+    infoStepsDesc: 'Интуитивно понятный процесс без сложной настройки',
+    infoStep1Title: 'Загрузите файлы',
+    infoStep1Desc: 'Перетащите нужные файлы в область загрузки или нажмите «Выбрать файлы». Поддерживается пакетная обработка нескольких файлов одновременно.',
+    infoStep2Title: 'Выберите формат и настройки',
+    infoStep2Desc: 'Укажите желаемый целевой формат для каждого файла или примените один формат ко всей очереди. Выберите пресет качества при необходимости.',
+    infoStep3Title: 'Конвертируйте и скачайте',
+    infoStep3Desc: 'Нажмите «Конвертировать». Все вычисления выполняются прямо в памяти вашего браузера. Сохраните файлы по отдельности или единым ZIP-архивом.',
+    infoFaqBadge: 'Вопросы и ответы',
+    infoFaqTitle: 'Часто задаваемые вопросы',
+    infoFaqDesc: 'Все, что вам нужно знать о работе нашего сервиса',
+    infoFaqQ1: 'Безопасно ли конвертировать конфиденциальные документы и фото?',
+    infoFaqA1: 'Да, абсолютно безопасно. В отличие от традиционных онлайн-конвертеров, AllConvert обрабатывает файлы исключительно в оперативной памяти вашего браузера через WebAssembly. Ни один байт ваших данных не передается в сеть.',
+    infoFaqQ2: 'Какие типы файлов и форматы поддерживаются?',
+    infoFaqA2: 'AllConvert поддерживает более 50 медиа-форматов: Видео (MP4, WEBM, AVI, MOV, MKV, GIF), Аудио (MP3, WAV, AAC, OGG, FLAC), Изображения (JPG, PNG, WEBP, AVIF, HEIC, SVG) и Документы (PDF, TXT, HTML, XLSX, CSV).',
+    infoFaqQ3: 'Нужна ли регистрация или установка сторонних программ?',
+    infoFaqA3: 'Нет. Сервис полностью готов к работе сразу при открытии страницы. Вам не нужно регистрироваться, входить через Google/Яндекс или скачивать программы. Все библиотеки загружаются один раз в ваш браузер.',
+    infoFaqQ4: 'Работает ли сервис без доступа к интернету?',
+    infoFaqA4: 'Да! После первоначальной загрузки веб-страницы AllConvert может работать полностью автономно в оффлайн-режиме, так как все модули конвертации сохранены в кэше браузера.',
   },
   en: {
     appName: 'AllConvert',
@@ -398,6 +470,42 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConvertingFile: (name, progress, statusText) => `Converting: ${name} (${progress}% — ${statusText})`,
     queueAllProcessed: 'All files processed successfully',
     queueReadyStatus: 'Queue is ready for conversion',
+    popularDirectionsTitle: 'Popular conversion directions:',
+    toDirection: (from, to) => `${from} to ${to}`,
+    audioSuffix: ' (Audio)',
+    faviconSuffix: ' (Favicon)',
+    infoWhyBadge: 'Reliability & Speed',
+    infoWhyTitle: 'Why Users Choose AllConvert',
+    infoWhyDesc: 'Combining client-side WebAssembly technology and modern interface without sending data to third parties.',
+    infoBenefit1Title: '100% Complete Privacy',
+    infoBenefit1Desc: 'Your files never leave your device or travel to external servers. All processing happens locally in browser memory.',
+    infoBenefit1Badge: 'Zero Server Upload',
+    infoBenefit2Title: 'Batch File Conversion',
+    infoBenefit2Desc: 'Convert dozens or hundreds of files at once in one click. Instant batch processing in browser and ZIP downloading.',
+    infoBenefit2Badge: 'Batch & ZIP',
+    infoBenefit3Title: 'No Registration & Limits',
+    infoBenefit3Desc: 'No subscriptions, account sign-ups, or hidden fees. Free unlimited access to all document, video, audio, and image formats.',
+    infoBenefit3Badge: '100% Free',
+    infoStepsBadge: 'Quick Guide',
+    infoStepsTitle: 'How to Convert Files in 3 Easy Steps',
+    infoStepsDesc: 'Intuitive process without complex configuration',
+    infoStep1Title: 'Upload Files',
+    infoStep1Desc: 'Drag & drop your files into the upload area or click "Choose Files". Batch processing of multiple files is supported.',
+    infoStep2Title: 'Select Format & Settings',
+    infoStep2Desc: 'Select the target format for each file or apply one format to the entire queue. Choose quality presets if needed.',
+    infoStep3Title: 'Convert & Download',
+    infoStep3Desc: 'Click "Convert". All computations occur locally in your browser RAM. Save files individually or as a single ZIP archive.',
+    infoFaqBadge: 'FAQ',
+    infoFaqTitle: 'Frequently Asked Questions',
+    infoFaqDesc: 'Everything you need to know about our service',
+    infoFaqQ1: 'Is it safe to convert sensitive documents and photos?',
+    infoFaqA1: 'Yes, 100% safe. Unlike traditional online converters, AllConvert processes files strictly within your browser RAM using WebAssembly. Not a single byte of your data is sent over the network.',
+    infoFaqQ2: 'What file types and formats are supported?',
+    infoFaqA2: 'AllConvert supports over 50 formats: Video (MP4, WEBM, AVI, MOV, MKV, GIF), Audio (MP3, WAV, AAC, OGG, FLAC), Images (JPG, PNG, WEBP, AVIF, HEIC, SVG), and Documents (PDF, TXT, HTML, XLSX, CSV).',
+    infoFaqQ3: 'Is registration or software installation required?',
+    infoFaqA3: 'No. The service is ready immediately upon opening the page. No registration, login, or software installation is needed. All libraries load directly into your browser memory.',
+    infoFaqQ4: 'Does the service work without an internet connection?',
+    infoFaqA4: 'Yes! After the initial page load, AllConvert can work completely offline as all conversion modules are stored locally in your browser cache.',
   },
   es: {
     appName: 'AllConvert',
@@ -530,6 +638,42 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConvertingFile: (name, progress, statusText) => `Convirtiendo: ${name} (${progress}% — ${statusText})`,
     queueAllProcessed: 'Todos los archivos se procesaron con éxito',
     queueReadyStatus: 'La cola está lista para convertir',
+    popularDirectionsTitle: 'Direcciones de conversión populares:',
+    toDirection: (from, to) => `${from} to ${to}`,
+    audioSuffix: ' (Audio)',
+    faviconSuffix: ' (Favicon)',
+    infoWhyBadge: 'Fiabilidad y Velocidad',
+    infoWhyTitle: 'Por qué los usuarios eligen AllConvert',
+    infoWhyDesc: 'Combinación de tecnología WebAssembly del cliente e interfaz moderna sin enviar datos a terceros.',
+    infoBenefit1Title: 'Privacidad 100% Absoluta',
+    infoBenefit1Desc: 'Sus archivos nunca salen de su dispositivo ni se envían a servidores externos. Todo el procesamiento ocurre localmente en la memoria del navegador.',
+    infoBenefit1Badge: 'Sin subida al servidor',
+    infoBenefit2Title: 'Conversión de archivos por lotes',
+    infoBenefit2Desc: 'Convierta docenas o cientos de archivos a la vez en un solo clic. Procesamiento por lotes instantáneo en el navegador y descarga ZIP.',
+    infoBenefit2Badge: 'Lotes y ZIP',
+    infoBenefit3Title: 'Sin Registro ni Límites',
+    infoBenefit3Desc: 'Sin suscripciones, registros ni tarifas ocultas. Acceso gratuito e ilimitado a todos los formatos de documentos, vídeo, audio e imágenes.',
+    infoBenefit3Badge: '100% Gratis',
+    infoStepsBadge: 'Guía Rápida',
+    infoStepsTitle: 'Cómo convertir archivos en 3 sencillos pasos',
+    infoStepsDesc: 'Proceso intuitivo sin configuraciones complejas',
+    infoStep1Title: 'Suba los archivos',
+    infoStep1Desc: 'Arrastre y suelte sus archivos en la zona de carga o haga clic en "Elegir archivos". Se admite el procesamiento por lotes.',
+    infoStep2Title: 'Seleccione el formato y los ajustes',
+    infoStep2Desc: 'Seleccione el formato de destino para cada archivo o aplique un formato a toda la cola. Elija ajustes predeterminados de calidad si lo desea.',
+    infoStep3Title: 'Convierta y descargue',
+    infoStep3Desc: 'Haga clic en "Convertir". Todos los cálculos se realizan localmente en la memoria de su navegador. Guarde los archivos individualmente o en un archivo ZIP.',
+    infoFaqBadge: 'Preguntas Frecuentes',
+    infoFaqTitle: 'Preguntas Frecuentes',
+    infoFaqDesc: 'Todo lo que necesita saber sobre nuestro servicio',
+    infoFaqQ1: '¿Es seguro convertir documentos y fotos confidenciales?',
+    infoFaqA1: 'Sí, 100% seguro. A diferencia de los convertidores en línea tradicionales, AllConvert procesa los archivos estrictamente en la memoria RAM de su navegador mediante WebAssembly. Ningún byte se envía a la red.',
+    infoFaqQ2: '¿Qué tipos de archivos y formatos son compatibles?',
+    infoFaqA2: 'AllConvert admite más de 50 formatos: Vídeo (MP4, WEBM, AVI, MOV, MKV, GIF), Audio (MP3, WAV, AAC, OGG, FLAC), Imágenes (JPG, PNG, WEBP, AVIF, HEIC, SVG) y Documentos (PDF, TXT, HTML, XLSX, CSV).',
+    infoFaqQ3: '¿Se requiere registro o instalación de programas?',
+    infoFaqA3: 'No. El servicio está listo para usarse inmediatamente. No se requiere registro, inicio de sesión ni instalación de software. Todas las bibliotecas se cargan en la memoria del navegador.',
+    infoFaqQ4: '¿Funciona el servicio sin conexión a Internet?',
+    infoFaqA4: '¡Sí! Después de la carga inicial de la página, AllConvert puede funcionar completamente fuera de línea, ya que todos los módulos de conversión se guardan en la caché de su navegador.',
   },
   de: {
     appName: 'AllConvert',
@@ -662,6 +806,42 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConvertingFile: (name, progress, statusText) => `Wird konvertiert: ${name} (${progress}% — ${statusText})`,
     queueAllProcessed: 'Alle Dateien erfolgreich verarbeitet',
     queueReadyStatus: 'Warteschlange bereit zur Konvertierung',
+    popularDirectionsTitle: 'Beliebte Konvertierungsrichtungen:',
+    toDirection: (from, to) => `${from} to ${to}`,
+    audioSuffix: ' (Audio)',
+    faviconSuffix: ' (Favicon)',
+    infoWhyBadge: 'Zuverlässigkeit & Geschwindigkeit',
+    infoWhyTitle: 'Warum Benutzer AllConvert wählen',
+    infoWhyDesc: 'Kombination aus clientseitiger WebAssembly-Technologie und moderner Benutzeroberfläche ohne Datenübertragung an Dritte.',
+    infoBenefit1Title: '100% Absolute Privatsphäre',
+    infoBenefit1Desc: 'Ihre Dateien verlassen niemals Ihr Gerät und werden nicht an externe Server gesendet. Die gesamte Verarbeitung erfolgt lokal im Arbeitsspeicher des Browsers.',
+    infoBenefit1Badge: 'Kein Server-Upload',
+    infoBenefit2Title: 'Stapelverarbeitung von Dateien',
+    infoBenefit2Desc: 'Konvertieren Sie Dutzende oder Hunderte von Dateien auf einmal mit einem Klick. Sofortige Stapelverarbeitung im Browser und ZIP-Download.',
+    infoBenefit2Badge: 'Stapel & ZIP',
+    infoBenefit3Title: 'Ohne Registrierung & Limits',
+    infoBenefit3Desc: 'Keine Abonnements, Kontowerkzeuge oder versteckten Gebühren. Kostenloser unbegrenzter Zugriff auf alle Dokument-, Video-, Audio- und Bildformate.',
+    infoBenefit3Badge: '100% Kostenlos',
+    infoStepsBadge: 'Anleitung',
+    infoStepsTitle: 'In 3 einfachen Schritten Dateien konvertieren',
+    infoStepsDesc: 'Intuitiver Prozess ohne komplexe Konfiguration',
+    infoStep1Title: 'Dateien hochladen',
+    infoStep1Desc: 'Ziehen Sie Ihre Dateien per Drag & Drop in den Upload-Bereich oder klicken Sie auf „Dateien auswählen“. Stapelverarbeitung wird unterstützt.',
+    infoStep2Title: 'Format & Einstellungen wählen',
+    infoStep2Desc: 'Wählen Sie das Zielformat für jede Datei oder wenden Sie ein Format auf die gesamte Warteschlange an.',
+    infoStep3Title: 'Konvertieren & Herunterladen',
+    infoStep3Desc: 'Klicken Sie auf „Konvertieren“. Alle Berechnungen erfolgen lokal im Arbeitsspeicher Ihres Browsers. Speichern Sie Dateien einzeln oder als ZIP-Archiv.',
+    infoFaqBadge: 'Häufige Fragen',
+    infoFaqTitle: 'Häufig gestellte Fragen',
+    infoFaqDesc: 'Alles, was Sie über unseren Service wissen müssen',
+    infoFaqQ1: 'Ist das Konvertieren vertraulicher Dokumente und Fotos sicher?',
+    infoFaqA1: 'Ja, 100% sicher. Im Gegensatz zu herkömmlichen Online-Konvertern verarbeitet AllConvert Dateien ausschließlich im Arbeitsspeicher Ihres Browsers über WebAssembly. Kein einziger Byte wird übertragen.',
+    infoFaqQ2: 'Welche Dateitypen und Formate werden unterstützt?',
+    infoFaqA2: 'AllConvert unterstützt über 50 Formate: Video (MP4, WEBM, AVI, MOV, MKV, GIF), Audio (MP3, WAV, AAC, OGG, FLAC), Bilder (JPG, PNG, WEBP, AVIF, HEIC, SVG) und Dokumente (PDF, TXT, HTML, XLSX, CSV).',
+    infoFaqQ3: 'Ist eine Registrierung oder Softwareinstallation erforderlich?',
+    infoFaqA3: 'Nein. Der Dienst ist sofort einsatzbereit. Keine Registrierung, Anmeldung oder Softwareinstallation erforderlich. Alle Bibliotheken werden direkt geladen.',
+    infoFaqQ4: 'Funktioniert der Dienst ohne Internetverbindung?',
+    infoFaqA4: 'Ja! Nach dem ersten Laden der Seite kann AllConvert vollständig offline arbeiten, da alle Konvertierungsmodule lokal im Cache gespeichert sind.',
   },
   zh: {
     appName: 'AllConvert',
@@ -794,6 +974,42 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConvertingFile: (name, progress, statusText) => `正在转换: ${name} (${progress}% — ${statusText})`,
     queueAllProcessed: '所有文件均已成功处理',
     queueReadyStatus: '队列已准备好进行转换',
+    popularDirectionsTitle: '热门转换方向：',
+    toDirection: (from, to) => `${from} 转 ${to}`,
+    audioSuffix: ' (音频)',
+    faviconSuffix: ' (Favicon)',
+    infoWhyBadge: '可靠与高效',
+    infoWhyTitle: '为什么选择 AllConvert',
+    infoWhyDesc: '结合前端 WebAssembly 技术与现代界面，无需将数据传输至第三方服务器。',
+    infoBenefit1Title: '100% 绝对隐私保护',
+    infoBenefit1Desc: '您的文件绝不会离开您的设备或传送到外部服务器。所有处理都在浏览器内存中本地完成。',
+    infoBenefit1Badge: '零服务器上传',
+    infoBenefit2Title: '批量文件转换 (Batch)',
+    infoBenefit2Desc: '一键同时转换数十或数百个文件。在浏览器中进行即时批量处理并下载 ZIP 压缩包。',
+    infoBenefit2Badge: '批量与 ZIP',
+    infoBenefit3Title: '无需注册，无限制',
+    infoBenefit3Desc: '无订阅、无需注册账号、无隐藏费用。免费且无限制地转换所有文档、视频、音频和图像格式。',
+    infoBenefit3Badge: '100% 免费',
+    infoStepsBadge: '操作指南',
+    infoStepsTitle: '只需 3 个简单步骤即可转换文件',
+    infoStepsDesc: '直观便捷的过程，无需复杂配置',
+    infoStep1Title: '上传文件',
+    infoStep1Desc: '将文件拖放至上传区域或点击“选择文件”。支持多文件同时批量处理。',
+    infoStep2Title: '选择格式与设置',
+    infoStep2Desc: '为每个文件选择目标格式，或将统一格式应用于整个队列。需要时可选择质量预设。',
+    infoStep3Title: '转换并下载',
+    infoStep3Desc: '点击“转换”。所有计算都在您的浏览器内存中本地完成。可单独保存文件或下载 ZIP 压缩包。',
+    infoFaqBadge: '常见问题',
+    infoFaqTitle: '常见问题解答',
+    infoFaqDesc: '关于我们服务您需要了解的一切',
+    infoFaqQ1: '转换敏感文档和照片安全吗？',
+    infoFaqA1: '是的，100% 安全。与传统在线转换器不同，AllConvert 通过 WebAssembly 完全在您的浏览器内存中处理文件，绝不向网络传输任何字节。',
+    infoFaqQ2: '支持哪些文件类型和格式？',
+    infoFaqA2: 'AllConvert 支持 50 多种格式：视频 (MP4, WEBM, AVI, MOV, MKV, GIF)，音频 (MP3, WAV, AAC, OGG, FLAC)，图像 (JPG, PNG, WEBP, AVIF, HEIC, SVG) 以及文档 (PDF, TXT, HTML, XLSX, CSV)。',
+    infoFaqQ3: '需要注册或安装第三方软件吗？',
+    infoFaqA3: '不需要。打开页面即可直接使用，无需注册、登录或下载安装任何软件。所有模块均直接加载至浏览器中。',
+    infoFaqQ4: '服务可以在没有网络连接的情况下工作吗？',
+    infoFaqA4: '是的！首次加载网页后，AllConvert 即可完全离线工作，因为所有转换模块都已保存在浏览器缓存中。',
   },
   fr: {
     appName: 'AllConvert',
@@ -926,9 +1142,62 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConvertingFile: (name, progress, statusText) => `Conversion : ${name} (${progress}% — ${statusText})`,
     queueAllProcessed: 'Tous les fichiers ont été traités avec succès',
     queueReadyStatus: 'La file d\'attente est prête pour la conversion',
+    popularDirectionsTitle: 'Directions de conversion populaires :',
+    toDirection: (from, to) => `${from} to ${to}`,
+    audioSuffix: ' (Audio)',
+    faviconSuffix: ' (Favicon)',
+    infoWhyBadge: 'Fiabilité & Vitesse',
+    infoWhyTitle: 'Pourquoi les utilisateurs choisissent AllConvert',
+    infoWhyDesc: 'Combinaison de la technologie WebAssembly côté client et d\'une interface moderne sans transfert de données vers des tiers.',
+    infoBenefit1Title: 'Confidentialité 100% Absolue',
+    infoBenefit1Desc: 'Vos fichiers ne quittent jamais votre appareil et ne sont jamais envoyés vers des serveurs externes. Tout le traitement est effectué localement dans la mémoire du navigateur.',
+    infoBenefit1Badge: 'Aucun envoi serveur',
+    infoBenefit2Title: 'Conversion de fichiers par lots',
+    infoBenefit2Desc: 'Convertissez des dizaines ou des centaines de fichiers à la fois en un clic. Traitement par lots instantané dans le navigateur et téléchargement ZIP.',
+    infoBenefit2Badge: 'Lots & ZIP',
+    infoBenefit3Title: 'Sans inscription ni limites',
+    infoBenefit3Desc: 'Aucun abonnement, création de compte ou frais cachés. Accès gratuit et illimité à tous les formats de documents, vidéos, audios et images.',
+    infoBenefit3Badge: '100% Gratuit',
+    infoStepsBadge: 'Guide Rapide',
+    infoStepsTitle: 'Comment convertir des fichiers en 3 étapes simples',
+    infoStepsDesc: 'Procédure intuitive sans configuration complexe',
+    infoStep1Title: 'Téléchargez des fichiers',
+    infoStep1Desc: 'Glissez-déposez vos fichiers dans la zone de téléchargement ou cliquez sur « Choisir des fichiers ». Le traitement par lots est pris en charge.',
+    infoStep2Title: 'Sélectionnez le format et les réglages',
+    infoStep2Desc: 'Sélectionnez le format cible pour chaque fichier ou appliquez un format à toute la file d\'attente. Choisissez des préréglages de qualité si nécessaire.',
+    infoStep3Title: 'Convertissez et téléchargez',
+    infoStep3Desc: 'Cliquez sur « Convertir ». Tous les calculs sont effectués localement dans la mémoire de votre navigateur. Enregistrez les fichiers individuellement ou sous forme d\'archive ZIP.',
+    infoFaqBadge: 'Faq',
+    infoFaqTitle: 'Foire aux questions',
+    infoFaqDesc: 'Tout ce que vous devez savoir sur notre service',
+    infoFaqQ1: 'Est-il sûr de convertir des documents et des photos confidentiels ?',
+    infoFaqA1: 'Oui, 100% sûr. Contrairement aux convertisseurs en ligne traditionnels, AllConvert traite les fichiers strictement dans la mémoire de votre navigateur via WebAssembly. Aucun octet n\'est transmis sur le réseau.',
+    infoFaqQ2: 'Quels types de fichiers et formats sont pris en charge ?',
+    infoFaqA2: 'AllConvert prend en charge plus de 50 formats : Vidéo (MP4, WEBM, AVI, MOV, MKV, GIF), Audio (MP3, WAV, AAC, OGG, FLAC), Images (JPG, PNG, WEBP, AVIF, HEIC, SVG) et Documents (PDF, TXT, HTML, XLSX, CSV).',
+    infoFaqQ3: 'Une inscription ou l\'installation d\'un logiciel est-elle requise ?',
+    infoFaqA3: 'Non. Le service est prêt à l\'emploi immédiatement dès l\'ouverture de la page. Aucune inscription, connexion ou installation de logiciel n\'est nécessaire.',
+    infoFaqQ4: 'Le service fonctionne-t-il sans connexion Internet ?',
+    infoFaqA4: 'Oui ! Après le chargement initial de la page, AllConvert peut fonctionner totalement hors ligne, car tous les modules sont stockés dans le cache de votre navigateur.',
   },
 };
 
 export const getTranslation = (langCode: string): TranslationDictionary => {
   return translations[langCode as LanguageCode] || translations.ru;
 };
+
+export function formatDirectionLabel(
+  from: string,
+  to: string,
+  suffixKey?: 'audio' | 'favicon',
+  language: string = 'ru'
+): string {
+  const t = getTranslation(language);
+  let result = t.toDirection(from, to);
+  if (suffixKey === 'audio') {
+    result += t.audioSuffix;
+  } else if (suffixKey === 'favicon') {
+    result += t.faviconSuffix;
+  }
+  return result;
+}
+

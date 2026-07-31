@@ -162,18 +162,11 @@ export default function App() {
               onClick={() => handleNavigateRoute('')}
               className="hover:text-cyan-400 transition-colors cursor-pointer"
             >
-              Главная
-            </button>
-            <span className="text-slate-600">/</span>
-            <button
-              onClick={() => handleNavigateRoute('')}
-              className="hover:text-cyan-400 transition-colors cursor-pointer"
-            >
-              Конвертер
+              {t.homeBreadcrumb}
             </button>
             <span className="text-slate-600">/</span>
             <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
-              {seoData.fromFormat} в {seoData.toFormat}
+              {t.toDirection(seoData.fromFormat, seoData.toFormat)}
             </span>
           </nav>
         </div>

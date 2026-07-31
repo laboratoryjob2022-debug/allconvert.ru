@@ -29,13 +29,7 @@ export const SeoConversionPage: React.FC<SeoConversionPageProps> = ({ seoData, o
       {
         '@type': 'ListItem',
         'position': 2,
-        'name': t.converterBreadcrumb || 'Конвертер',
-        'item': `${origin}/`
-      },
-      {
-        '@type': 'ListItem',
-        'position': 3,
-        'name': `${localizedSeo.fromFormat} ➔ ${localizedSeo.toFormat}`,
+        'name': t.toDirection(localizedSeo.fromFormat, localizedSeo.toFormat),
         'item': `${origin}/convert/${localizedSeo.slug}`
       }
     ]
