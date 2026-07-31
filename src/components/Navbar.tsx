@@ -172,7 +172,7 @@ export const Navbar: React.FC = () => {
           {/* Row 1: Brand Title + Share & Settings */}
           <div className="flex items-center justify-between gap-2 w-full">
             <div className="flex items-center space-x-2 truncate">
-              <img src="/favicon-32x32.png" alt="AllConvert" className="w-6 h-6 rounded-lg object-cover border border-cyan-500/30 shrink-0" />
+              <img src="/favicon.svg" alt="AllConvert" className="w-7 h-7 shrink-0" />
               <h1 className="text-base font-bold text-white tracking-tight truncate">
                 All<span className="text-cyan-400 font-extrabold">Convert</span>
               </h1>
@@ -222,8 +222,8 @@ export const Navbar: React.FC = () => {
         <div className="hidden sm:flex items-center justify-between w-full">
           {/* Brand Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center shrink-0 overflow-hidden">
-              <img src="/apple-touch-icon.png" alt="AllConvert Logo" className="w-full h-full object-cover rounded-[10px]" />
+            <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-700/80 p-1 shadow-lg shadow-cyan-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+              <img src="/favicon.svg" alt="AllConvert Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center flex-wrap gap-2">
