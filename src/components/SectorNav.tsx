@@ -49,6 +49,7 @@ export const SectorNav: React.FC = () => {
       { slug: 'heic-to-jpg', from: 'HEIC', to: 'JPG' },
       { slug: 'png-to-jpg', from: 'PNG', to: 'JPG' },
       { slug: 'webp-to-jpg', from: 'WEBP', to: 'JPG' },
+      { slug: 'pdf-to-word', from: 'PDF', to: 'DOCX' },
       { slug: 'mp4-to-mp3', from: 'MP4', to: 'MP3' },
       { slug: 'mov-to-mp3', from: 'MOV', to: 'MP3' },
       { slug: 'wav-to-mp3', from: 'WAV', to: 'MP3' },
@@ -86,6 +87,7 @@ export const SectorNav: React.FC = () => {
       { slug: 'mp4-to-mp3', from: 'MP4', to: 'MP3' },
     ],
     document: [
+      { slug: 'pdf-to-word', from: 'PDF', to: 'DOCX' },
       { slug: 'pdf-to-jpg', from: 'PDF', to: 'JPG' },
       { slug: 'pdf-to-png', from: 'PDF', to: 'PNG' },
       { slug: 'xlsx-to-csv', from: 'XLSX', to: 'CSV' },
