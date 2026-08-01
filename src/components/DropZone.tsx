@@ -11,7 +11,11 @@ import {
   HardDrive
 } from 'lucide-react';
 
-export const DropZone: React.FC = () => {
+interface DropZoneProps {
+  isSeoPage?: boolean;
+}
+
+export const DropZone: React.FC<DropZoneProps> = ({ isSeoPage = false }) => {
   const { addFiles, language } = useConverterStore();
   const t = getTranslation(language);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +70,18 @@ export const DropZone: React.FC = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-6">
+      {/* Central Hero SEO Header for Main Page */}
+      {!isSeoPage && (
+        <div className="text-center max-w-3xl mx-auto mb-8">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
+            {t.mainH1}
+          </h1>
+          <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
+            {t.mainSubtitle}
+          </p>
+        </div>
+      )}
+
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -101,10 +117,10 @@ export const DropZone: React.FC = () => {
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 tracking-tight">
-            {t.dropTitle}
+            {t.dropzoneHint}
           </h2>
           <p className="text-sm text-slate-400 max-w-lg mb-6 leading-relaxed">
-            {t.dropSubtitlePrefix}<kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-400 text-xs font-mono">Ctrl + V</kbd>{t.dropSubtitleSuffix}
+            {t.dropSubtitlePrefix}<kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-400 text-xs font-mono">ctrl + v</kbd>{t.dropSubtitleSuffix}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
