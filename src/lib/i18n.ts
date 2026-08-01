@@ -127,6 +127,8 @@ export interface TranslationDictionary {
   queueConverting: string;
   queueConverted: string;
   queueFailed: string;
+  statusConverted: string;
+  convertedCount: (count: number) => string;
   queueOverallProgress: string;
   queueFilesProcessed: (processed: number, total: number, completed: number) => string;
   queueConvertingFile: (name: string, progress: number, statusText: string) => string;
@@ -297,6 +299,8 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConverting: 'Конвертируется...',
     queueConverted: 'Сконвертировано успешно',
     queueFailed: 'Ошибка конвертации',
+    statusConverted: 'Сконвертировано',
+    convertedCount: (count) => `Сконвертировано: ${count}`,
     queueOverallProgress: 'Общий прогресс конвертации',
     queueFilesProcessed: (processed, total, completed) => `${processed} из ${total} файлов (${completed} готово)`,
     queueConvertingFile: (name, progress, statusText) => `Конвертируется: ${name} (${progress}% — ${statusText})`,
@@ -465,6 +469,8 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConverting: 'Converting...',
     queueConverted: 'Converted successfully',
     queueFailed: 'Conversion failed',
+    statusConverted: 'Converted',
+    convertedCount: (count) => `Converted: ${count}`,
     queueOverallProgress: 'Overall Batch Progress',
     queueFilesProcessed: (processed, total, completed) => `${processed} of ${total} files (${completed} completed)`,
     queueConvertingFile: (name, progress, statusText) => `Converting: ${name} (${progress}% — ${statusText})`,
@@ -633,6 +639,8 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConverting: 'Convirtiendo...',
     queueConverted: 'Convertido con éxito',
     queueFailed: 'Error en la conversión',
+    statusConverted: 'Convertido',
+    convertedCount: (count) => `Convertidos: ${count}`,
     queueOverallProgress: 'Progreso General del Lote',
     queueFilesProcessed: (processed, total, completed) => `${processed} de ${total} archivos (${completed} listos)`,
     queueConvertingFile: (name, progress, statusText) => `Convirtiendo: ${name} (${progress}% — ${statusText})`,
@@ -801,6 +809,8 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConverting: 'Wird konvertiert...',
     queueConverted: 'Erfolgreich konvertiert',
     queueFailed: 'Konvertierungsfehler',
+    statusConverted: 'Konvertiert',
+    convertedCount: (count) => `Konvertiert: ${count}`,
     queueOverallProgress: 'Gesamtfortschritt der Stapelverarbeitung',
     queueFilesProcessed: (processed, total, completed) => `${processed} von ${total} Dateien (${completed} fertig)`,
     queueConvertingFile: (name, progress, statusText) => `Wird konvertiert: ${name} (${progress}% — ${statusText})`,
@@ -969,6 +979,8 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConverting: '正在转换...',
     queueConverted: '转换成功',
     queueFailed: '转换失败',
+    statusConverted: '已转换',
+    convertedCount: (count) => `已转换: ${count}`,
     queueOverallProgress: '批量转换总进度',
     queueFilesProcessed: (processed, total, completed) => `${processed} / ${total} 个文件 (${completed} 个完成)`,
     queueConvertingFile: (name, progress, statusText) => `正在转换: ${name} (${progress}% — ${statusText})`,
@@ -1137,6 +1149,8 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     queueConverting: 'Conversion en cours...',
     queueConverted: 'Converti avec succès',
     queueFailed: 'Échec de la conversion',
+    statusConverted: 'Converti',
+    convertedCount: (count) => `Convertis: ${count}`,
     queueOverallProgress: 'Progression globale du lot',
     queueFilesProcessed: (processed, total, completed) => `${processed} sur ${total} fichiers (${completed} prêt(s))`,
     queueConvertingFile: (name, progress, statusText) => `Conversion : ${name} (${progress}% — ${statusText})`,

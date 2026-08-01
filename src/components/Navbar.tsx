@@ -247,7 +247,7 @@ export const Navbar: React.FC = () => {
             {totalConvertedCount > 0 && (
               <div className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>Converted: <strong>{totalConvertedCount}</strong></span>
+                <span>{t.convertedCount(totalConvertedCount)}</span>
               </div>
             )}
 

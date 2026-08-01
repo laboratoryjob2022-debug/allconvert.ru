@@ -308,7 +308,7 @@ export const QueueTable: React.FC = () => {
                       {item.status === 'completed' && (
                         <div className="flex items-center space-x-2 text-xs text-emerald-400 font-medium">
                           <CheckCircle className="w-4 h-4 shrink-0" />
-                          <span>{item.statusText || t.queueConverted}</span>
+                          <span>{item.statusText && item.statusText !== 'Converted' ? item.statusText : t.statusConverted}</span>
                         </div>
                       )}
 
