@@ -146,7 +146,7 @@ export const SectorNav: React.FC = () => {
             {t.popularDirectionsTitle}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-start gap-2 min-h-[82px] sm:min-h-[96px]">
           {currentDirections.map((item) => (
             <a
               key={item.slug}

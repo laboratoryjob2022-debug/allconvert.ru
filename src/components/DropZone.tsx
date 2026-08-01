@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { getTranslation } from '../lib/i18n';
+import { SeoConversionRoute, getLocalizedSeoRoute } from '../lib/seoPages';
 import {
   UploadCloud,
   FileCheck2,
@@ -12,12 +13,13 @@ import {
 } from 'lucide-react';
 
 interface DropZoneProps {
-  isSeoPage?: boolean;
+  seoData?: SeoConversionRoute | null;
 }
 
-export const DropZone: React.FC<DropZoneProps> = ({ isSeoPage = false }) => {
+export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
   const { addFiles, language } = useConverterStore();
   const t = getTranslation(language);
+  const localizedSeo = seoData ? getLocalizedSeoRoute(seoData, language) : null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -70,17 +72,21 @@ export const DropZone: React.FC<DropZoneProps> = ({ isSeoPage = false }) => {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-6">
-      {/* Central Hero SEO Header for Main Page */}
-      {!isSeoPage && (
-        <div className="text-center max-w-3xl mx-auto mb-8">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
-            {t.mainH1}
-          </h1>
-          <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            {t.mainSubtitle}
-          </p>
-        </div>
-      )}
+      {/* Central Hero Header for Main Page or Tool Page */}
+      <div className="text-center max-w-3xl mx-auto mb-8">
+        {localizedSeo && (
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 mb-3 border border-blue-200/60 dark:border-blue-800/50">
+            <Zap className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{t.onlineConverterBadge} {localizedSeo.fromFormat} ➔ {localizedSeo.toFormat}</span>
+          </div>
+        )}
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
+          {localizedSeo ? localizedSeo.h1 : t.mainH1}
+        </h1>
+        <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
+          {localizedSeo ? localizedSeo.subtitle : t.mainSubtitle}
+        </p>
+      </div>
 
       <div
         onDragOver={handleDragOver}

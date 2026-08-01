@@ -178,7 +178,7 @@ export default function App() {
         <SectorNav />
 
         {/* Drag and Drop Zone */}
-        <DropZone isSeoPage={!!seoData} />
+        <DropZone seoData={seoData} />
 
         {/* Batch Queue Controls (Visible when files exist) */}
         <BatchControls />
