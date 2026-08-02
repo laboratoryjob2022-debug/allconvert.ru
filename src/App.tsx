@@ -27,27 +27,31 @@ export interface RouteState {
 }
 
 function getRouteStateFromPath(): RouteState {
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
-  if (path === 'privacy') return { type: 'privacy', slug: 'privacy' };
-  if (path === 'terms') return { type: 'terms', slug: 'terms' };
-  if (path === 'about') return { type: 'about', slug: 'about' };
+  let rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  // Strip language prefix if present (e.g. zh/convert/ -> convert/)
+  rawPath = rawPath.replace(/^(ru|en|zh|es|de)\//, '');
 
-  if (path.startsWith('convert/')) {
-    return { type: 'convert', slug: path.replace('convert/', '') };
+  if (rawPath === 'privacy') return { type: 'privacy', slug: 'privacy' };
+  if (rawPath === 'terms') return { type: 'terms', slug: 'terms' };
+  if (rawPath === 'about') return { type: 'about', slug: 'about' };
+
+  if (rawPath.startsWith('convert/')) {
+    return { type: 'convert', slug: rawPath.replace('convert/', '') };
   }
-  if (path.includes('-to-')) {
-    return { type: 'convert', slug: path };
+  if (rawPath.includes('-to-')) {
+    return { type: 'convert', slug: rawPath };
   }
 
-  const hash = window.location.hash.replace(/^#+|\/+$/g, '');
-  if (hash === 'privacy') return { type: 'privacy', slug: 'privacy' };
-  if (hash === 'terms') return { type: 'terms', slug: 'terms' };
-  if (hash === 'about') return { type: 'about', slug: 'about' };
-  if (hash.startsWith('convert/')) {
-    return { type: 'convert', slug: hash.replace('convert/', '') };
+  let rawHash = window.location.hash.replace(/^#+|\/+$/g, '');
+  rawHash = rawHash.replace(/^(ru|en|zh|es|de)\//, '');
+  if (rawHash === 'privacy') return { type: 'privacy', slug: 'privacy' };
+  if (rawHash === 'terms') return { type: 'terms', slug: 'terms' };
+  if (rawHash === 'about') return { type: 'about', slug: 'about' };
+  if (rawHash.startsWith('convert/')) {
+    return { type: 'convert', slug: rawHash.replace('convert/', '') };
   }
-  if (hash.includes('-to-')) {
-    return { type: 'convert', slug: hash };
+  if (rawHash.includes('-to-')) {
+    return { type: 'convert', slug: rawHash };
   }
 
   return { type: 'home', slug: '' };

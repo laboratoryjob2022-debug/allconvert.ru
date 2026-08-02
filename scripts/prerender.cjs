@@ -321,7 +321,7 @@ function renderRouteContent(routePath, lang = 'ru') {
   };
 }
 
-console.log(`[PRERENDER] Found ${routes.size} static routes to prerender in ${SUPPORTED_LANGS.length} languages (${SUPPORTED_LANGS.join(', ')}).`);
+console.log(`[PRERENDER] Found ${routes.size} static routes to prerender.`);
 
 let count = 0;
 for (const routePath of routes) {
@@ -331,39 +331,21 @@ for (const routePath of routes) {
     allLangsMap[lang] = renderRouteContent(routePath, lang);
   }
 
-  for (const lang of SUPPORTED_LANGS) {
-    const meta = allLangsMap[lang];
-    const renderedHtml = injectMetadata(baseHtml, meta, allLangsMap);
+  // Use Russian as the primary baseline for the static HTML
+  const defaultMeta = allLangsMap['ru'];
+  const renderedHtml = injectMetadata(baseHtml, defaultMeta, allLangsMap);
 
-    if (lang === 'ru') {
-      // Default Russian files at primary path
-      if (routePath === '/' || routePath === '') {
-        fs.writeFileSync(indexHtmlPath, renderedHtml, 'utf-8');
-      } else {
-        const segments = routePath.split('/').filter(Boolean);
-        const targetDir = path.join(distDir, ...segments);
-        fs.mkdirSync(targetDir, { recursive: true });
+  if (routePath === '/' || routePath === '') {
+    fs.writeFileSync(indexHtmlPath, renderedHtml, 'utf-8');
+  } else {
+    const segments = routePath.split('/').filter(Boolean);
+    const targetDir = path.join(distDir, ...segments);
+    fs.mkdirSync(targetDir, { recursive: true });
 
-        const targetFile = path.join(targetDir, 'index.html');
-        fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
-      }
-    } else {
-      // Localized files under /<lang>/ subdirectories
-      if (routePath === '/' || routePath === '') {
-        const targetDir = path.join(distDir, lang);
-        fs.mkdirSync(targetDir, { recursive: true });
-        fs.writeFileSync(path.join(targetDir, 'index.html'), renderedHtml, 'utf-8');
-      } else {
-        const segments = routePath.split('/').filter(Boolean);
-        const targetDir = path.join(distDir, lang, ...segments);
-        fs.mkdirSync(targetDir, { recursive: true });
-
-        const targetFile = path.join(targetDir, 'index.html');
-        fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
-      }
-    }
-    count++;
+    const targetFile = path.join(targetDir, 'index.html');
+    fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
   }
+  count++;
 }
 
 // Clean up temporary bundle directory
