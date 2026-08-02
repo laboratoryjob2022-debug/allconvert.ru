@@ -154,23 +154,29 @@ export default function App() {
       {/* 2. Main Navigation Bar */}
       <Navbar />
 
-      {/* Top Breadcrumbs for SEO Landing Pages */}
-      {seoData && (
-        <div className="w-full max-w-7xl mx-auto px-4 pt-4 pb-1">
-          <nav className="flex items-center text-sm font-medium text-slate-400 space-x-2">
-            <button
-              onClick={() => handleNavigateRoute('')}
-              className="hover:text-cyan-400 transition-colors cursor-pointer"
-            >
-              {t.homeBreadcrumb}
-            </button>
-            <span className="text-slate-600">/</span>
+      {/* Top Breadcrumbs - Unified across all pages to prevent CLS */}
+      <div className="w-full max-w-7xl mx-auto px-4 pt-4 pb-1 min-h-[40px] flex items-center">
+        <nav className="flex items-center text-sm font-medium text-slate-400 space-x-2">
+          {seoData ? (
+            <>
+              <button
+                onClick={() => handleNavigateRoute('')}
+                className="hover:text-cyan-400 transition-colors cursor-pointer"
+              >
+                {t.homeBreadcrumb}
+              </button>
+              <span className="text-slate-600">/</span>
+              <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
+                {t.toDirection(seoData.fromFormat, seoData.toFormat)}
+              </span>
+            </>
+          ) : (
             <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
-              {t.toDirection(seoData.fromFormat, seoData.toFormat)}
+              {t.homeBreadcrumb}
             </span>
-          </nav>
-        </div>
-      )}
+          )}
+        </nav>
+      </div>
 
       {/* 3. Main Content Container */}
       <main className="flex-1 pb-16">
