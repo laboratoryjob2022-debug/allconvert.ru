@@ -28,27 +28,27 @@ export interface RouteState {
 
 function getRouteStateFromPath(): RouteState {
   let rawPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
-  // Strip language prefix if present (e.g. zh/convert/ -> convert/)
-  rawPath = rawPath.replace(/^(ru|en|zh|es|de)\//, '');
+  // Strip language prefix if present (e.g. zh/convert/ -> convert/ or zh -> '')
+  rawPath = rawPath.replace(/^(ru|en|zh|es|de)(\/|$)/, '');
 
   if (rawPath === 'privacy') return { type: 'privacy', slug: 'privacy' };
   if (rawPath === 'terms') return { type: 'terms', slug: 'terms' };
   if (rawPath === 'about') return { type: 'about', slug: 'about' };
 
   if (rawPath.startsWith('convert/')) {
-    return { type: 'convert', slug: rawPath.replace('convert/', '') };
+    return { type: 'convert', slug: rawPath.replace(/^convert\//, '') };
   }
   if (rawPath.includes('-to-')) {
     return { type: 'convert', slug: rawPath };
   }
 
   let rawHash = window.location.hash.replace(/^#+|\/+$/g, '');
-  rawHash = rawHash.replace(/^(ru|en|zh|es|de)\//, '');
+  rawHash = rawHash.replace(/^(ru|en|zh|es|de)(\/|$)/, '');
   if (rawHash === 'privacy') return { type: 'privacy', slug: 'privacy' };
   if (rawHash === 'terms') return { type: 'terms', slug: 'terms' };
   if (rawHash === 'about') return { type: 'about', slug: 'about' };
   if (rawHash.startsWith('convert/')) {
-    return { type: 'convert', slug: rawHash.replace('convert/', '') };
+    return { type: 'convert', slug: rawHash.replace(/^convert\//, '') };
   }
   if (rawHash.includes('-to-')) {
     return { type: 'convert', slug: rawHash };
@@ -63,13 +63,17 @@ export default function App() {
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteStateFromPath());
   const [seoData, setSeoData] = useState<SeoConversionRoute | null>(null);
 
-  // Sync language from URL search param if present (e.g. ?lang=zh)
+  // Sync language from URL path prefix (e.g. /zh/...) or search param (?lang=zh)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const langParam = urlParams.get('lang');
-    if (langParam && ['ru', 'en', 'es', 'de', 'zh', 'fr'].includes(langParam)) {
-      if (language !== langParam) {
-        setLanguage(langParam);
+    const pathPrefixMatch = window.location.pathname.match(/^\/(ru|en|zh|es|de)(\/|$)/);
+    const pathLang = pathPrefixMatch ? pathPrefixMatch[1] : null;
+    const targetLang = pathLang || langParam;
+
+    if (targetLang && ['ru', 'en', 'es', 'de', 'zh'].includes(targetLang)) {
+      if (language !== targetLang) {
+        setLanguage(targetLang);
       }
     }
   }, [setLanguage, language]);

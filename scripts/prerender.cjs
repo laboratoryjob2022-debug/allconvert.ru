@@ -109,14 +109,15 @@ function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle,
   output = replaceTag(output, /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, canonicalTag);
 
   // Hreflang alternate links
-  const basePath = canonicalUrl.split('?')[0].replace('https://allconvert.ru', '');
+  const rawBasePath = canonicalUrl.split('?')[0].replace('https://allconvert.ru', '').replace(/^\/(en|zh|es|de)/, '');
+  const basePath = rawBasePath === '' ? '' : rawBasePath;
   const hreflangTags = [
-    `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${basePath}">`,
-    `<link rel="alternate" hreflang="en" href="https://allconvert.ru${basePath}?lang=en">`,
-    `<link rel="alternate" hreflang="zh" href="https://allconvert.ru${basePath}?lang=zh">`,
-    `<link rel="alternate" hreflang="es" href="https://allconvert.ru${basePath}?lang=es">`,
-    `<link rel="alternate" hreflang="de" href="https://allconvert.ru${basePath}?lang=de">`,
-    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath}">`,
+    `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${basePath || '/'}">`,
+    `<link rel="alternate" hreflang="en" href="https://allconvert.ru/en${basePath}">`,
+    `<link rel="alternate" hreflang="zh" href="https://allconvert.ru/zh${basePath}">`,
+    `<link rel="alternate" hreflang="es" href="https://allconvert.ru/es${basePath}">`,
+    `<link rel="alternate" hreflang="de" href="https://allconvert.ru/de${basePath}">`,
+    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath || '/'}">`,
   ].join('\n  ');
 
   output = output.replace(/<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/gi, '');
@@ -165,8 +166,10 @@ function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle,
 // Helper to construct pre-rendered HTML structure for each route and language
 function renderRouteContent(routePath, lang = 'ru') {
   const t = translations[lang] || translations.ru;
-  const basePath = routePath === '/' ? '/' : routePath;
-  const canonicalUrl = `https://allconvert.ru${basePath}${lang !== 'ru' ? `?lang=${lang}` : ''}`;
+  const basePath = routePath === '/' ? '' : routePath;
+  const canonicalUrl = lang === 'ru' 
+    ? `https://allconvert.ru${basePath || '/'}`
+    : `https://allconvert.ru/${lang}${basePath}`;
 
   if (routePath === '/' || routePath === '') {
     const title = `${t.appName} — ${t.appSub}`;
@@ -321,7 +324,7 @@ function renderRouteContent(routePath, lang = 'ru') {
   };
 }
 
-console.log(`[PRERENDER] Found ${routes.size} static routes to prerender.`);
+console.log(`[PRERENDER] Found ${routes.size} static routes to prerender in ${SUPPORTED_LANGS.length} languages.`);
 
 let count = 0;
 for (const routePath of routes) {
@@ -331,21 +334,37 @@ for (const routePath of routes) {
     allLangsMap[lang] = renderRouteContent(routePath, lang);
   }
 
-  // Use Russian as the primary baseline for the static HTML
-  const defaultMeta = allLangsMap['ru'];
-  const renderedHtml = injectMetadata(baseHtml, defaultMeta, allLangsMap);
+  for (const lang of SUPPORTED_LANGS) {
+    const meta = allLangsMap[lang];
+    const renderedHtml = injectMetadata(baseHtml, meta, allLangsMap);
 
-  if (routePath === '/' || routePath === '') {
-    fs.writeFileSync(indexHtmlPath, renderedHtml, 'utf-8');
-  } else {
-    const segments = routePath.split('/').filter(Boolean);
-    const targetDir = path.join(distDir, ...segments);
-    fs.mkdirSync(targetDir, { recursive: true });
+    if (lang === 'ru') {
+      if (routePath === '/' || routePath === '') {
+        fs.writeFileSync(indexHtmlPath, renderedHtml, 'utf-8');
+      } else {
+        const segments = routePath.split('/').filter(Boolean);
+        const targetDir = path.join(distDir, ...segments);
+        fs.mkdirSync(targetDir, { recursive: true });
 
-    const targetFile = path.join(targetDir, 'index.html');
-    fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
+        const targetFile = path.join(targetDir, 'index.html');
+        fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
+      }
+    } else {
+      if (routePath === '/' || routePath === '') {
+        const targetDir = path.join(distDir, lang);
+        fs.mkdirSync(targetDir, { recursive: true });
+        fs.writeFileSync(path.join(targetDir, 'index.html'), renderedHtml, 'utf-8');
+      } else {
+        const segments = routePath.split('/').filter(Boolean);
+        const targetDir = path.join(distDir, lang, ...segments);
+        fs.mkdirSync(targetDir, { recursive: true });
+
+        const targetFile = path.join(targetDir, 'index.html');
+        fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
+      }
+    }
+    count++;
   }
-  count++;
 }
 
 // Clean up temporary bundle directory
