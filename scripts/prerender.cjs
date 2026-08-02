@@ -81,7 +81,7 @@ const FEATURE_LIST_MAP = {
   ]
 };
 
-// Collect all routes
+// Collect all normalized routes
 const routes = new Set(['/', '/privacy', '/terms', '/about']);
 
 // Add all routes from POPULAR_SEO_ROUTES
@@ -89,20 +89,78 @@ for (const slug of Object.keys(POPULAR_SEO_ROUTES)) {
   routes.add(`/convert/${slug}`);
 }
 
-// Add all routes from sitemap.xml
+// Add all routes from existing sitemap.xml
 if (fs.existsSync(sitemapPath)) {
   const sitemapContent = fs.readFileSync(sitemapPath, 'utf-8');
   const matches = sitemapContent.match(/<loc>https?:\/\/[^\/]+(\/[^<]*)<\/loc>/g);
   if (matches) {
     for (const m of matches) {
-      const rawRoute = m.replace(/<loc>https?:\/\/[^\/]+/, '').replace('</loc>', '');
-      const route = rawRoute.split('?')[0];
+      let route = m.replace(/<loc>https?:\/\/[^\/]+/, '').replace('</loc>', '').split('?')[0];
+      route = route.replace(/^\/(en|zh|es|de)(\/|$)/, '$2');
       if (route) {
         routes.add(route.endsWith('/') && route !== '/' ? route.slice(0, -1) : route);
       }
     }
   }
 }
+
+// Generate updated multilingual sitemap.xml
+function generateSitemap(routesSet, supportedLangs) {
+  const today = new Date().toISOString().split('T')[0];
+  const urlEntries = [];
+
+  for (const routePath of routesSet) {
+    let changefreq = 'daily';
+    let priority = '0.8';
+
+    if (routePath === '/' || routePath === '') {
+      priority = '1.0';
+      changefreq = 'daily';
+    } else if (routePath === '/privacy' || routePath === '/terms') {
+      priority = '0.5';
+      changefreq = 'monthly';
+    } else if (routePath === '/about') {
+      priority = '0.6';
+      changefreq = 'monthly';
+    }
+
+    const cleanRoute = routePath === '/' ? '' : routePath;
+
+    for (const lang of supportedLangs) {
+      const loc = lang === 'ru' 
+        ? `https://allconvert.ru${cleanRoute || '/'}`
+        : `https://allconvert.ru/${lang}${cleanRoute}`;
+
+      const alternates = [
+        `<xhtml:link rel="alternate" hreflang="ru" href="https://allconvert.ru${cleanRoute || '/'}" />`,
+        `<xhtml:link rel="alternate" hreflang="en" href="https://allconvert.ru/en${cleanRoute}" />`,
+        `<xhtml:link rel="alternate" hreflang="zh" href="https://allconvert.ru/zh${cleanRoute}" />`,
+        `<xhtml:link rel="alternate" hreflang="es" href="https://allconvert.ru/es${cleanRoute}" />`,
+        `<xhtml:link rel="alternate" hreflang="de" href="https://allconvert.ru/de${cleanRoute}" />`,
+        `<xhtml:link rel="alternate" hreflang="x-default" href="https://allconvert.ru${cleanRoute || '/'}" />`
+      ].join('\n    ');
+
+      urlEntries.push(`  <url>
+    <loc>${loc}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+    ${alternates}
+  </url>`);
+    }
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urlEntries.join('\n')}
+</urlset>
+`;
+}
+
+const freshSitemapContent = generateSitemap(routes, SUPPORTED_LANGS);
+fs.writeFileSync(sitemapPath, freshSitemapContent, 'utf-8');
+fs.writeFileSync(path.join(distDir, 'sitemap.xml'), freshSitemapContent, 'utf-8');
+console.log(`[SITEMAP] Generated updated sitemap.xml with ${routes.size * SUPPORTED_LANGS.length} localized URLs and lastmod=${new Date().toISOString().split('T')[0]}`);
 
 function escapeHtml(str) {
   if (!str) return '';
