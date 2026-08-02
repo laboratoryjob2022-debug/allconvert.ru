@@ -35,10 +35,10 @@ try {
 const seoPagesModule = require(path.join(tmpBundleDir, 'seoPages.cjs'));
 const i18nModule = require(path.join(tmpBundleDir, 'i18n.cjs'));
 
-const { POPULAR_SEO_ROUTES, getSeoPageDataBySlug } = seoPagesModule;
+const { POPULAR_SEO_ROUTES, getSeoPageDataBySlug, getLocalizedSeoRoute } = seoPagesModule;
 const { translations } = i18nModule;
 
-const tRu = translations.ru;
+const SUPPORTED_LANGS = ['ru', 'en', 'zh', 'es', 'de'];
 
 // Collect all routes
 const routes = new Set(['/', '/privacy', '/terms', '/about']);
@@ -54,7 +54,8 @@ if (fs.existsSync(sitemapPath)) {
   const matches = sitemapContent.match(/<loc>https?:\/\/[^\/]+(\/[^<]*)<\/loc>/g);
   if (matches) {
     for (const m of matches) {
-      const route = m.replace(/<loc>https?:\/\/[^\/]+/, '').replace('</loc>', '');
+      const rawRoute = m.replace(/<loc>https?:\/\/[^\/]+/, '').replace('</loc>', '');
+      const route = rawRoute.split('?')[0];
       if (route) {
         routes.add(route.endsWith('/') && route !== '/' ? route.slice(0, -1) : route);
       }
@@ -79,8 +80,14 @@ function replaceTag(html, regex, newTag) {
   }
 }
 
-function injectMetadata(html, { title, description, canonicalUrl, ogTitle, ogDescription, bodyContent }) {
+function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle, ogDescription, bodyContent }) {
   let output = html;
+
+  // Replace or inject <html lang="...">
+  output = output.replace(/<html(\s+[^>]*)lang="[^"]*"/i, `<html$1lang="${lang}"`);
+  if (!/<html[^>]*lang=/i.test(output)) {
+    output = output.replace(/<html/i, `<html lang="${lang}"`);
+  }
 
   // Title
   output = output.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
@@ -102,17 +109,16 @@ function injectMetadata(html, { title, description, canonicalUrl, ogTitle, ogDes
   output = replaceTag(output, /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, canonicalTag);
 
   // Hreflang alternate links
-  const baseHreflangPath = canonicalUrl.replace('https://allconvert.ru', '');
+  const basePath = canonicalUrl.split('?')[0].replace('https://allconvert.ru', '');
   const hreflangTags = [
-    `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${baseHreflangPath}">`,
-    `<link rel="alternate" hreflang="en" href="https://allconvert.ru${baseHreflangPath}?lang=en">`,
-    `<link rel="alternate" hreflang="zh" href="https://allconvert.ru${baseHreflangPath}?lang=zh">`,
-    `<link rel="alternate" hreflang="es" href="https://allconvert.ru${baseHreflangPath}?lang=es">`,
-    `<link rel="alternate" hreflang="de" href="https://allconvert.ru${baseHreflangPath}?lang=de">`,
-    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${baseHreflangPath}">`,
+    `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${basePath}">`,
+    `<link rel="alternate" hreflang="en" href="https://allconvert.ru${basePath}?lang=en">`,
+    `<link rel="alternate" hreflang="zh" href="https://allconvert.ru${basePath}?lang=zh">`,
+    `<link rel="alternate" hreflang="es" href="https://allconvert.ru${basePath}?lang=es">`,
+    `<link rel="alternate" hreflang="de" href="https://allconvert.ru${basePath}?lang=de">`,
+    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath}">`,
   ].join('\n  ');
 
-  // Remove old hreflang links if present and inject new ones
   output = output.replace(/<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/gi, '');
   output = output.replace('</head>', `  ${hreflangTags}\n</head>`);
 
@@ -124,118 +130,122 @@ function injectMetadata(html, { title, description, canonicalUrl, ogTitle, ogDes
   return output;
 }
 
-// Helper to construct pre-rendered HTML structure for each route type
-function renderRouteContent(routePath) {
-  const canonicalUrl = `https://allconvert.ru${routePath === '/' ? '/' : routePath}`;
+// Helper to construct pre-rendered HTML structure for each route and language
+function renderRouteContent(routePath, lang = 'ru') {
+  const t = translations[lang] || translations.ru;
+  const basePath = routePath === '/' ? '/' : routePath;
+  const canonicalUrl = `https://allconvert.ru${basePath}${lang !== 'ru' ? `?lang=${lang}` : ''}`;
 
   if (routePath === '/' || routePath === '') {
-    const title = `${tRu.appName} — ${tRu.appSub}`;
-    const description = tRu.mainSubtitle;
+    const title = `${t.appName} — ${t.appSub}`;
+    const description = t.mainSubtitle;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:space-between;">
         <div style="font-weight:bold;font-size:1.25rem;">All<span style="color:#38bdf8;">Convert</span></div>
-        <nav><a href="/privacy" style="color:#94a3b8;margin-right:1rem;">${tRu.privacyPolicy}</a><a href="/terms" style="color:#94a3b8;margin-right:1rem;">${tRu.termsOfService}</a><a href="/about" style="color:#94a3b8;">${tRu.aboutUsAndContacts}</a></nav>
+        <nav><a href="/privacy" style="color:#94a3b8;margin-right:1rem;">${escapeHtml(t.privacyPolicy)}</a><a href="/terms" style="color:#94a3b8;margin-right:1rem;">${escapeHtml(t.termsOfService)}</a><a href="/about" style="color:#94a3b8;">${escapeHtml(t.aboutUsAndContacts)}</a></nav>
       </header>
       <main style="max-width:1200px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
-        <h1 style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;">${tRu.appName} — ${tRu.appSub}</h1>
-        <p style="font-size:1.125rem;color:#cbd5e1;margin-bottom:2rem;">${tRu.mainSubtitle}</p>
+        <h1 style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;">${escapeHtml(t.appName)} — ${escapeHtml(t.appSub)}</h1>
+        <p style="font-size:1.125rem;color:#cbd5e1;margin-bottom:2rem;">${escapeHtml(t.mainSubtitle)}</p>
         <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:2rem;">
-          <h2 style="font-size:1.25rem;font-weight:700;color:#38bdf8;margin-bottom:0.5rem;">${tRu.noAuthTitle}</h2>
-          <p style="color:#94a3b8;">${tRu.noAuthDesc}</p>
+          <h2 style="font-size:1.25rem;font-weight:700;color:#38bdf8;margin-bottom:0.5rem;">${escapeHtml(t.noAuthTitle)}</h2>
+          <p style="color:#94a3b8;">${escapeHtml(t.noAuthDesc)}</p>
         </section>
         <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-bottom:2rem;">
           <div style="background:#1e293b;padding:1.25rem;border-radius:1rem;">
-            <h3 style="font-weight:bold;color:#f8fafc;margin-bottom:0.5rem;">${tRu.aboutAdv1Title}</h3>
-            <p style="font-size:0.875rem;color:#94a3b8;">${tRu.aboutAdv1Desc}</p>
+            <h3 style="font-weight:bold;color:#f8fafc;margin-bottom:0.5rem;">${escapeHtml(t.aboutAdv1Title)}</h3>
+            <p style="font-size:0.875rem;color:#94a3b8;">${escapeHtml(t.aboutAdv1Desc)}</p>
           </div>
           <div style="background:#1e293b;padding:1.25rem;border-radius:1rem;">
-            <h3 style="font-weight:bold;color:#f8fafc;margin-bottom:0.5rem;">${tRu.aboutAdv2Title}</h3>
-            <p style="font-size:0.875rem;color:#94a3b8;">${tRu.aboutAdv2Desc}</p>
+            <h3 style="font-weight:bold;color:#f8fafc;margin-bottom:0.5rem;">${escapeHtml(t.aboutAdv2Title)}</h3>
+            <p style="font-size:0.875rem;color:#94a3b8;">${escapeHtml(t.aboutAdv2Desc)}</p>
           </div>
         </section>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;">
-        <p>© ${new Date().getFullYear()} AllConvert.ru. ${tRu.footerCopyright}</p>
+        <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, canonicalUrl, bodyContent };
   }
 
   if (routePath === '/privacy') {
-    const title = `${tRu.privacyPolicy} — AllConvert`;
-    const description = `${tRu.privacyPrinciple} ${tRu.privacySec1Text}`;
+    const title = `${t.privacyPolicy} — AllConvert`;
+    const description = `${t.privacyPrinciple} ${t.privacySec1Text}`;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
         <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
-        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${tRu.privacyPolicy}</h1>
-        <p style="font-size:1.125rem;color:#34d399;font-weight:600;margin-bottom:1.5rem;">${tRu.privacyPrinciple}</p>
+        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.privacyPolicy)}</h1>
+        <p style="font-size:1.125rem;color:#34d399;font-weight:600;margin-bottom:1.5rem;">${escapeHtml(t.privacyPrinciple)}</p>
         <div style="display:flex;flex-direction:column;gap:1.5rem;line-height:1.6;color:#cbd5e1;">
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${tRu.privacySec1Title}</h2><p>${tRu.legalPrivacyContent1}</p></section>
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${tRu.privacySec2Title}</h2><p>${tRu.legalPrivacyContent2}</p></section>
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${tRu.privacySec3Title}</h2><p>${tRu.legalPrivacyContent3}</p><p style="margin-top:0.5rem;">${tRu.legalPrivacyContent4}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec1Title)}</h2><p>${escapeHtml(t.legalPrivacyContent1)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec2Title)}</h2><p>${escapeHtml(t.legalPrivacyContent2)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec3Title)}</h2><p>${escapeHtml(t.legalPrivacyContent3)}</p><p style="margin-top:0.5rem;">${escapeHtml(t.legalPrivacyContent4)}</p></section>
         </div>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
-        <p>© ${new Date().getFullYear()} AllConvert.ru. ${tRu.footerCopyright}</p>
+        <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, canonicalUrl, bodyContent };
   }
 
   if (routePath === '/terms') {
-    const title = `${tRu.termsOfService} — AllConvert`;
-    const description = `${tRu.termsSec1Text} ${tRu.termsSec2Text}`;
+    const title = `${t.termsOfService} — AllConvert`;
+    const description = `${t.termsSec1Text} ${t.termsSec2Text}`;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
         <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
-        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${tRu.termsOfService}</h1>
+        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.termsOfService)}</h1>
         <div style="display:flex;flex-direction:column;gap:1.5rem;line-height:1.6;color:#cbd5e1;">
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${tRu.termsSec1Title}</h2><p>${tRu.legalTermsContent1}</p></section>
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${tRu.termsSec2Title}</h2><p>${tRu.legalTermsContent2}</p></section>
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${tRu.termsSec3Title}</h2><p>${tRu.legalTermsContent3}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec1Title)}</h2><p>${escapeHtml(t.legalTermsContent1)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec2Title)}</h2><p>${escapeHtml(t.legalTermsContent2)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec3Title)}</h2><p>${escapeHtml(t.legalTermsContent3)}</p></section>
         </div>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
-        <p>© ${new Date().getFullYear()} AllConvert.ru. ${tRu.footerCopyright}</p>
+        <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, canonicalUrl, bodyContent };
   }
 
   if (routePath === '/about') {
-    const title = tRu.aboutPageTitle;
-    const description = tRu.aboutPageDesc;
+    const title = t.aboutPageTitle;
+    const description = t.aboutPageDesc;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
         <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
-        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${tRu.aboutPageHeading}</h1>
-        <p style="font-size:1.125rem;color:#cbd5e1;line-height:1.6;margin-bottom:2rem;">${tRu.aboutPageDesc}</p>
+        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.aboutPageHeading)}</h1>
+        <p style="font-size:1.125rem;color:#cbd5e1;line-height:1.6;margin-bottom:2rem;">${escapeHtml(t.aboutPageDesc)}</p>
         <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:2rem;">
-          <h2 style="font-size:1.25rem;font-weight:bold;color:#fff;margin-bottom:0.5rem;">${tRu.contactHeader}</h2>
-          <p style="color:#cbd5e1;">${tRu.contactDesc} <a href="mailto:support@allconvert.ru" style="color:#38bdf8;font-weight:bold;">support@allconvert.ru</a></p>
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#fff;margin-bottom:0.5rem;">${escapeHtml(t.contactHeader)}</h2>
+          <p style="color:#cbd5e1;">${escapeHtml(t.contactDesc)} <a href="mailto:support@allconvert.ru" style="color:#38bdf8;font-weight:bold;">support@allconvert.ru</a></p>
         </section>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
-        <p>© ${new Date().getFullYear()} AllConvert.ru. ${tRu.footerCopyright}</p>
+        <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, canonicalUrl, bodyContent };
   }
 
   if (routePath.startsWith('/convert/')) {
     const slug = routePath.replace('/convert/', '');
-    const seoData = getSeoPageDataBySlug(slug);
+    const rawData = getSeoPageDataBySlug(slug);
+    const seoData = getLocalizedSeoRoute(rawData, lang);
+
     const title = seoData.title;
     const description = seoData.metaDescription;
 
     const stepsHtml = seoData.steps
-      ? seoData.steps.map(s => `<li style="margin-bottom:0.5rem;"><strong>Шаг ${s.step}: ${escapeHtml(s.title)}</strong> — ${escapeHtml(s.text)}</li>`).join('')
+      ? seoData.steps.map(s => `<li style="margin-bottom:0.5rem;"><strong>${escapeHtml(s.title)}</strong> — ${escapeHtml(s.text)}</li>`).join('')
       : '';
 
     const featuresHtml = seoData.features
@@ -251,53 +261,71 @@ function renderRouteContent(routePath) {
         <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:1000px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
-        <nav style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.5rem;"><a href="/" style="color:#38bdf8;">Главная</a> / <span>${escapeHtml(seoData.fromFormat)} в ${escapeHtml(seoData.toFormat)}</span></nav>
+        <nav style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.5rem;"><a href="/" style="color:#38bdf8;">AllConvert</a> / <span>${escapeHtml(seoData.fromFormat)} → ${escapeHtml(seoData.toFormat)}</span></nav>
         <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:0.75rem;">${escapeHtml(seoData.h1)}</h1>
         <p style="font-size:1.125rem;color:#cbd5e1;margin-bottom:2rem;line-height:1.6;">${escapeHtml(seoData.subtitle)}</p>
         
         ${seoData.descriptionParagraphs ? seoData.descriptionParagraphs.map(p => `<p style="margin-bottom:1rem;color:#94a3b8;line-height:1.6;">${escapeHtml(p)}</p>`).join('') : ''}
 
-        ${stepsHtml ? `<section style="margin:2rem 0;"><h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem;">Как сконвертировать ${escapeHtml(seoData.fromFormat)} в ${escapeHtml(seoData.toFormat)}</h2><ol style="padding-left:1.25rem;color:#cbd5e1;">${stepsHtml}</ol></section>` : ''}
+        ${stepsHtml ? `<section style="margin:2rem 0;"><h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem;">${escapeHtml(seoData.fromFormat)} → ${escapeHtml(seoData.toFormat)}</h2><ol style="padding-left:1.25rem;color:#cbd5e1;">${stepsHtml}</ol></section>` : ''}
 
-        ${featuresHtml ? `<section style="margin:2rem 0;"><h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem;">Преимущества конвертации на AllConvert</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;">${featuresHtml}</div></section>` : ''}
+        ${featuresHtml ? `<section style="margin:2rem 0;"><h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem;">AllConvert</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;">${featuresHtml}</div></section>` : ''}
 
-        ${faqsHtml ? `<section style="margin:2rem 0;"><h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem;">Часто задаваемые вопросы (FAQ)</h2><div>${faqsHtml}</div></section>` : ''}
+        ${faqsHtml ? `<section style="margin:2rem 0;"><h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem;">FAQ</h2><div>${faqsHtml}</div></section>` : ''}
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
-        <p>© ${new Date().getFullYear()} AllConvert.ru. ${tRu.footerCopyright}</p>
+        <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, canonicalUrl, bodyContent };
   }
 
   return {
-    title: `${tRu.appName} — ${tRu.appSub}`,
-    description: tRu.mainSubtitle,
+    lang,
+    title: `${t.appName} — ${t.appSub}`,
+    description: t.mainSubtitle,
     canonicalUrl,
     bodyContent: ''
   };
 }
 
-console.log(`[PRERENDER] Found ${routes.size} static routes to prerender.`);
+console.log(`[PRERENDER] Found ${routes.size} static routes to prerender in ${SUPPORTED_LANGS.length} languages (${SUPPORTED_LANGS.join(', ')}).`);
 
 let count = 0;
 for (const routePath of routes) {
-  const meta = renderRouteContent(routePath);
-  const renderedHtml = injectMetadata(baseHtml, meta);
+  for (const lang of SUPPORTED_LANGS) {
+    const meta = renderRouteContent(routePath, lang);
+    const renderedHtml = injectMetadata(baseHtml, meta);
 
-  if (routePath === '/' || routePath === '') {
-    fs.writeFileSync(indexHtmlPath, renderedHtml, 'utf-8');
-    console.log(`  ✓ Updated dist/index.html (Home)`);
-  } else {
-    const segments = routePath.split('/').filter(Boolean);
-    const targetDir = path.join(distDir, ...segments);
-    fs.mkdirSync(targetDir, { recursive: true });
+    if (lang === 'ru') {
+      // Default Russian files at primary path
+      if (routePath === '/' || routePath === '') {
+        fs.writeFileSync(indexHtmlPath, renderedHtml, 'utf-8');
+      } else {
+        const segments = routePath.split('/').filter(Boolean);
+        const targetDir = path.join(distDir, ...segments);
+        fs.mkdirSync(targetDir, { recursive: true });
 
-    const targetFile = path.join(targetDir, 'index.html');
-    fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
-    console.log(`  ✓ Created ${path.relative(distDir, targetFile)}`);
+        const targetFile = path.join(targetDir, 'index.html');
+        fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
+      }
+    } else {
+      // Localized files under /<lang>/ subdirectories
+      if (routePath === '/' || routePath === '') {
+        const targetDir = path.join(distDir, lang);
+        fs.mkdirSync(targetDir, { recursive: true });
+        fs.writeFileSync(path.join(targetDir, 'index.html'), renderedHtml, 'utf-8');
+      } else {
+        const segments = routePath.split('/').filter(Boolean);
+        const targetDir = path.join(distDir, lang, ...segments);
+        fs.mkdirSync(targetDir, { recursive: true });
+
+        const targetFile = path.join(targetDir, 'index.html');
+        fs.writeFileSync(targetFile, renderedHtml, 'utf-8');
+      }
+    }
+    count++;
   }
-  count++;
 }
 
 // Clean up temporary bundle directory
@@ -305,4 +333,4 @@ try {
   fs.rmSync(tmpBundleDir, { recursive: true, force: true });
 } catch (e) {}
 
-console.log(`[PRERENDER] Successfully prerendered ${count} static routes into dist!`);
+console.log(`[PRERENDER] Successfully prerendered ${count} localized HTML files into dist!`);

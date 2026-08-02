@@ -54,10 +54,21 @@ function getRouteStateFromPath(): RouteState {
 }
 
 export default function App() {
-  const { queue, loadHistoryFromDB, theme, language, setPresetTargetFormat, setActiveSector } = useConverterStore();
+  const { queue, loadHistoryFromDB, theme, language, setLanguage, setPresetTargetFormat, setActiveSector } = useConverterStore();
   const t = getTranslation(language || 'ru');
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteStateFromPath());
   const [seoData, setSeoData] = useState<SeoConversionRoute | null>(null);
+
+  // Sync language from URL search param if present (e.g. ?lang=zh)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const langParam = urlParams.get('lang');
+    if (langParam && ['ru', 'en', 'es', 'de', 'zh', 'fr'].includes(langParam)) {
+      if (language !== langParam) {
+        setLanguage(langParam);
+      }
+    }
+  }, [setLanguage, language]);
 
   useEffect(() => {
     loadHistoryFromDB();
@@ -76,6 +87,8 @@ export default function App() {
 
   // Update meta tags and converter preset target format when route or language changes
   useEffect(() => {
+    document.documentElement.lang = language || 'ru';
+
     let canonicalLink = document.querySelector('link[rel="canonical"]');
     if (!canonicalLink) {
       canonicalLink = document.createElement('link');
