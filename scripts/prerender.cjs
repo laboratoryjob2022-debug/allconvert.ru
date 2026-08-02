@@ -40,6 +40,14 @@ const { translations } = i18nModule;
 
 const SUPPORTED_LANGS = ['ru', 'en', 'zh', 'es', 'de'];
 
+const OG_LOCALE_MAP = {
+  ru: 'ru_RU',
+  en: 'en_US',
+  zh: 'zh_CN',
+  es: 'es_ES',
+  de: 'de_DE'
+};
+
 // Collect all routes
 const routes = new Set(['/', '/privacy', '/terms', '/about']);
 
@@ -72,15 +80,14 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function replaceTag(html, regex, newTag) {
-  if (regex.test(html)) {
-    return html.replace(regex, newTag);
-  } else {
-    return html.replace('</head>', `  ${newTag}\n</head>`);
-  }
+function getLocPath(rawPath, lang) {
+  if (!rawPath) return lang === 'ru' ? '/' : `/${lang}`;
+  if (lang === 'ru') return rawPath;
+  if (rawPath === '/') return `/${lang}`;
+  return `/${lang}${rawPath.startsWith('/') ? rawPath : '/' + rawPath}`;
 }
 
-function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle, ogDescription, bodyContent }, allLangsMap) {
+function injectMetadata(html, { lang, title, description, keywords, canonicalUrl, bodyContent }) {
   let output = html;
 
   // Replace or inject <html lang="...">
@@ -89,73 +96,52 @@ function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle,
     output = output.replace(/<html/i, `<html lang="${lang}"`);
   }
 
-  // Title
+  // Replace Title tag
   output = output.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
 
-  // Meta description
-  const metaDescTag = `<meta name="description" content="${escapeHtml(description)}">`;
-  output = replaceTag(output, /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i, metaDescTag);
+  // Strip pre-existing meta tags that we will clean-generate
+  output = output.replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>\n?/gi, '');
+  output = output.replace(/<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>\n?/gi, '');
+  output = output.replace(/<meta\s+property="og:[^"]*"\s+content="[^"]*"\s*\/?>\n?/gi, '');
+  output = output.replace(/<meta\s+name="twitter:[^"]*"\s+content="[^"]*"\s*\/?>\n?/gi, '');
+  output = output.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>\n?/gi, '');
+  output = output.replace(/<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/gi, '');
 
-  // OG Title
-  const ogTitleTag = `<meta property="og:title" content="${escapeHtml(ogTitle || title)}">`;
-  output = replaceTag(output, /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i, ogTitleTag);
+  // Strip any legacy window.__PRERENDER_LANG_DATA__ scripts if present
+  output = output.replace(/<script>\s*window\.__PRERENDER_LANG_DATA__[\s\S]*?<\/script>\n?/gi, '');
 
-  // OG Description
-  const ogDescTag = `<meta property="og:description" content="${escapeHtml(ogDescription || description)}">`;
-  output = replaceTag(output, /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i, ogDescTag);
-
-  // Canonical link
-  const canonicalTag = `<link rel="canonical" href="${escapeHtml(canonicalUrl)}">`;
-  output = replaceTag(output, /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i, canonicalTag);
-
-  // Hreflang alternate links
+  const ogLocale = OG_LOCALE_MAP[lang] || 'ru_RU';
   const rawBasePath = canonicalUrl.split('?')[0].replace('https://allconvert.ru', '').replace(/^\/(en|zh|es|de)/, '');
   const basePath = rawBasePath === '' ? '' : rawBasePath;
+
   const hreflangTags = [
     `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${basePath || '/'}">`,
     `<link rel="alternate" hreflang="en" href="https://allconvert.ru/en${basePath}">`,
     `<link rel="alternate" hreflang="zh" href="https://allconvert.ru/zh${basePath}">`,
     `<link rel="alternate" hreflang="es" href="https://allconvert.ru/es${basePath}">`,
     `<link rel="alternate" hreflang="de" href="https://allconvert.ru/de${basePath}">`,
-    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath || '/'}">`,
+    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath || '/'}">`
   ].join('\n  ');
 
-  output = output.replace(/<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/gi, '');
-  output = output.replace('</head>', `  ${hreflangTags}\n</head>`);
+  const metaTags = [
+    `<meta name="description" content="${escapeHtml(description)}">`,
+    keywords ? `<meta name="keywords" content="${escapeHtml(keywords)}">` : '',
+    `<meta property="og:locale" content="${ogLocale}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:title" content="${escapeHtml(title)}">`,
+    `<meta property="og:description" content="${escapeHtml(description)}">`,
+    `<meta property="og:url" content="${escapeHtml(canonicalUrl)}">`,
+    `<meta property="og:site_name" content="AllConvert">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escapeHtml(title)}">`,
+    `<meta name="twitter:description" content="${escapeHtml(description)}">`,
+    `<link rel="canonical" href="${escapeHtml(canonicalUrl)}">`,
+    hreflangTags
+  ].filter(Boolean).join('\n  ');
 
-  // Inject inline language switcher script if allLangsMap is provided
-  if (allLangsMap) {
-    const jsonMap = JSON.stringify(allLangsMap);
-    const inlineScript = `
-  <script>
-    window.__PRERENDER_LANG_DATA__ = ${jsonMap};
-    (function(){
-      try {
-        var params = new URLSearchParams(window.location.search);
-        var langParam = params.get('lang');
-        var pathMatch = window.location.pathname.match(/^\\/(en|zh|es|de)\\//);
-        var targetLang = pathMatch ? pathMatch[1] : langParam;
-        var data = window.__PRERENDER_LANG_DATA__;
-        if (targetLang && data && data[targetLang]) {
-          var item = data[targetLang];
-          document.documentElement.lang = targetLang;
-          if (item.title) document.title = item.title;
-          var metaDesc = document.querySelector('meta[name="description"]');
-          if (metaDesc && item.description) metaDesc.setAttribute('content', item.description);
-          var ogTitle = document.querySelector('meta[property="og:title"]');
-          if (ogTitle && item.title) ogTitle.setAttribute('content', item.title);
-          var ogDesc = document.querySelector('meta[property="og:description"]');
-          if (ogDesc && item.description) ogDesc.setAttribute('content', item.description);
-          var rootEl = document.getElementById('root');
-          if (rootEl && item.bodyContent) rootEl.innerHTML = item.bodyContent;
-        }
-      } catch(e) {}
-    })();
-  </script>`;
-    output = output.replace('</head>', `${inlineScript}\n</head>`);
-  }
+  output = output.replace('</head>', `  ${metaTags}\n</head>`);
 
-  // Body content pre-rendering
+  // Body content pre-rendering directly into #root
   if (bodyContent) {
     output = output.replace('<div id="root"></div>', `<div id="root">${bodyContent}</div>`);
   }
@@ -171,13 +157,27 @@ function renderRouteContent(routePath, lang = 'ru') {
     ? `https://allconvert.ru${basePath || '/'}`
     : `https://allconvert.ru/${lang}${basePath}`;
 
+  const homeHref = getLocPath('/', lang);
+  const privacyHref = getLocPath('/privacy', lang);
+  const termsHref = getLocPath('/terms', lang);
+  const aboutHref = getLocPath('/about', lang);
+
   if (routePath === '/' || routePath === '') {
     const title = `${t.appName} — ${t.appSub}`;
     const description = t.mainSubtitle;
+    const keywordsDict = {
+      ru: 'онлайн конвертер, конвертировать файлы, конвертер видео, конвертер аудио, конвертер изображений, бесплатно',
+      en: 'free online file converter, video converter, audio converter, image converter, convert files online',
+      zh: '在线文件转换器, 免费视频转换, 音频转换, 图像转换, 在线转换',
+      es: 'convertidor de archivos en línea, convertidor de video, convertidor de audio, convertidor de imágenes',
+      de: 'kostenloser online dateiumwandler, video konverter, audio konverter, bild konverter'
+    };
+    const keywords = keywordsDict[lang] || keywordsDict.ru;
+
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-weight:bold;font-size:1.25rem;">All<span style="color:#38bdf8;">Convert</span></div>
-        <nav><a href="/privacy" style="color:#94a3b8;margin-right:1rem;">${escapeHtml(t.privacyPolicy)}</a><a href="/terms" style="color:#94a3b8;margin-right:1rem;">${escapeHtml(t.termsOfService)}</a><a href="/about" style="color:#94a3b8;">${escapeHtml(t.aboutUsAndContacts)}</a></nav>
+        <a href="${homeHref}" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
+        <nav><a href="${privacyHref}" style="color:#94a3b8;margin-right:1rem;">${escapeHtml(t.privacyPolicy)}</a><a href="${termsHref}" style="color:#94a3b8;margin-right:1rem;">${escapeHtml(t.termsOfService)}</a><a href="${aboutHref}" style="color:#94a3b8;">${escapeHtml(t.aboutUsAndContacts)}</a></nav>
       </header>
       <main style="max-width:1200px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
         <h1 style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;">${escapeHtml(t.appName)} — ${escapeHtml(t.appSub)}</h1>
@@ -201,15 +201,16 @@ function renderRouteContent(routePath, lang = 'ru') {
         <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { lang, title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, keywords, canonicalUrl, bodyContent };
   }
 
   if (routePath === '/privacy') {
     const title = `${t.privacyPolicy} — AllConvert`;
     const description = `${t.privacyPrinciple} ${t.privacySec1Text}`;
+    const keywords = `privacy policy AllConvert, ${t.privacyPolicy}`;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
-        <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
+        <a href="${homeHref}" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
         <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.privacyPolicy)}</h1>
@@ -224,15 +225,16 @@ function renderRouteContent(routePath, lang = 'ru') {
         <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { lang, title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, keywords, canonicalUrl, bodyContent };
   }
 
   if (routePath === '/terms') {
     const title = `${t.termsOfService} — AllConvert`;
     const description = `${t.termsSec1Text} ${t.termsSec2Text}`;
+    const keywords = `terms of service AllConvert, ${t.termsOfService}`;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
-        <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
+        <a href="${homeHref}" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
         <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.termsOfService)}</h1>
@@ -246,15 +248,16 @@ function renderRouteContent(routePath, lang = 'ru') {
         <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { lang, title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, keywords, canonicalUrl, bodyContent };
   }
 
   if (routePath === '/about') {
     const title = t.aboutPageTitle;
     const description = t.aboutPageDesc;
+    const keywords = `about AllConvert, ${t.aboutPageHeading}`;
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
-        <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
+        <a href="${homeHref}" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
         <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.aboutPageHeading)}</h1>
@@ -268,7 +271,7 @@ function renderRouteContent(routePath, lang = 'ru') {
         <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { lang, title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, keywords, canonicalUrl, bodyContent };
   }
 
   if (routePath.startsWith('/convert/')) {
@@ -278,6 +281,15 @@ function renderRouteContent(routePath, lang = 'ru') {
 
     const title = seoData.title;
     const description = seoData.metaDescription;
+
+    const keywordsDict = {
+      ru: `${seoData.fromFormat} в ${seoData.toFormat}, конвертер ${seoData.fromFormat} в ${seoData.toFormat}, перевести ${seoData.fromFormat} в ${seoData.toFormat} онлайн бесплатно`,
+      en: `convert ${seoData.fromFormat} to ${seoData.toFormat}, ${seoData.fromFormat} to ${seoData.toFormat} converter, free online ${seoData.fromFormat} to ${seoData.toFormat}`,
+      zh: `${seoData.fromFormat} 转 ${seoData.toFormat}, ${seoData.fromFormat} 转 ${seoData.toFormat} 转换器, 在线免费 ${seoData.fromFormat} 转 ${seoData.toFormat}`,
+      es: `convertir ${seoData.fromFormat} a ${seoData.toFormat}, convertidor ${seoData.fromFormat} a ${seoData.toFormat} gratis en línea`,
+      de: `${seoData.fromFormat} in ${seoData.toFormat} umwandeln, ${seoData.fromFormat} in ${seoData.toFormat} konverter kostenlos`
+    };
+    const keywords = keywordsDict[lang] || keywordsDict.ru;
 
     const stepsHtml = seoData.steps
       ? seoData.steps.map(s => `<li style="margin-bottom:0.5rem;"><strong>${escapeHtml(s.title)}</strong> — ${escapeHtml(s.text)}</li>`).join('')
@@ -293,10 +305,10 @@ function renderRouteContent(routePath, lang = 'ru') {
 
     const bodyContent = `
       <header style="padding:1rem;background:#0f172a;color:#fff;">
-        <a href="/" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
+        <a href="${homeHref}" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
       </header>
       <main style="max-width:1000px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
-        <nav style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.5rem;"><a href="/" style="color:#38bdf8;">AllConvert</a> / <span>${escapeHtml(seoData.fromFormat)} → ${escapeHtml(seoData.toFormat)}</span></nav>
+        <nav style="font-size:0.875rem;color:#94a3b8;margin-bottom:1.5rem;"><a href="${homeHref}" style="color:#38bdf8;">AllConvert</a> / <span>${escapeHtml(seoData.fromFormat)} → ${escapeHtml(seoData.toFormat)}</span></nav>
         <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:0.75rem;">${escapeHtml(seoData.h1)}</h1>
         <p style="font-size:1.125rem;color:#cbd5e1;margin-bottom:2rem;line-height:1.6;">${escapeHtml(seoData.subtitle)}</p>
         
@@ -312,13 +324,14 @@ function renderRouteContent(routePath, lang = 'ru') {
         <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { lang, title, description, canonicalUrl, bodyContent };
+    return { lang, title, description, keywords, canonicalUrl, bodyContent };
   }
 
   return {
     lang,
     title: `${t.appName} — ${t.appSub}`,
     description: t.mainSubtitle,
+    keywords: '',
     canonicalUrl,
     bodyContent: ''
   };
@@ -328,15 +341,9 @@ console.log(`[PRERENDER] Found ${routes.size} static routes to prerender in ${SU
 
 let count = 0;
 for (const routePath of routes) {
-  // Pre-calculate translations for all languages for this route
-  const allLangsMap = {};
   for (const lang of SUPPORTED_LANGS) {
-    allLangsMap[lang] = renderRouteContent(routePath, lang);
-  }
-
-  for (const lang of SUPPORTED_LANGS) {
-    const meta = allLangsMap[lang];
-    const renderedHtml = injectMetadata(baseHtml, meta, allLangsMap);
+    const pageMeta = renderRouteContent(routePath, lang);
+    const renderedHtml = injectMetadata(baseHtml, pageMeta);
 
     if (lang === 'ru') {
       if (routePath === '/' || routePath === '') {
@@ -372,4 +379,4 @@ try {
   fs.rmSync(tmpBundleDir, { recursive: true, force: true });
 } catch (e) {}
 
-console.log(`[PRERENDER] Successfully prerendered ${count} localized HTML files into dist!`);
+console.log(`[PRERENDER] Successfully prerendered ${count} clean localized static HTML files into dist!`);
