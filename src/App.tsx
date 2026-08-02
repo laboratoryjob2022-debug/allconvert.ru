@@ -15,7 +15,7 @@ import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
 import { LegalPages } from './components/LegalPages';
 import { useConverterStore } from './store/useConverterStore';
-import { getTranslation } from './lib/i18n';
+import { getTranslation, getLocalizedPath } from './lib/i18n';
 import { getSeoPageDataBySlug, SeoConversionRoute, getLocalizedSeoRoute } from './lib/seoPages';
 import { Lock, CheckCircle2 } from 'lucide-react';
 
@@ -87,11 +87,23 @@ export default function App() {
     const handleLocationChange = () => {
       const state = getRouteStateFromPath();
       setRouteState(state);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const langParam = urlParams.get('lang');
+      const pathPrefixMatch = window.location.pathname.match(/^\/(ru|en|zh|es|de)(\/|$)/);
+      const pathLang = pathPrefixMatch ? pathPrefixMatch[1] : null;
+      const targetLang = pathLang || langParam;
+
+      if (targetLang && ['ru', 'en', 'es', 'de', 'zh'].includes(targetLang)) {
+        if (language !== targetLang) {
+          setLanguage(targetLang);
+        }
+      }
     };
 
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
-  }, []);
+  }, [language, setLanguage]);
 
   // Update meta tags and converter preset target format when route or language changes
   useEffect(() => {
@@ -134,29 +146,25 @@ export default function App() {
     }
 
     // Determine current canonical URL path
-    let canonicalPath = 'https://allconvert.ru/';
-    if (routeState.type === 'convert' && routeState.slug) {
-      canonicalPath = `https://allconvert.ru/convert/${routeState.slug}`;
-    } else if (routeState.type === 'privacy') {
-      canonicalPath = 'https://allconvert.ru/privacy';
-    } else if (routeState.type === 'terms') {
-      canonicalPath = 'https://allconvert.ru/terms';
-    } else if (routeState.type === 'about') {
-      canonicalPath = 'https://allconvert.ru/about';
-    }
+    const rawBasePath = (routeState.type === 'convert' && routeState.slug)
+      ? `/convert/${routeState.slug}`
+      : (routeState.type === 'privacy' ? '/privacy' : (routeState.type === 'terms' ? '/terms' : (routeState.type === 'about' ? '/about' : '')));
+
+    const canonicalPath = language === 'ru' || !language
+      ? `https://allconvert.ru${rawBasePath || '/'}`
+      : `https://allconvert.ru/${language}${rawBasePath}`;
 
     // Set canonical link URL dynamically
     canonicalLink.setAttribute('href', canonicalPath);
 
     // Manage hreflang links dynamically
-    const baseHreflangPath = canonicalPath.replace('https://allconvert.ru', '');
     const hreflangs = [
-      { code: 'ru', href: `https://allconvert.ru${baseHreflangPath}` },
-      { code: 'en', href: `https://allconvert.ru${baseHreflangPath}?lang=en` },
-      { code: 'zh', href: `https://allconvert.ru${baseHreflangPath}?lang=zh` },
-      { code: 'es', href: `https://allconvert.ru${baseHreflangPath}?lang=es` },
-      { code: 'de', href: `https://allconvert.ru${baseHreflangPath}?lang=de` },
-      { code: 'x-default', href: `https://allconvert.ru${baseHreflangPath}` },
+      { code: 'ru', href: `https://allconvert.ru${rawBasePath || '/'}` },
+      { code: 'en', href: `https://allconvert.ru/en${rawBasePath}` },
+      { code: 'zh', href: `https://allconvert.ru/zh${rawBasePath}` },
+      { code: 'es', href: `https://allconvert.ru/es${rawBasePath}` },
+      { code: 'de', href: `https://allconvert.ru/de${rawBasePath}` },
+      { code: 'x-default', href: `https://allconvert.ru${rawBasePath || '/'}` },
     ];
 
     hreflangs.forEach(({ code, href }) => {
@@ -234,10 +242,12 @@ export default function App() {
     else if (target === 'about' || target === '/about') newPath = '/about';
     else if (target) newPath = target.startsWith('/') ? target : `/convert/${target}`;
 
-    window.history.pushState({}, '', newPath);
+    const localizedPath = getLocalizedPath(newPath, language);
+    window.history.pushState({}, '', localizedPath);
     setRouteState(getRouteStateFromPath());
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   return (
     <div

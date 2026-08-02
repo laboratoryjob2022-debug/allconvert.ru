@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { THEMES } from '../lib/themes';
-import { getTranslation, LanguageCode } from '../lib/i18n';
+import { getTranslation, LanguageCode, getLocalizedPath } from '../lib/i18n';
 import {
   Layers,
   Settings,
@@ -142,6 +142,9 @@ export const Navbar: React.FC = () => {
                     onClick={() => {
                       setLanguage(item.code);
                       setLangMenuOpen(false);
+                      const targetPath = getLocalizedPath(window.location.pathname, item.code);
+                      window.history.pushState({}, '', targetPath + window.location.search + window.location.hash);
+                      window.dispatchEvent(new Event('popstate'));
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors ${
                       isSelected
@@ -171,12 +174,21 @@ export const Navbar: React.FC = () => {
         <div className="flex flex-col gap-2 sm:hidden">
           {/* Row 1: Brand Title + Share & Settings */}
           <div className="flex items-center justify-between gap-2 w-full">
-            <div className="flex items-center space-x-2 truncate">
+            <a
+              href={getLocalizedPath('/', language)}
+              onClick={(e) => {
+                e.preventDefault();
+                const homePath = getLocalizedPath('/', language);
+                window.history.pushState({}, '', homePath);
+                window.dispatchEvent(new Event('popstate'));
+              }}
+              className="flex items-center space-x-2 truncate cursor-pointer hover:opacity-90 transition-opacity"
+            >
               <img src="/favicon.svg" alt="AllConvert" className="w-7 h-7 shrink-0" />
               <h1 className="text-base font-bold text-white tracking-tight truncate">
                 All<span className="text-cyan-400 font-extrabold">Convert</span>
               </h1>
-            </div>
+            </a>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setGuideOpen(true)}
@@ -221,7 +233,16 @@ export const Navbar: React.FC = () => {
         {/* Desktop Layout (>= sm) */}
         <div className="hidden sm:flex items-center justify-between w-full">
           {/* Brand Logo */}
-          <div className="flex items-center space-x-3">
+          <a
+            href={getLocalizedPath('/', language)}
+            onClick={(e) => {
+              e.preventDefault();
+              const homePath = getLocalizedPath('/', language);
+              window.history.pushState({}, '', homePath);
+              window.dispatchEvent(new Event('popstate'));
+            }}
+            className="flex items-center space-x-3 cursor-pointer hover:opacity-90 transition-opacity"
+          >
             <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-700/80 p-1 shadow-lg shadow-cyan-500/10 flex items-center justify-center shrink-0 overflow-hidden">
               <img src="/favicon.svg" alt="AllConvert Logo" className="w-full h-full object-contain" />
             </div>
@@ -239,7 +260,7 @@ export const Navbar: React.FC = () => {
                 {t.appSub}
               </p>
             </div>
-          </div>
+          </a>
 
           {/* Right Navigation Controls */}
           <div className="flex items-center gap-2">

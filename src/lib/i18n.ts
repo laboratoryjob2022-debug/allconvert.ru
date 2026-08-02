@@ -1320,3 +1320,20 @@ export function formatDirectionLabel(
   return result;
 }
 
+export function getLocalizedPath(path: string, lang?: string): string {
+  if (!path) return lang && lang !== 'ru' ? `/${lang}` : '/';
+  let cleanPath = path.startsWith('/') ? path : '/' + path;
+  cleanPath = cleanPath.replace(/^\/(ru|en|zh|es|de)(\/|$)/, '/');
+  if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
+  if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
+    cleanPath = cleanPath.slice(0, -1);
+  }
+  if (!lang || lang === 'ru') {
+    return cleanPath;
+  }
+  if (cleanPath === '/') {
+    return `/${lang}`;
+  }
+  return `/${lang}${cleanPath}`;
+}
+

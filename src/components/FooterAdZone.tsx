@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldCheck, FileText, Info } from 'lucide-react';
 import { useConverterStore } from '../store/useConverterStore';
-import { getTranslation } from '../lib/i18n';
+import { getTranslation, getLocalizedPath } from '../lib/i18n';
 
 interface FooterAdZoneProps {
   onNavigateRoute?: (path: string) => void;
@@ -11,12 +11,13 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
   const { language } = useConverterStore();
   const t = getTranslation(language || 'ru');
 
-  const handleLinkClick = (e: React.MouseEvent, path: string) => {
+  const handleLinkClick = (e: React.MouseEvent, rawPath: string) => {
     e.preventDefault();
+    const localizedPath = getLocalizedPath(rawPath, language);
     if (onNavigateRoute) {
-      onNavigateRoute(path);
+      onNavigateRoute(localizedPath);
     } else {
-      window.history.pushState({}, '', path);
+      window.history.pushState({}, '', localizedPath);
       window.dispatchEvent(new Event('popstate'));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -28,7 +29,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
         {/* Brand info */}
         <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
           <a
-            href="/"
+            href={getLocalizedPath('/', language)}
             onClick={(e) => handleLinkClick(e, '/')}
             className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
           >
@@ -46,7 +47,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
         {/* Footer Navigation Links */}
         <div className="flex flex-wrap items-center justify-center gap-6 font-semibold">
           <a
-            href="/privacy"
+            href={getLocalizedPath('/privacy', language)}
             onClick={(e) => handleLinkClick(e, '/privacy')}
             className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
@@ -54,7 +55,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
             <span>{t.privacyPolicy}</span>
           </a>
           <a
-            href="/terms"
+            href={getLocalizedPath('/terms', language)}
             onClick={(e) => handleLinkClick(e, '/terms')}
             className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
@@ -62,7 +63,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
             <span>{t.termsOfService}</span>
           </a>
           <a
-            href="/about"
+            href={getLocalizedPath('/about', language)}
             onClick={(e) => handleLinkClick(e, '/about')}
             className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
@@ -79,4 +80,5 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
     </footer>
   );
 };
+
 
