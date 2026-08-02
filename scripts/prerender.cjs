@@ -80,7 +80,7 @@ function replaceTag(html, regex, newTag) {
   }
 }
 
-function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle, ogDescription, bodyContent }) {
+function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle, ogDescription, bodyContent }, allLangsMap) {
   let output = html;
 
   // Replace or inject <html lang="...">
@@ -121,6 +121,38 @@ function injectMetadata(html, { lang, title, description, canonicalUrl, ogTitle,
 
   output = output.replace(/<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/gi, '');
   output = output.replace('</head>', `  ${hreflangTags}\n</head>`);
+
+  // Inject inline language switcher script if allLangsMap is provided
+  if (allLangsMap) {
+    const jsonMap = JSON.stringify(allLangsMap);
+    const inlineScript = `
+  <script>
+    window.__PRERENDER_LANG_DATA__ = ${jsonMap};
+    (function(){
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var langParam = params.get('lang');
+        var pathMatch = window.location.pathname.match(/^\\/(en|zh|es|de)\\//);
+        var targetLang = pathMatch ? pathMatch[1] : langParam;
+        var data = window.__PRERENDER_LANG_DATA__;
+        if (targetLang && data && data[targetLang]) {
+          var item = data[targetLang];
+          document.documentElement.lang = targetLang;
+          if (item.title) document.title = item.title;
+          var metaDesc = document.querySelector('meta[name="description"]');
+          if (metaDesc && item.description) metaDesc.setAttribute('content', item.description);
+          var ogTitle = document.querySelector('meta[property="og:title"]');
+          if (ogTitle && item.title) ogTitle.setAttribute('content', item.title);
+          var ogDesc = document.querySelector('meta[property="og:description"]');
+          if (ogDesc && item.description) ogDesc.setAttribute('content', item.description);
+          var rootEl = document.getElementById('root');
+          if (rootEl && item.bodyContent) rootEl.innerHTML = item.bodyContent;
+        }
+      } catch(e) {}
+    })();
+  </script>`;
+    output = output.replace('</head>', `${inlineScript}\n</head>`);
+  }
 
   // Body content pre-rendering
   if (bodyContent) {
@@ -293,9 +325,15 @@ console.log(`[PRERENDER] Found ${routes.size} static routes to prerender in ${SU
 
 let count = 0;
 for (const routePath of routes) {
+  // Pre-calculate translations for all languages for this route
+  const allLangsMap = {};
   for (const lang of SUPPORTED_LANGS) {
-    const meta = renderRouteContent(routePath, lang);
-    const renderedHtml = injectMetadata(baseHtml, meta);
+    allLangsMap[lang] = renderRouteContent(routePath, lang);
+  }
+
+  for (const lang of SUPPORTED_LANGS) {
+    const meta = allLangsMap[lang];
+    const renderedHtml = injectMetadata(baseHtml, meta, allLangsMap);
 
     if (lang === 'ru') {
       // Default Russian files at primary path
