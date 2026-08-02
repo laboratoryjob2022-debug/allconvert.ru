@@ -40,21 +40,21 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
               <ServerOff className="w-6 h-6 text-cyan-400" />
               <h3 className="font-bold text-white text-sm">{t.zeroServerUploads}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                {t.privacySec1Text}
+                {t.legalPrivacyContent1}
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex flex-col items-start space-y-2">
               <Lock className="w-6 h-6 text-emerald-400" />
               <h3 className="font-bold text-white text-sm">{t.privacySec2Title}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                {t.privacySec2Text}
+                {t.legalPrivacyContent2}
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex flex-col items-start space-y-2">
               <CheckCircle2 className="w-6 h-6 text-purple-400" />
               <h3 className="font-bold text-white text-sm">{t.privacySec3Title}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                {t.privacySec3Text}
+                {t.legalPrivacyContent3}
               </p>
             </div>
           </div>
@@ -68,12 +68,31 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
             <section className="space-y-2">
               <h2 className="text-lg font-bold text-white">{t.privacySec2Title}</h2>
               <p>{t.legalPrivacyContent2}</p>
-              <p>{t.legalPrivacyContent3}</p>
             </section>
 
             <section className="space-y-2">
               <h2 className="text-lg font-bold text-white">{t.privacySec3Title}</h2>
+              <p>{t.legalPrivacyContent3}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.privacySec4Title}</h2>
               <p>{t.legalPrivacyContent4}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.privacySec5Title}</h2>
+              <p>{t.legalPrivacyContent5}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.privacySec6Title}</h2>
+              <p>{t.legalPrivacyContent6}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.privacySec7Title}</h2>
+              <p>{t.legalPrivacyContent7}</p>
             </section>
           </div>
         </article>
@@ -91,20 +110,37 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
           <div className="space-y-6 text-slate-300 text-sm leading-relaxed">
             <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
               <h2 className="text-lg font-bold text-white">{t.termsSec1Title}</h2>
-              <p>{t.termsSec1Text}</p>
               <p>{t.legalTermsContent1}</p>
             </section>
 
             <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
               <h2 className="text-lg font-bold text-white">{t.termsSec2Title}</h2>
-              <p>{t.termsSec2Text}</p>
               <p>{t.legalTermsContent2}</p>
             </section>
 
             <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
               <h2 className="text-lg font-bold text-white">{t.termsSec3Title}</h2>
-              <p>{t.termsSec3Text}</p>
               <p>{t.legalTermsContent3}</p>
+            </section>
+
+            <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.termsSec4Title}</h2>
+              <p>{t.legalTermsContent4}</p>
+            </section>
+
+            <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.termsSec5Title}</h2>
+              <p>{t.legalTermsContent5}</p>
+            </section>
+
+            <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.termsSec6Title}</h2>
+              <p>{t.legalTermsContent6}</p>
+            </section>
+
+            <section className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
+              <h2 className="text-lg font-bold text-white">{t.termsSec7Title}</h2>
+              <p>{t.legalTermsContent7}</p>
             </section>
           </div>
         </article>
@@ -113,13 +149,19 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
       {/* ABOUT & CONTACTS PAGE */}
       {pageType === 'about' && (
         <article className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-md space-y-8">
-          <div className="border-b border-slate-800 pb-6">
+          <div className="border-b border-slate-800 pb-6 space-y-4">
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
               {t.aboutPageHeading}
             </h1>
-            <p className="text-slate-300 text-sm sm:text-base mt-3 leading-relaxed">
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
               {t.aboutPageDesc}
             </p>
+          </div>
+
+          {/* Goal section */}
+          <div className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
+            <h2 className="text-lg font-bold text-white">{t.aboutGoalTitle}</h2>
+            <p className="text-sm text-slate-300 leading-relaxed">{t.aboutGoalDesc}</p>
           </div>
 
           {/* Key Advantages */}
@@ -157,10 +199,10 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
             <div className="inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-950/80 border border-cyan-500/40 text-cyan-300 font-mono text-sm sm:text-base font-bold shadow-md">
               <span className="text-slate-400 font-sans font-normal text-xs">{t.contactEmailLabel}</span>
               <a
-                href="mailto:support@allconvert.ru"
+                href="mailto:info@allconvert.ru"
                 className="hover:underline hover:text-cyan-200 transition-colors"
               >
-                support@allconvert.ru
+                info@allconvert.ru
               </a>
             </div>
           </div>

@@ -333,7 +333,11 @@ function renderRouteContent(routePath, lang = 'ru') {
         <div style="display:flex;flex-direction:column;gap:1.5rem;line-height:1.6;color:#cbd5e1;">
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec1Title)}</h2><p>${escapeHtml(t.legalPrivacyContent1)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec2Title)}</h2><p>${escapeHtml(t.legalPrivacyContent2)}</p></section>
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec3Title)}</h2><p>${escapeHtml(t.legalPrivacyContent3)}</p><p style="margin-top:0.5rem;">${escapeHtml(t.legalPrivacyContent4)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec3Title)}</h2><p>${escapeHtml(t.legalPrivacyContent3)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec4Title)}</h2><p>${escapeHtml(t.legalPrivacyContent4)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec5Title)}</h2><p>${escapeHtml(t.legalPrivacyContent5)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec6Title)}</h2><p>${escapeHtml(t.legalPrivacyContent6)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec7Title)}</h2><p>${escapeHtml(t.legalPrivacyContent7)}</p></section>
         </div>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
@@ -357,6 +361,10 @@ function renderRouteContent(routePath, lang = 'ru') {
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec1Title)}</h2><p>${escapeHtml(t.legalTermsContent1)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec2Title)}</h2><p>${escapeHtml(t.legalTermsContent2)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec3Title)}</h2><p>${escapeHtml(t.legalTermsContent3)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec4Title)}</h2><p>${escapeHtml(t.legalTermsContent4)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec5Title)}</h2><p>${escapeHtml(t.legalTermsContent5)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec6Title)}</h2><p>${escapeHtml(t.legalTermsContent6)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.termsSec7Title)}</h2><p>${escapeHtml(t.legalTermsContent7)}</p></section>
         </div>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
@@ -378,8 +386,12 @@ function renderRouteContent(routePath, lang = 'ru') {
         <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.aboutPageHeading)}</h1>
         <p style="font-size:1.125rem;color:#cbd5e1;line-height:1.6;margin-bottom:2rem;">${escapeHtml(t.aboutPageDesc)}</p>
         <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:2rem;">
-          <h2 style="font-size:1.25rem;font-weight:bold;color:#fff;margin-bottom:0.5rem;">${escapeHtml(t.contactHeader)}</h2>
-          <p style="color:#cbd5e1;">${escapeHtml(t.contactDesc)} <a href="mailto:support@allconvert.ru" style="color:#38bdf8;font-weight:bold;">support@allconvert.ru</a></p>
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#fff;margin-bottom:0.5rem;">${escapeHtml(t.aboutGoalTitle)}</h2>
+          <p style="color:#cbd5e1;">${escapeHtml(t.aboutGoalDesc)}</p>
+        </section>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:2rem;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#fff;margin-bottom:0.5rem;">${escapeHtml(t.contactHeading)}</h2>
+          <p style="color:#cbd5e1;">${escapeHtml(t.contactDesc)} <a href="mailto:info@allconvert.ru" style="color:#38bdf8;font-weight:bold;">info@allconvert.ru</a></p>
         </section>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
