@@ -1,7 +1,7 @@
 import React from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { ConversionCategory } from '../types/converter';
-import { getTranslation, formatDirectionLabel } from '../lib/i18n';
+import { getTranslation, formatDirectionLabel, getLocalizedPath } from '../lib/i18n';
 import {
   Globe,
   Music,
@@ -100,7 +100,8 @@ export const SectorNav: React.FC = () => {
 
   const handleDirectionClick = (e: React.MouseEvent<HTMLAnchorElement>, slug: string) => {
     e.preventDefault();
-    window.history.pushState({}, '', `/convert/${slug}`);
+    const localizedPath = getLocalizedPath(`/convert/${slug}`, language);
+    window.history.pushState({}, '', localizedPath);
     window.dispatchEvent(new Event('popstate'));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -150,7 +151,7 @@ export const SectorNav: React.FC = () => {
           {currentDirections.map((item) => (
             <a
               key={item.slug}
-              href={`/convert/${item.slug}`}
+              href={getLocalizedPath(`/convert/${item.slug}`, language)}
               onClick={(e) => handleDirectionClick(e, item.slug)}
               className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/60 hover:text-cyan-500 dark:hover:text-cyan-400 text-slate-800 dark:text-slate-200 transition-all font-bold text-xs sm:text-sm shadow-xs cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center"
             >
