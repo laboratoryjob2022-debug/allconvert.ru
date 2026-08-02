@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, FileText, Info, Mail, Lock, CheckCircle2, ServerOff, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Mail, ServerOff, ArrowLeft } from 'lucide-react';
 import { useConverterStore } from '../store/useConverterStore';
 import { getTranslation } from '../lib/i18n';
 
@@ -35,31 +35,7 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex flex-col items-start space-y-2">
-              <ServerOff className="w-6 h-6 text-cyan-400" />
-              <h3 className="font-bold text-white text-sm">{t.zeroServerUploads}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t.legalPrivacyContent1}
-              </p>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex flex-col items-start space-y-2">
-              <Lock className="w-6 h-6 text-emerald-400" />
-              <h3 className="font-bold text-white text-sm">{t.privacySec2Title}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t.legalPrivacyContent2}
-              </p>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex flex-col items-start space-y-2">
-              <CheckCircle2 className="w-6 h-6 text-purple-400" />
-              <h3 className="font-bold text-white text-sm">{t.privacySec3Title}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t.legalPrivacyContent3}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-6 text-slate-300 text-sm leading-relaxed border-t border-slate-800 pt-6">
+          <div className="space-y-6 text-slate-300 text-sm leading-relaxed">
             <section className="space-y-2">
               <h2 className="text-lg font-bold text-white">{t.privacySec1Title}</h2>
               <p>{t.legalPrivacyContent1}</p>
