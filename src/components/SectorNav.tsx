@@ -139,14 +139,14 @@ export const SectorNav: React.FC = () => {
       </div>
 
       {/* Popular Conversion Directions Buttons */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 py-1">
-        <div className="flex items-center text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm shrink-0 mr-1">
+      <div className="flex flex-col gap-2.5 py-1">
+        <div className="flex items-center text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm shrink-0">
           <Zap className="w-4 h-4 text-cyan-400 mr-1.5 shrink-0" />
           <span>
             {t.popularDirectionsTitle}
           </span>
         </div>
-        <div className="flex flex-wrap items-start gap-2 min-h-[82px] sm:min-h-[96px]">
+        <div className="flex flex-wrap items-start gap-2 min-h-[76px] sm:min-h-[92px]">
           {currentDirections.map((item) => (
             <a
               key={item.slug}
