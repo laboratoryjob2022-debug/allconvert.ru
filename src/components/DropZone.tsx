@@ -73,7 +73,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-1">
       {/* Central Hero Header for Main Page or Tool Page */}
-      <div className="text-center max-w-3xl mx-auto mb-6 h-[200px] min-h-[200px] flex flex-col items-center justify-start overflow-hidden pt-1">
+      <div className="text-center max-w-3xl mx-auto mb-6 h-[200px] min-h-[200px] flex flex-col items-center justify-start pt-1">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 mb-3 border border-blue-200/60 dark:border-blue-800/50">
           <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           <span>
@@ -83,10 +83,10 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
             }
           </span>
         </div>
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-2 line-clamp-2">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-snug pb-1.5 mb-2">
           {localizedSeo ? localizedSeo.h1 : t.mainH1}
         </h1>
-        <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto line-clamp-2">
+        <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
           {localizedSeo ? localizedSeo.subtitle : t.mainSubtitle}
         </p>
       </div>
