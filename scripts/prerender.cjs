@@ -48,6 +48,39 @@ const OG_LOCALE_MAP = {
   de: 'de_DE'
 };
 
+const FEATURE_LIST_MAP = {
+  ru: [
+    "100% локальная обработка файлов в браузере без отправки на сервер",
+    "Конвертация видео, аудио, графики и документов любых размеров в ОЗУ",
+    "Технологии FFmpeg.wasm и WebCodecs для максимальной скорости",
+    "Без регистрации, без Google / Yandex Auth и без слежки"
+  ],
+  en: [
+    "100% local browser file processing without server uploads",
+    "Convert video, audio, graphics, and documents of any size in RAM",
+    "FFmpeg.wasm and WebCodecs technologies for maximum speed",
+    "No registration, no Google/Yandex Auth, and no tracking"
+  ],
+  zh: [
+    "100% 浏览器本地文件处理，无需上传至服务器",
+    "在内存中转换任意大小的视频、音频、图像和文档",
+    "采用 FFmpeg.wasm 和 WebCodecs 技术实现极速转换",
+    "无需注册，无 Google / Yandex 登录，零追踪"
+  ],
+  es: [
+    "Procesamiento de archivos 100% local en el navegador sin envíos al servidor",
+    "Convierta video, audio, imágenes y documentos de cualquier tamaño en memoria RAM",
+    "Tecnología FFmpeg.wasm y WebCodecs para máxima velocidad",
+    "Sin registro, sin autenticación de Google/Yandex y sin seguimiento"
+  ],
+  de: [
+    "100% lokale Dateiverarbeitung im Browser ohne Server-Uploads",
+    "Konvertieren Sie Videos, Audio, Grafiken und Dokumente jeder Größe im Arbeitsspeicher",
+    "FFmpeg.wasm- und WebCodecs-Technologien für maximale Geschwindigkeit",
+    "Ohne Registrierung, ohne Google / Yandex Auth und ohne Tracking"
+  ]
+};
+
 // Collect all routes
 const routes = new Set(['/', '/privacy', '/terms', '/about']);
 
@@ -107,8 +140,11 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
   output = output.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>\n?/gi, '');
   output = output.replace(/<link\s+rel="alternate"\s+hreflang="[^"]*"\s+href="[^"]*"\s*\/?>\n?/gi, '');
 
-  // Strip any legacy window.__PRERENDER_LANG_DATA__ scripts if present
+  // Strip legacy script tags if present
   output = output.replace(/<script>\s*window\.__PRERENDER_LANG_DATA__[\s\S]*?<\/script>\n?/gi, '');
+
+  // Strip pre-existing JSON-LD script from base index.html
+  output = output.replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>\n?/gi, '');
 
   const ogLocale = OG_LOCALE_MAP[lang] || 'ru_RU';
   const rawBasePath = canonicalUrl.split('?')[0].replace('https://allconvert.ru', '').replace(/^\/(en|zh|es|de)/, '');
@@ -123,6 +159,26 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
     `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath || '/'}">`
   ].join('\n  ');
 
+  const jsonLdData = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "AllConvert",
+    "url": canonicalUrl,
+    "image": "https://allconvert.ru/og-image.png",
+    "logo": "https://allconvert.ru/android-chrome-512x512.png",
+    "description": description,
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "All",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": FEATURE_LIST_MAP[lang] || FEATURE_LIST_MAP.ru
+  };
+
+  const jsonLdScript = `<script type="application/ld+json">\n${JSON.stringify(jsonLdData, null, 2)}\n</script>`;
+
   const metaTags = [
     `<meta name="description" content="${escapeHtml(description)}">`,
     keywords ? `<meta name="keywords" content="${escapeHtml(keywords)}">` : '',
@@ -136,7 +192,8 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
     `<meta name="twitter:title" content="${escapeHtml(title)}">`,
     `<meta name="twitter:description" content="${escapeHtml(description)}">`,
     `<link rel="canonical" href="${escapeHtml(canonicalUrl)}">`,
-    hreflangTags
+    hreflangTags,
+    jsonLdScript
   ].filter(Boolean).join('\n  ');
 
   output = output.replace('</head>', `  ${metaTags}\n</head>`);
