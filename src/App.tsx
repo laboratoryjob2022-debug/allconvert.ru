@@ -13,33 +13,50 @@ import { ToastNotification } from './components/ToastNotification';
 import { FooterAdZone } from './components/FooterAdZone';
 import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
+import { LegalPages } from './components/LegalPages';
 import { useConverterStore } from './store/useConverterStore';
 import { getTranslation } from './lib/i18n';
 import { getSeoPageDataBySlug, SeoConversionRoute, getLocalizedSeoRoute } from './lib/seoPages';
-import { ShieldCheck, Layers, HardDrive, Sparkles, CheckCircle2, Lock } from 'lucide-react';
+import { Lock, CheckCircle2 } from 'lucide-react';
 
-function getSlugFromPath(): string {
+export type RouteType = 'home' | 'convert' | 'privacy' | 'terms' | 'about';
+
+export interface RouteState {
+  type: RouteType;
+  slug: string;
+}
+
+function getRouteStateFromPath(): RouteState {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  if (path === 'privacy') return { type: 'privacy', slug: 'privacy' };
+  if (path === 'terms') return { type: 'terms', slug: 'terms' };
+  if (path === 'about') return { type: 'about', slug: 'about' };
+
   if (path.startsWith('convert/')) {
-    return path.replace('convert/', '');
+    return { type: 'convert', slug: path.replace('convert/', '') };
   }
   if (path.includes('-to-')) {
-    return path;
+    return { type: 'convert', slug: path };
   }
+
   const hash = window.location.hash.replace(/^#+|\/+$/g, '');
+  if (hash === 'privacy') return { type: 'privacy', slug: 'privacy' };
+  if (hash === 'terms') return { type: 'terms', slug: 'terms' };
+  if (hash === 'about') return { type: 'about', slug: 'about' };
   if (hash.startsWith('convert/')) {
-    return hash.replace('convert/', '');
+    return { type: 'convert', slug: hash.replace('convert/', '') };
   }
   if (hash.includes('-to-')) {
-    return hash;
+    return { type: 'convert', slug: hash };
   }
-  return '';
+
+  return { type: 'home', slug: '' };
 }
 
 export default function App() {
   const { queue, loadHistoryFromDB, theme, language, setPresetTargetFormat, setActiveSector } = useConverterStore();
   const t = getTranslation(language || 'ru');
-  const [currentSlug, setCurrentSlug] = useState<string>(() => getSlugFromPath());
+  const [routeState, setRouteState] = useState<RouteState>(() => getRouteStateFromPath());
   const [seoData, setSeoData] = useState<SeoConversionRoute | null>(null);
 
   useEffect(() => {
@@ -49,8 +66,8 @@ export default function App() {
   // Listen to popstate for URL routing
   useEffect(() => {
     const handleLocationChange = () => {
-      const slug = getSlugFromPath();
-      setCurrentSlug(slug);
+      const state = getRouteStateFromPath();
+      setRouteState(state);
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -74,14 +91,51 @@ export default function App() {
     }
     robotsMeta.setAttribute('content', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
 
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    if (!ogTitle) {
+      ogTitle = document.createElement('meta');
+      ogTitle.setAttribute('property', 'og:title');
+      document.head.appendChild(ogTitle);
+    }
+
+    let ogDesc = document.querySelector('meta[property="og:description"]');
+    if (!ogDesc) {
+      ogDesc = document.createElement('meta');
+      ogDesc.setAttribute('property', 'og:description');
+      document.head.appendChild(ogDesc);
+    }
+
+    // Determine current canonical URL path
+    let canonicalPath = 'https://allconvert.ru/';
+    if (routeState.type === 'convert' && routeState.slug) {
+      canonicalPath = `https://allconvert.ru/convert/${routeState.slug}`;
+    } else if (routeState.type === 'privacy') {
+      canonicalPath = 'https://allconvert.ru/privacy';
+    } else if (routeState.type === 'terms') {
+      canonicalPath = 'https://allconvert.ru/terms';
+    } else if (routeState.type === 'about') {
+      canonicalPath = 'https://allconvert.ru/about';
+    }
+
+    // Set canonical link URL dynamically
+    canonicalLink.setAttribute('href', canonicalPath);
+
     // Manage hreflang links dynamically
+    const baseHreflangPath = canonicalPath.replace('https://allconvert.ru', '');
     const hreflangs = [
-      { code: 'ru', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}` : 'https://allconvert.ru/' },
-      { code: 'en', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=en` : 'https://allconvert.ru/?lang=en' },
-      { code: 'zh', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=zh` : 'https://allconvert.ru/?lang=zh' },
-      { code: 'es', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=es` : 'https://allconvert.ru/?lang=es' },
-      { code: 'de', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}?lang=de` : 'https://allconvert.ru/?lang=de' },
-      { code: 'x-default', href: currentSlug ? `https://allconvert.ru/convert/${currentSlug}` : 'https://allconvert.ru/' },
+      { code: 'ru', href: `https://allconvert.ru${baseHreflangPath}` },
+      { code: 'en', href: `https://allconvert.ru${baseHreflangPath}?lang=en` },
+      { code: 'zh', href: `https://allconvert.ru${baseHreflangPath}?lang=zh` },
+      { code: 'es', href: `https://allconvert.ru${baseHreflangPath}?lang=es` },
+      { code: 'de', href: `https://allconvert.ru${baseHreflangPath}?lang=de` },
+      { code: 'x-default', href: `https://allconvert.ru${baseHreflangPath}` },
     ];
 
     hreflangs.forEach(({ code, href }) => {
@@ -95,54 +149,72 @@ export default function App() {
       link.setAttribute('href', href);
     });
 
-    if (!currentSlug) {
+    if (routeState.type === 'home') {
       setSeoData(null);
       setPresetTargetFormat(null);
       document.title = `${t.appName} — ${t.appSub}`;
-      canonicalLink.setAttribute('href', 'https://allconvert.ru/');
+      metaDesc.setAttribute('content', t.mainSubtitle);
+      ogTitle.setAttribute('content', `${t.appName} — ${t.appSub}`);
+      ogDesc.setAttribute('content', t.mainSubtitle);
       return;
     }
 
-    const rawData = getSeoPageDataBySlug(currentSlug);
-    const localizedData = getLocalizedSeoRoute(rawData, language);
-
-    setSeoData(localizedData);
-    setPresetTargetFormat(localizedData.toFormat);
-    setActiveSector(localizedData.category);
-
-    // Update document title & canonical & meta description for SEO
-    document.title = localizedData.title;
-    canonicalLink.setAttribute('href', `https://allconvert.ru/convert/${localizedData.slug}`);
-
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
+    if (routeState.type === 'privacy') {
+      setSeoData(null);
+      setPresetTargetFormat(null);
+      document.title = `${t.privacyPolicy} — AllConvert`;
+      const desc = `${t.privacyPrinciple} ${t.privacySec1Text}`;
+      metaDesc.setAttribute('content', desc);
+      ogTitle.setAttribute('content', `${t.privacyPolicy} — AllConvert`);
+      ogDesc.setAttribute('content', desc);
+      return;
     }
-    metaDesc.setAttribute('content', localizedData.metaDescription);
 
-    let ogTitle = document.querySelector('meta[property="og:title"]');
-    if (!ogTitle) {
-      ogTitle = document.createElement('meta');
-      ogTitle.setAttribute('property', 'og:title');
-      document.head.appendChild(ogTitle);
+    if (routeState.type === 'terms') {
+      setSeoData(null);
+      setPresetTargetFormat(null);
+      document.title = `${t.termsOfService} — AllConvert`;
+      const desc = `${t.termsSec1Text} ${t.termsSec2Text}`;
+      metaDesc.setAttribute('content', desc);
+      ogTitle.setAttribute('content', `${t.termsOfService} — AllConvert`);
+      ogDesc.setAttribute('content', desc);
+      return;
     }
-    ogTitle.setAttribute('content', localizedData.title);
 
-    let ogDesc = document.querySelector('meta[property="og:description"]');
-    if (!ogDesc) {
-      ogDesc = document.createElement('meta');
-      ogDesc.setAttribute('property', 'og:description');
-      document.head.appendChild(ogDesc);
+    if (routeState.type === 'about') {
+      setSeoData(null);
+      setPresetTargetFormat(null);
+      document.title = t.aboutPageTitle;
+      metaDesc.setAttribute('content', t.aboutPageDesc);
+      ogTitle.setAttribute('content', t.aboutPageTitle);
+      ogDesc.setAttribute('content', t.aboutPageDesc);
+      return;
     }
-    ogDesc.setAttribute('content', localizedData.metaDescription);
-  }, [currentSlug, language, setPresetTargetFormat, setActiveSector, t.appName, t.appSub]);
 
-  const handleNavigateRoute = (slug: string) => {
-    const newPath = slug ? `/convert/${slug}` : '/';
+    if (routeState.type === 'convert') {
+      const rawData = getSeoPageDataBySlug(routeState.slug);
+      const localizedData = getLocalizedSeoRoute(rawData, language);
+
+      setSeoData(localizedData);
+      setPresetTargetFormat(localizedData.toFormat);
+      setActiveSector(localizedData.category);
+
+      document.title = localizedData.title;
+      metaDesc.setAttribute('content', localizedData.metaDescription);
+      ogTitle.setAttribute('content', localizedData.title);
+      ogDesc.setAttribute('content', localizedData.metaDescription);
+    }
+  }, [routeState, language, setPresetTargetFormat, setActiveSector, t]);
+
+  const handleNavigateRoute = (target: string) => {
+    let newPath = '/';
+    if (target === 'privacy' || target === '/privacy') newPath = '/privacy';
+    else if (target === 'terms' || target === '/terms') newPath = '/terms';
+    else if (target === 'about' || target === '/about') newPath = '/about';
+    else if (target) newPath = target.startsWith('/') ? target : `/convert/${target}`;
+
     window.history.pushState({}, '', newPath);
-    setCurrentSlug(slug);
+    setRouteState(getRouteStateFromPath());
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -151,13 +223,17 @@ export default function App() {
       data-theme={theme || 'studio-light'}
       className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950 transition-colors duration-300"
     >
-      {/* 2. Main Navigation Bar */}
+      {/* Main Navigation Bar */}
       <Navbar />
 
       {/* Top Breadcrumbs - Unified across all pages to prevent CLS */}
       <div className="w-full max-w-7xl mx-auto px-4 pt-4 pb-1 min-h-[40px] flex items-center">
         <nav className="flex items-center text-sm font-medium text-slate-400 space-x-2">
-          {seoData ? (
+          {routeState.type === 'home' ? (
+            <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
+              {t.homeBreadcrumb}
+            </span>
+          ) : (
             <>
               <button
                 onClick={() => handleNavigateRoute('')}
@@ -167,80 +243,88 @@ export default function App() {
               </button>
               <span className="text-slate-600">/</span>
               <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
-                {t.toDirection(seoData.fromFormat, seoData.toFormat)}
+                {seoData && t.toDirection(seoData.fromFormat, seoData.toFormat)}
+                {routeState.type === 'privacy' && t.privacyPolicy}
+                {routeState.type === 'terms' && t.termsOfService}
+                {routeState.type === 'about' && t.aboutUsAndContacts}
               </span>
             </>
-          ) : (
-            <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
-              {t.homeBreadcrumb}
-            </span>
           )}
         </nav>
       </div>
 
-      {/* 3. Main Content Container */}
+      {/* Main Content Container */}
       <main className="flex-1 pb-16">
-        {/* Sector Navigation Tabs */}
-        <SectorNav />
-
-        {/* Drag and Drop Zone */}
-        <DropZone seoData={seoData} />
-
-        {/* Batch Queue Controls (Visible when files exist) */}
-        <BatchControls />
-
-        {/* Interactive Queue Table */}
-        <QueueTable />
-
-        {/* Dynamic SEO Landing Page Section if route is active */}
-        {seoData ? (
-          <div className="w-full max-w-7xl mx-auto px-4">
-            <SeoConversionPage seoData={seoData} onNavigateRoute={handleNavigateRoute} />
-          </div>
+        {routeState.type === 'privacy' || routeState.type === 'terms' || routeState.type === 'about' ? (
+          <LegalPages
+            pageType={routeState.type}
+            onNavigateHome={() => handleNavigateRoute('')}
+          />
         ) : (
           <>
-            {/* Empty State Features / Hero Showcase when queue is empty */}
-            {queue.length === 0 && (
-              <div className="w-full max-w-7xl mx-auto px-4 mt-8">
-                {/* Top Highlight Badge Banner */}
-                <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-blue-500/10 border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-md shadow-emerald-500/10">
-                      <Lock className="w-6 h-6 animate-pulse" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
-                        <span>{t.noAuthTitle}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black uppercase tracking-wider">
-                          100% FREE
-                        </span>
-                      </h2>
-                      <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                        {t.noAuthDesc}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 shadow-sm">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      {t.noGoogleAuth}
-                    </span>
-                    <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 shadow-sm">
-                      <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-                      {t.zeroTelemetry}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Sector Navigation Tabs */}
+            <SectorNav />
 
-            {/* Detailed Info Section: Step-by-Step Guide, Benefits Showcase, and FAQ */}
-            <InfoSection />
+            {/* Drag and Drop Zone */}
+            <DropZone seoData={seoData} />
+
+            {/* Batch Queue Controls (Visible when files exist) */}
+            <BatchControls />
+
+            {/* Interactive Queue Table */}
+            <QueueTable />
+
+            {/* Dynamic SEO Landing Page Section if route is active */}
+            {seoData ? (
+              <div className="w-full max-w-7xl mx-auto px-4">
+                <SeoConversionPage seoData={seoData} onNavigateRoute={handleNavigateRoute} />
+              </div>
+            ) : (
+              <>
+                {/* Empty State Features / Hero Showcase when queue is empty */}
+                {queue.length === 0 && (
+                  <div className="w-full max-w-7xl mx-auto px-4 mt-8">
+                    {/* Top Highlight Badge Banner */}
+                    <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-blue-500/10 border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-md shadow-emerald-500/10">
+                          <Lock className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                            <span>{t.noAuthTitle}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black uppercase tracking-wider">
+                              100% FREE
+                            </span>
+                          </h2>
+                          <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                            {t.noAuthDesc}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          {t.noGoogleAuth}
+                        </span>
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+                          {t.zeroTelemetry}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Detailed Info Section: Step-by-Step Guide, Benefits Showcase, and FAQ */}
+                <InfoSection />
+              </>
+            )}
           </>
         )}
       </main>
 
-      <FooterAdZone />
+      <FooterAdZone onNavigateRoute={handleNavigateRoute} />
 
       {/* Modals, Drawers & Notifications */}
       <ToastNotification />
@@ -252,4 +336,5 @@ export default function App() {
     </div>
   );
 }
+
 
