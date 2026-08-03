@@ -30,7 +30,7 @@ export const SeoConversionPage: React.FC<SeoConversionPageProps> = ({ seoData, o
         '@type': 'ListItem',
         'position': 2,
         'name': t.toDirection(localizedSeo.fromFormat, localizedSeo.toFormat),
-        'item': `${origin}/convert/${localizedSeo.slug}`
+        'item': `${origin}/convert/${localizedSeo.slug}/`
       }
     ]
   };
