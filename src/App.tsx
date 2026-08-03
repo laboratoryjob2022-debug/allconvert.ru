@@ -147,24 +147,24 @@ export default function App() {
 
     // Determine current canonical URL path
     const rawBasePath = (routeState.type === 'convert' && routeState.slug)
-      ? `/convert/${routeState.slug}`
-      : (routeState.type === 'privacy' ? '/privacy' : (routeState.type === 'terms' ? '/terms' : (routeState.type === 'about' ? '/about' : '')));
+      ? `/convert/${routeState.slug}/`
+      : (routeState.type === 'privacy' ? '/privacy/' : (routeState.type === 'terms' ? '/terms/' : (routeState.type === 'about' ? '/about/' : '/')));
 
-    const canonicalPath = language === 'ru' || !language
-      ? `https://allconvert.ru${rawBasePath || '/'}`
-      : `https://allconvert.ru/${language}${rawBasePath}`;
+    const canonicalPath = (language === 'ru' || !language)
+      ? (rawBasePath === '/' ? 'https://allconvert.ru/' : `https://allconvert.ru${rawBasePath}`)
+      : (rawBasePath === '/' ? `https://allconvert.ru/${language}/` : `https://allconvert.ru/${language}${rawBasePath}`);
 
     // Set canonical link URL dynamically
     canonicalLink.setAttribute('href', canonicalPath);
 
     // Manage hreflang links dynamically
     const hreflangs = [
-      { code: 'ru', href: `https://allconvert.ru${rawBasePath || '/'}` },
-      { code: 'en', href: `https://allconvert.ru/en${rawBasePath}` },
-      { code: 'zh', href: `https://allconvert.ru/zh${rawBasePath}` },
-      { code: 'es', href: `https://allconvert.ru/es${rawBasePath}` },
-      { code: 'de', href: `https://allconvert.ru/de${rawBasePath}` },
-      { code: 'x-default', href: `https://allconvert.ru${rawBasePath || '/'}` },
+      { code: 'ru', href: rawBasePath === '/' ? 'https://allconvert.ru/' : `https://allconvert.ru${rawBasePath}` },
+      { code: 'en', href: rawBasePath === '/' ? 'https://allconvert.ru/en/' : `https://allconvert.ru/en${rawBasePath}` },
+      { code: 'zh', href: rawBasePath === '/' ? 'https://allconvert.ru/zh/' : `https://allconvert.ru/zh${rawBasePath}` },
+      { code: 'es', href: rawBasePath === '/' ? 'https://allconvert.ru/es/' : `https://allconvert.ru/es${rawBasePath}` },
+      { code: 'de', href: rawBasePath === '/' ? 'https://allconvert.ru/de/' : `https://allconvert.ru/de${rawBasePath}` },
+      { code: 'x-default', href: rawBasePath === '/' ? 'https://allconvert.ru/' : `https://allconvert.ru${rawBasePath}` },
     ];
 
     hreflangs.forEach(({ code, href }) => {

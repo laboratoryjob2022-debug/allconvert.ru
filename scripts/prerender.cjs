@@ -98,6 +98,7 @@ if (fs.existsSync(sitemapPath)) {
       let route = m.replace(/<loc>https?:\/\/[^\/]+/, '').replace('</loc>', '').split('?')[0];
       route = route.replace(/^\/(en|zh|es|de)(\/|$)/, '$2');
       if (route) {
+        if (route.includes('pdf-to-docx')) continue;
         routes.add(route.endsWith('/') && route !== '/' ? route.slice(0, -1) : route);
       }
     }
@@ -110,34 +111,40 @@ function generateSitemap(routesSet, supportedLangs) {
   const urlEntries = [];
 
   for (const routePath of routesSet) {
+    if (routePath.includes('pdf-to-docx')) continue;
+
+    let cleanRoute = routePath;
+    if (!cleanRoute.startsWith('/')) cleanRoute = '/' + cleanRoute;
+    if (cleanRoute !== '/' && !cleanRoute.endsWith('/')) {
+      cleanRoute = cleanRoute + '/';
+    }
+
     let changefreq = 'daily';
     let priority = '0.8';
 
-    if (routePath === '/' || routePath === '') {
+    if (cleanRoute === '/') {
       priority = '1.0';
       changefreq = 'daily';
-    } else if (routePath === '/privacy' || routePath === '/terms') {
+    } else if (cleanRoute === '/privacy/' || cleanRoute === '/terms/') {
       priority = '0.5';
       changefreq = 'monthly';
-    } else if (routePath === '/about') {
+    } else if (cleanRoute === '/about/') {
       priority = '0.6';
       changefreq = 'monthly';
     }
 
-    const cleanRoute = routePath === '/' ? '' : routePath;
-
     for (const lang of supportedLangs) {
       const loc = lang === 'ru' 
-        ? `https://allconvert.ru${cleanRoute || '/'}`
+        ? `https://allconvert.ru${cleanRoute}`
         : `https://allconvert.ru/${lang}${cleanRoute}`;
 
       const alternates = [
-        `<xhtml:link rel="alternate" hreflang="ru" href="https://allconvert.ru${cleanRoute || '/'}" />`,
+        `<xhtml:link rel="alternate" hreflang="ru" href="https://allconvert.ru${cleanRoute}" />`,
         `<xhtml:link rel="alternate" hreflang="en" href="https://allconvert.ru/en${cleanRoute}" />`,
         `<xhtml:link rel="alternate" hreflang="zh" href="https://allconvert.ru/zh${cleanRoute}" />`,
         `<xhtml:link rel="alternate" hreflang="es" href="https://allconvert.ru/es${cleanRoute}" />`,
         `<xhtml:link rel="alternate" hreflang="de" href="https://allconvert.ru/de${cleanRoute}" />`,
-        `<xhtml:link rel="alternate" hreflang="x-default" href="https://allconvert.ru${cleanRoute || '/'}" />`
+        `<xhtml:link rel="alternate" hreflang="x-default" href="https://allconvert.ru${cleanRoute}" />`
       ].join('\n    ');
 
       urlEntries.push(`  <url>
@@ -172,10 +179,11 @@ function escapeHtml(str) {
 }
 
 function getLocPath(rawPath, lang) {
-  if (!rawPath) return lang === 'ru' ? '/' : `/${lang}`;
-  if (lang === 'ru') return rawPath;
-  if (rawPath === '/') return `/${lang}`;
-  return `/${lang}${rawPath.startsWith('/') ? rawPath : '/' + rawPath}`;
+  if (!rawPath || rawPath === '/') return lang === 'ru' ? '/' : `/${lang}/`;
+  let normalized = rawPath.startsWith('/') ? rawPath : '/' + rawPath;
+  if (!normalized.endsWith('/')) normalized = normalized + '/';
+  if (lang === 'ru') return normalized;
+  return `/${lang}${normalized}`;
 }
 
 function injectMetadata(html, { lang, title, description, keywords, canonicalUrl, bodyContent }) {
@@ -206,15 +214,17 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
 
   const ogLocale = OG_LOCALE_MAP[lang] || 'ru_RU';
   const rawBasePath = canonicalUrl.split('?')[0].replace('https://allconvert.ru', '').replace(/^\/(en|zh|es|de)/, '');
-  const basePath = rawBasePath === '' ? '' : rawBasePath;
+  let basePath = rawBasePath === '' ? '/' : rawBasePath;
+  if (!basePath.startsWith('/')) basePath = '/' + basePath;
+  if (basePath !== '/' && !basePath.endsWith('/')) basePath = basePath + '/';
 
   const hreflangTags = [
-    `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${basePath || '/'}">`,
+    `<link rel="alternate" hreflang="ru" href="https://allconvert.ru${basePath}">`,
     `<link rel="alternate" hreflang="en" href="https://allconvert.ru/en${basePath}">`,
     `<link rel="alternate" hreflang="zh" href="https://allconvert.ru/zh${basePath}">`,
     `<link rel="alternate" hreflang="es" href="https://allconvert.ru/es${basePath}">`,
     `<link rel="alternate" hreflang="de" href="https://allconvert.ru/de${basePath}">`,
-    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath || '/'}">`
+    `<link rel="alternate" hreflang="x-default" href="https://allconvert.ru${basePath}">`
   ].join('\n  ');
 
   const jsonLdData = {
@@ -267,10 +277,13 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
 // Helper to construct pre-rendered HTML structure for each route and language
 function renderRouteContent(routePath, lang = 'ru') {
   const t = translations[lang] || translations.ru;
-  const basePath = routePath === '/' ? '' : routePath;
+  let normalizedRoute = routePath === '/' ? '/' : routePath;
+  if (!normalizedRoute.startsWith('/')) normalizedRoute = '/' + normalizedRoute;
+  if (normalizedRoute !== '/' && !normalizedRoute.endsWith('/')) normalizedRoute = normalizedRoute + '/';
+
   const canonicalUrl = lang === 'ru' 
-    ? `https://allconvert.ru${basePath || '/'}`
-    : `https://allconvert.ru/${lang}${basePath}`;
+    ? `https://allconvert.ru${normalizedRoute}`
+    : `https://allconvert.ru/${lang}${normalizedRoute}`;
 
   const homeHref = getLocPath('/', lang);
   const privacyHref = getLocPath('/privacy', lang);
@@ -334,7 +347,7 @@ function renderRouteContent(routePath, lang = 'ru') {
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec1Title)}</h2><p>${escapeHtml(t.legalPrivacyContent1)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec2Title)}</h2><p>${escapeHtml(t.legalPrivacyContent2)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec3Title)}</h2><p>${escapeHtml(t.legalPrivacyContent3)}</p></section>
-          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec4Title)}</h2><p>${escapeHtml(t.legalPrivacyContent4)}</p></section>
+          <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec4Title)}</h2><p style="white-space:pre-line;">${escapeHtml(t.legalPrivacyContent4)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec5Title)}</h2><p>${escapeHtml(t.legalPrivacyContent5)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec6Title)}</h2><p>${escapeHtml(t.legalPrivacyContent6)}</p></section>
           <section><h2 style="font-size:1.25rem;font-weight:bold;color:#fff;">${escapeHtml(t.privacySec7Title)}</h2><p>${escapeHtml(t.legalPrivacyContent7)}</p></section>

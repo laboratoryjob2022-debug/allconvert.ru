@@ -53,7 +53,7 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
 
             <section className="space-y-2">
               <h2 className="text-lg font-bold text-white">{t.privacySec4Title}</h2>
-              <p>{t.legalPrivacyContent4}</p>
+              <p className="whitespace-pre-line">{t.legalPrivacyContent4}</p>
             </section>
 
             <section className="space-y-2">

@@ -271,7 +271,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     legalPrivacyContent1: 'Все операции конвертации (изображения, видео, аудио, документы) выполняются исключительно в оперативной памяти вашего браузера с использованием технологий WebAssembly, FFmpeg.wasm и WebCodecs. Файлы не загружаются на серверы AllConvert и не передаются третьим лицам.',
     legalPrivacyContent2: 'Мы не получаем и не храним содержимое ваших файлов. Мы не требуем регистрации, не запрашиваем имя, email, телефон или другие персональные данные для использования сервиса.',
     legalPrivacyContent3: 'История конвертаций, выбранные настройки и предпочтения интерфейса (тема, язык) сохраняются только локально в IndexedDB и localStorage вашего браузера. Вы можете в любой момент очистить эти данные через настройки браузера или интерфейс сервиса.',
-    legalPrivacyContent4: 'На сайте используется Яндекс.Метрика в обезличенном режиме для анализа посещаемости и улучшения работы сервиса. Cookies применяются только для сохранения ваших настроек интерфейса. Мы не используем рекламные или трекинговые cookies третьих сторон.',
+    legalPrivacyContent4: 'На сайте используется система аналитики в обезличенном режиме для учёта посещаемости и улучшения работы сервиса.\n\nФайлы cookies применяются:\n- для сохранения ваших настроек интерфейса (язык, тема);\n- сторонними рекламными партнёрами для показа релевантной рекламы.\n\nВы можете ограничить или отключить использование cookies в настройках своего браузера. Обратите внимание, что отключение cookies может повлиять на корректность работы некоторых функций сайта.',
     legalPrivacyContent5: 'Поскольку файлы обрабатываются локально, риск утечки данных через наш сервис минимален. Рекомендуем использовать актуальные версии браузеров и не оставлять важные файлы в открытых вкладках на чужих устройствах.',
     legalPrivacyContent6: 'Мы можем обновлять эту Политику. Актуальная версия всегда доступна на этой странице. Дата последнего обновления: 02.08.2026.',
     legalPrivacyContent7: 'По вопросам, связанным с конфиденциальностью, пишите на privacy@allconvert.ru.',
@@ -330,7 +330,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     privacySec2Text: 'Мы не получаем и не храним содержимое ваших файлов. Регистрация не требуется.',
     privacySec3Title: '3. Локальное хранение',
     privacySec3Text: 'История и настройки сохраняются только локально в IndexedDB и localStorage вашего браузера.',
-    privacySec4Title: '4. Аналитика и cookies',
+    privacySec4Title: '4. Аналитика, реклама и cookies',
     privacySec5Title: '5. Безопасность',
     privacySec6Title: '6. Изменения политики',
     privacySec7Title: '7. Контакты',
@@ -474,7 +474,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     legalPrivacyContent1: 'All conversion operations (images, video, audio, documents) are performed strictly inside your browser memory using WebAssembly, FFmpeg.wasm, and WebCodecs technologies. Files are never uploaded to AllConvert servers or shared with third parties.',
     legalPrivacyContent2: 'We do not receive or store your file content. We do not require registration, name, email, phone number, or any other personal data to use the service.',
     legalPrivacyContent3: 'Conversion history, selected options, and interface preferences (theme, language) are stored locally in your browser IndexedDB and localStorage. You can clear this data at any time via browser settings or the app interface.',
-    legalPrivacyContent4: 'Anonymized analytics are used solely to measure traffic and improve service performance. Cookies are applied only to save your interface preferences. We do not use third-party advertising or tracking cookies.',
+    legalPrivacyContent4: 'An anonymized analytics system is used on the website to measure traffic and improve service performance.\n\nCookies are used:\n- to save your interface preferences (language, theme);\n- by third-party advertising partners to display relevant ads.\n\nYou can limit or disable the use of cookies in your browser settings. Please note that disabling cookies may affect the proper functionality of certain site features.',
     legalPrivacyContent5: 'Because files are processed locally, the risk of data leaks via our service is minimal. We recommend using up-to-date browsers and avoiding leaving sensitive files open in tabs on shared devices.',
     legalPrivacyContent6: 'We may update this Privacy Policy. The latest version is always available on this page. Last updated: 02.08.2026.',
     legalPrivacyContent7: 'For privacy inquiries, please contact privacy@allconvert.ru.',
@@ -533,7 +533,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     privacySec2Text: 'We do not receive or store file contents. No registration required.',
     privacySec3Title: '3. Local Storage',
     privacySec3Text: 'History and options are saved strictly locally in your browser IndexedDB and localStorage.',
-    privacySec4Title: '4. Analytics & Cookies',
+    privacySec4Title: '4. Analytics, Advertising, and Cookies',
     privacySec5Title: '5. Security',
     privacySec6Title: '6. Policy Updates',
     privacySec7Title: '7. Contacts',
@@ -677,7 +677,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     legalPrivacyContent1: 'Todas las operaciones de conversión (imágenes, video, audio, documentos) se ejecutan estrictamente en la memoria de su navegador mediante WebAssembly, FFmpeg.wasm y WebCodecs. Los archivos no se cargan a los servidores de AllConvert ni se comparten con terceros.',
     legalPrivacyContent2: 'No recibimos ni almacenamos el contenido de sus archivos. No requerimos registro, nombre, correo electrónico, teléfono ni ningún otro dato personal.',
     legalPrivacyContent3: 'El historial de conversión, la configuración y las preferencias de interfaz (tema, idioma) se guardan únicamente en IndexedDB y localStorage de su navegador. Puede borrar estos datos en cualquier momento.',
-    legalPrivacyContent4: 'Se recopila analítica anónima para medir el tráfico y mejorar el servicio. Las cookies solo se aplican para guardar sus preferencias de interfaz. No utilizamos cookies publicitarias o de rastreo de terceros.',
+    legalPrivacyContent4: 'En el sitio web se utiliza un sistema de analítica de forma anónima para medir el tráfico y mejorar el rendimiento del servicio.\n\nLas cookies se utilizan:\n- para guardar sus preferencias de interfaz (idioma, tema);\n- por socios publicitarios de terceros para mostrar anuncios relevantes.\n\nPuede limitar o desactivar el uso de cookies en la configuración de su navegador. Tenga en cuenta que desactivar las cookies puede afectar el correcto funcionamiento de algunas funciones del sitio.',
     legalPrivacyContent5: 'Dado que los archivos se procesan localmente, el riesgo de filtraciones de datos es mínimo. Recomendamos utilizar navegadores actualizados y no dejar archivos sensibles abiertos en pestañas en dispositivos compartidos.',
     legalPrivacyContent6: 'Podemos actualizar esta Política de Privacidad. La versión más reciente estará siempre disponible en esta página. Última actualización: 02.08.2026.',
     legalPrivacyContent7: 'Para consultas sobre privacidad, escriba a privacy@allconvert.ru.',
@@ -736,7 +736,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     privacySec2Text: 'No recibimos ni almacenamos el contenido de sus archivos. No se requiere registro.',
     privacySec3Title: '3. Almacenamiento local',
     privacySec3Text: 'El historial y los ajustes se guardan únicamente de forma local en IndexedDB y localStorage.',
-    privacySec4Title: '4. Analítica y cookies',
+    privacySec4Title: '4. Analítica, publicidad y cookies',
     privacySec5Title: '5. Seguridad',
     privacySec6Title: '6. Cambios en la política',
     privacySec7Title: '7. Contactos',
@@ -880,7 +880,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     legalPrivacyContent1: 'Alle Konvertierungsvorgänge (Bilder, Videos, Audio, Dokumente) werden ausschließlich im Arbeitsspeicher Ihres Browsers mittels WebAssembly, FFmpeg.wasm und WebCodecs ausgeführt. Dateien werden nicht auf AllConvert-Server hochgeladen oder an Dritte weitergegeben.',
     legalPrivacyContent2: 'Wir empfangen und speichern den Inhalt Ihrer Dateien nicht. Wir verlangen keine Registrierung, keinen Namen, keine E-Mail, Telefonnummer oder sonstige personenbezogene Daten.',
     legalPrivacyContent3: 'Der Konvertierungsverlauf, Einstellungen und Benutzeroberflächen-Präferenzen (Theme, Sprache) werden nur lokal in der IndexedDB und im localStorage Ihres Browsers gespeichert. Sie können diese Daten jederzeit löschen.',
-    legalPrivacyContent4: 'Anonymisierte Analysen werden ausschließlich zur Messung von Aufrufen und zur Verbesserung des Dienstes verwendet. Cookies dienen nur zur Speicherung Ihrer Einstellungen. Wir verwenden keine Werbe- oder Tracking-Cookies von Drittanbietern.',
+    legalPrivacyContent4: 'Auf der Website wird ein anonymisiertes Analysesystem verwendet, um die Besucherzahlen zu erfassen und die Leistung des Dienstes zu verbessern.\n\nCookies werden verwendet:\n- um Ihre Einstellungen der Benutzeroberfläche (Sprache, Theme) zu speichern;\n- von Werbepartnern von Drittanbietern, um relevante Werbung anzuzeigen.\n\nSie können die Verwendung von Cookies in Ihren Browsereinstellungen einschränken oder deaktivieren. Bitte beachten Sie, dass das Deaktivieren von Cookies die korrekte Funktion einiger Website-Funktionen beeinträchtigen kann.',
     legalPrivacyContent5: 'Da Dateien lokal verarbeitet werden, ist das Risiko von Datenlecks minimal. Wir empfehlen die Verwendung aktueller Browser und das Schließen vertraulicher Dateien auf gemeinsam genutzten Geräten.',
     legalPrivacyContent6: 'Wir können diese Datenschutzerklärung aktualisieren. Die aktuelle Version ist stets auf dieser Seite verfügbar. Letzte Aktualisierung: 02.08.2026.',
     legalPrivacyContent7: 'Bei Fragen zum Datenschutz schreiben Sie bitte an privacy@allconvert.ru.',
@@ -939,7 +939,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     privacySec2Text: 'Wir empfangen und speichern keine Dateiinhalte. Keine Registrierung erforderlich.',
     privacySec3Title: '3. Lokale Speicherung',
     privacySec3Text: 'Verlauf und Einstellungen werden nur lokal in IndexedDB und localStorage gespeichert.',
-    privacySec4Title: '4. Analytik und Cookies',
+    privacySec4Title: '4. Analytik, Werbung und Cookies',
     privacySec5Title: '5. Sicherheit',
     privacySec6Title: '6. Richtlinienaktualisierungen',
     privacySec7Title: '7. Kontakte',
@@ -1083,7 +1083,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     legalPrivacyContent1: '所有转换操作（图像、视频、音频、文档）均严格在您的浏览器内存中通过 WebAssembly、FFmpeg.wasm 和 WebCodecs 技术完成。文件绝不会上传到 AllConvert 服务器或共享给第三方。',
     legalPrivacyContent2: '我们不会接收或存储您的文件内容。使用本服务无需注册，无需提供姓名、邮箱、电话或任何其他个人信息。',
     legalPrivacyContent3: '转换历史、选项设置与界面偏好（主题、语言）仅保存在您浏览器的 IndexedDB 和 localStorage 本地存储中。您可以随时清空这些数据。',
-    legalPrivacyContent4: '匿名统计数据仅用于衡量访问量与改进服务。Cookie 仅用于保存界面设置。我们不使用第三方广告或追踪 Cookie。',
+    legalPrivacyContent4: '本网站使用匿名分析系统以统计访问量并改进服务性能。\n\nCookie 的用途包括：\n- 保存您的界面设置（语言、主题）；\n- 第三方广告合作伙伴用于展示相关广告。\n\n您可以在浏览器设置中限制或禁用 Cookie。请注意，禁用 Cookie 可能会影响网站某些功能的正常运行。',
     legalPrivacyContent5: '由于文件在本地处理，数据泄露风险极低。建议保持浏览器版本更新，并在公共设备上及时关闭敏感页面。',
     legalPrivacyContent6: '我们可能会更新本隐私政策。最新版本将随时在本页面发布。最后更新日期：2026年8月2日。',
     legalPrivacyContent7: '如需咨询隐私相关问题，请发送邮件至 privacy@allconvert.ru。',
@@ -1142,7 +1142,7 @@ export const translations: Record<LanguageCode, TranslationDictionary> = {
     privacySec2Text: '我们不会接收或存储您的文件内容。使用无需注册。',
     privacySec3Title: '3. 本地存储',
     privacySec3Text: '转换历史与设置仅保存在您浏览器的 IndexedDB 和 localStorage 中。',
-    privacySec4Title: '4. 统计与 Cookie',
+    privacySec4Title: '4. 分析、广告与 Cookie',
     privacySec5Title: '5. 安全保障',
     privacySec6Title: '6. 政策更新',
     privacySec7Title: '7. 联系方式',
@@ -1428,18 +1428,20 @@ export function formatDirectionLabel(
 }
 
 export function getLocalizedPath(path: string, lang?: string): string {
-  if (!path) return lang && lang !== 'ru' ? `/${lang}` : '/';
+  if (!path || path === '/') {
+    return !lang || lang === 'ru' ? '/' : `/${lang}/`;
+  }
   let cleanPath = path.startsWith('/') ? path : '/' + path;
   cleanPath = cleanPath.replace(/^\/(ru|en|zh|es|de)(\/|$)/, '/');
   if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
-  if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
-    cleanPath = cleanPath.slice(0, -1);
+  if (!cleanPath.endsWith('/')) {
+    cleanPath = cleanPath + '/';
   }
   if (!lang || lang === 'ru') {
     return cleanPath;
   }
   if (cleanPath === '/') {
-    return `/${lang}`;
+    return `/${lang}/`;
   }
   return `/${lang}${cleanPath}`;
 }
