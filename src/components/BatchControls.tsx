@@ -85,14 +85,6 @@ export const BatchControls: React.FC = () => {
     ? Math.min(100, Math.round(totalBatchProgressSum / totalQueueCount))
     : 0;
 
-  const handleApplyToSelected = () => {
-    if (selectedCountInSector > 0) {
-      applyFormatToSelected(selectedBatchFormat, activeSector);
-    } else {
-      setGlobalTargetFormat(selectedBatchFormat);
-    }
-  };
-
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-6 space-y-4">
       {/* 0. Overall Batch Progress Indicator (Always visible to avoid layout jumps) */}
@@ -215,14 +207,15 @@ export const BatchControls: React.FC = () => {
 
             {/* Middle & Right: Selected Batch Format Dropdown & Actions */}
             <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
-              {/* Target Format Dropdown */}
+              {/* Target Format Dropdown - Auto-applies format to selected items */}
               <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-sm">
                 <span className="text-xs text-slate-300 font-bold hidden sm:inline">{t.quickTarget}</span>
                 <select
                   value={selectedBatchFormat}
                   onChange={(e) => {
-                    setSelectedBatchFormat(e.target.value);
-                    applyFormatToSelected(e.target.value, activeSector);
+                    const newFmt = e.target.value;
+                    setSelectedBatchFormat(newFmt);
+                    applyFormatToSelected(newFmt, activeSector);
                   }}
                   className="bg-slate-900 text-cyan-300 text-xs font-bold font-mono px-2.5 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-cyan-500 cursor-pointer"
                 >
@@ -233,15 +226,6 @@ export const BatchControls: React.FC = () => {
                   ))}
                 </select>
               </div>
-
-              {/* Apply Format to Selected Button */}
-              <button
-                onClick={handleApplyToSelected}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs border border-cyan-500/50 shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
-              >
-                <Check className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{t.applyFormat}</span>
-              </button>
 
               {/* Convert Selected Button */}
               <button

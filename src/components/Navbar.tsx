@@ -21,7 +21,6 @@ const LANGUAGES: { code: LanguageCode; label: string; flag: string; short: strin
   { code: 'es', label: 'Español', flag: '🇪🇸', short: 'ES' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪', short: 'DE' },
   { code: 'zh', label: '中文', flag: '🇨🇳', short: 'ZH' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷', short: 'FR' },
 ];
 
 export const Navbar: React.FC = () => {
@@ -190,13 +189,19 @@ export const Navbar: React.FC = () => {
               </h1>
             </a>
             <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={() => setGuideOpen(true)}
+              <a
+                href={getLocalizedPath('/guide/', language)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const guidePath = getLocalizedPath('/guide/', language);
+                  window.history.pushState({}, '', guidePath);
+                  window.dispatchEvent(new Event('popstate'));
+                }}
                 className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-cyan-400 hover:text-cyan-300 transition-all flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95"
-                title="Гайд и Правила использования"
+                title={t.guideTitle}
               >
                 <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
-              </button>
+              </a>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
@@ -275,15 +280,21 @@ export const Navbar: React.FC = () => {
             {renderThemeDropdown(false)}
             {renderLangDropdown(false)}
 
-            {/* Guide & Rules Button */}
-            <button
-              onClick={() => setGuideOpen(true)}
+            {/* Guide & Rules Link */}
+            <a
+              href={getLocalizedPath('/guide/', language)}
+              onClick={(e) => {
+                e.preventDefault();
+                const guidePath = getLocalizedPath('/guide/', language);
+                window.history.pushState({}, '', guidePath);
+                window.dispatchEvent(new Event('popstate'));
+              }}
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-cyan-300 hover:text-white transition-all flex items-center space-x-1.5 shadow-sm text-xs font-bold cursor-pointer hover:scale-105 active:scale-95"
               title={t.guideTitle}
             >
               <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
               <span className="hidden md:inline">{t.guideBtn}</span>
-            </button>
+            </a>
 
             {/* Bookmark / В закладки Button */}
             <button

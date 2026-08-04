@@ -82,7 +82,7 @@ const FEATURE_LIST_MAP = {
 };
 
 // Collect all normalized routes
-const routes = new Set(['/', '/privacy', '/terms', '/about']);
+const routes = new Set(['/', '/privacy', '/terms', '/about', '/guide']);
 
 // Add all routes from POPULAR_SEO_ROUTES
 for (const slug of Object.keys(POPULAR_SEO_ROUTES)) {
@@ -131,6 +131,9 @@ function generateSitemap(routesSet, supportedLangs) {
     } else if (cleanRoute === '/about/') {
       priority = '0.6';
       changefreq = 'monthly';
+    } else if (cleanRoute === '/guide/') {
+      priority = '0.9';
+      changefreq = 'weekly';
     }
 
     for (const lang of supportedLangs) {
@@ -405,6 +408,57 @@ function renderRouteContent(routePath, lang = 'ru') {
         <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:2rem;">
           <h2 style="font-size:1.25rem;font-weight:bold;color:#fff;margin-bottom:0.5rem;">${escapeHtml(t.contactHeading)}</h2>
           <p style="color:#cbd5e1;">${escapeHtml(t.contactDesc)} <a href="mailto:info@allconvert.ru" style="color:#38bdf8;font-weight:bold;">info@allconvert.ru</a></p>
+        </section>
+      </main>
+      <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">
+        <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
+      </footer>
+    `;
+    return { lang, title, description, keywords, canonicalUrl, bodyContent };
+  }
+
+  if (routePath === '/guide') {
+    const title = `${t.guideTitle} — AllConvert`;
+    const description = `${t.guidePrivacyDesc} ${t.guideStepsTitle}`;
+    const keywords = `инструкция AllConvert, гайд AllConvert, как конвертировать файлы, AllConvert guide`;
+    const bodyContent = `
+      <header style="padding:1rem;background:#0f172a;color:#fff;">
+        <a href="${homeHref}" style="font-weight:bold;font-size:1.25rem;color:#fff;text-decoration:none;">All<span style="color:#38bdf8;">Convert</span></a>
+      </header>
+      <main style="max-width:900px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;color:#f8fafc;">
+        <h1 style="font-size:2.25rem;font-weight:800;margin-bottom:1rem;">${escapeHtml(t.guideTitle)}</h1>
+        <p style="font-size:1.125rem;color:#cbd5e1;line-height:1.6;margin-bottom:2rem;">${escapeHtml(t.guideSub)}</p>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:1.5rem;border:1px solid #10b981;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#34d399;margin-bottom:0.5rem;">${escapeHtml(t.guidePrivacyTitle)}</h2>
+          <p style="color:#cbd5e1;">${escapeHtml(t.guidePrivacyDesc)}</p>
+        </section>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:1.5rem;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#38bdf8;margin-bottom:0.75rem;">${escapeHtml(t.guideStepsTitle)}</h2>
+          <ol style="padding-left:1.25rem;color:#cbd5e1;line-height:1.8;">
+            <li><strong>${escapeHtml(t.guideStep1Title)}</strong>: ${escapeHtml(t.guideStep1Desc)}</li>
+            <li><strong>${escapeHtml(t.guideStep2Title)}</strong>: ${escapeHtml(t.guideStep2Desc)}</li>
+            <li><strong>${escapeHtml(t.guideStep3Title)}</strong>: ${escapeHtml(t.guideStep3Desc)}</li>
+          </ol>
+        </section>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:1.5rem;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#38bdf8;margin-bottom:0.5rem;">${escapeHtml(t.guideSectorsTitle)}</h2>
+          <ul style="padding-left:1.25rem;color:#cbd5e1;line-height:1.8;">
+            <li>${escapeHtml(t.guideSectorsItem1)}</li>
+            <li>${escapeHtml(t.guideSectorsItem2)}</li>
+            <li>${escapeHtml(t.guideSectorsItem3)}</li>
+          </ul>
+        </section>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:1.5rem;border:1px solid #06b6d4;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#22d3ee;margin-bottom:0.5rem;">${escapeHtml(t.guideSmartBatchTitle || 'Умный массовый выбор')}</h2>
+          <p style="color:#cbd5e1;line-height:1.6;">${escapeHtml(t.guideSmartBatchDesc || 'Массовое применение форматов защищено строгой матрицей типов.')}</p>
+        </section>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:1.5rem;border:1px solid #f59e0b;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#fbbf24;margin-bottom:0.5rem;">${escapeHtml(t.guideOverwriteWarningTitle || 'Предупреждение о массовой перезаписи')}</h2>
+          <p style="color:#cbd5e1;line-height:1.6;">${escapeHtml(t.guideOverwriteWarningDesc || 'Применение формата обновляет все подходящие файлы в группе.')}</p>
+        </section>
+        <section style="background:#1e293b;padding:1.5rem;border-radius:1rem;margin-bottom:1.5rem;">
+          <h2 style="font-size:1.25rem;font-weight:bold;color:#34d399;margin-bottom:0.5rem;">${escapeHtml(t.guideZipTitle)}</h2>
+          <p style="color:#cbd5e1;">${escapeHtml(t.guideZipDesc)}</p>
         </section>
       </main>
       <footer style="border-top:1px solid #334155;padding:2rem 1rem;color:#64748b;font-size:0.875rem;text-align:center;margin-top:3rem;">

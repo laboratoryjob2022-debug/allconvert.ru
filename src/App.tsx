@@ -14,12 +14,13 @@ import { FooterAdZone } from './components/FooterAdZone';
 import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
 import { LegalPages } from './components/LegalPages';
+import { GuidePage } from './components/GuidePage';
 import { useConverterStore } from './store/useConverterStore';
 import { getTranslation, getLocalizedPath } from './lib/i18n';
 import { getSeoPageDataBySlug, SeoConversionRoute, getLocalizedSeoRoute } from './lib/seoPages';
 import { Lock, CheckCircle2 } from 'lucide-react';
 
-export type RouteType = 'home' | 'convert' | 'privacy' | 'terms' | 'about';
+export type RouteType = 'home' | 'convert' | 'privacy' | 'terms' | 'about' | 'guide';
 
 export interface RouteState {
   type: RouteType;
@@ -34,6 +35,7 @@ function getRouteStateFromPath(): RouteState {
   if (rawPath === 'privacy') return { type: 'privacy', slug: 'privacy' };
   if (rawPath === 'terms') return { type: 'terms', slug: 'terms' };
   if (rawPath === 'about') return { type: 'about', slug: 'about' };
+  if (rawPath === 'guide') return { type: 'guide', slug: 'guide' };
 
   if (rawPath.startsWith('convert/')) {
     return { type: 'convert', slug: rawPath.replace(/^convert\//, '') };
@@ -47,6 +49,7 @@ function getRouteStateFromPath(): RouteState {
   if (rawHash === 'privacy') return { type: 'privacy', slug: 'privacy' };
   if (rawHash === 'terms') return { type: 'terms', slug: 'terms' };
   if (rawHash === 'about') return { type: 'about', slug: 'about' };
+  if (rawHash === 'guide') return { type: 'guide', slug: 'guide' };
   if (rawHash.startsWith('convert/')) {
     return { type: 'convert', slug: rawHash.replace(/^convert\//, '') };
   }
@@ -148,7 +151,7 @@ export default function App() {
     // Determine current canonical URL path
     const rawBasePath = (routeState.type === 'convert' && routeState.slug)
       ? `/convert/${routeState.slug}/`
-      : (routeState.type === 'privacy' ? '/privacy/' : (routeState.type === 'terms' ? '/terms/' : (routeState.type === 'about' ? '/about/' : '/')));
+      : (routeState.type === 'privacy' ? '/privacy/' : (routeState.type === 'terms' ? '/terms/' : (routeState.type === 'about' ? '/about/' : (routeState.type === 'guide' ? '/guide/' : '/'))));
 
     const canonicalPath = (language === 'ru' || !language)
       ? (rawBasePath === '/' ? 'https://allconvert.ru/' : `https://allconvert.ru${rawBasePath}`)
@@ -220,6 +223,17 @@ export default function App() {
       return;
     }
 
+    if (routeState.type === 'guide') {
+      setSeoData(null);
+      setPresetTargetFormat(null);
+      document.title = `${t.guideTitle} — AllConvert`;
+      const desc = `${t.guidePrivacyDesc} ${t.guideStepsTitle}`;
+      metaDesc.setAttribute('content', desc);
+      ogTitle.setAttribute('content', `${t.guideTitle} — AllConvert`);
+      ogDesc.setAttribute('content', desc);
+      return;
+    }
+
     if (routeState.type === 'convert') {
       const rawData = getSeoPageDataBySlug(routeState.slug);
       const localizedData = getLocalizedSeoRoute(rawData, language);
@@ -240,6 +254,7 @@ export default function App() {
     if (target === 'privacy' || target === '/privacy') newPath = '/privacy';
     else if (target === 'terms' || target === '/terms') newPath = '/terms';
     else if (target === 'about' || target === '/about') newPath = '/about';
+    else if (target === 'guide' || target === '/guide') newPath = '/guide';
     else if (target) newPath = target.startsWith('/') ? target : `/convert/${target}`;
 
     const localizedPath = getLocalizedPath(newPath, language);
@@ -278,6 +293,7 @@ export default function App() {
                 {routeState.type === 'privacy' && t.privacyPolicy}
                 {routeState.type === 'terms' && t.termsOfService}
                 {routeState.type === 'about' && t.aboutUsAndContacts}
+                {routeState.type === 'guide' && t.guideTitle}
               </span>
             </>
           )}
@@ -286,7 +302,9 @@ export default function App() {
 
       {/* Main Content Container */}
       <main className="flex-1 pb-16">
-        {routeState.type === 'privacy' || routeState.type === 'terms' || routeState.type === 'about' ? (
+        {routeState.type === 'guide' ? (
+          <GuidePage onNavigateHome={() => handleNavigateRoute('')} />
+        ) : routeState.type === 'privacy' || routeState.type === 'terms' || routeState.type === 'about' ? (
           <LegalPages
             pageType={routeState.type}
             onNavigateHome={() => handleNavigateRoute('')}

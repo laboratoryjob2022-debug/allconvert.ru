@@ -40,7 +40,7 @@ let isFFmpegLoading = false;
 /**
  * Helper to initialize FFmpeg.wasm lazily when requested for heavy media conversions
  */
-async function attemptCDNLoad(ffmpeg: any, toBlobURL: any, baseURL: string, timeoutMs = 3500): Promise<boolean> {
+async function attemptCDNLoad(ffmpeg: any, toBlobURL: any, baseURL: string, timeoutMs = 60000): Promise<boolean> {
   return new Promise((resolve) => {
     let finished = false;
     const timer = setTimeout(() => {
@@ -74,8 +74,13 @@ async function attemptCDNLoad(ffmpeg: any, toBlobURL: any, baseURL: string, time
   });
 }
 
-export async function getFFmpegInstance(onProgress?: (ratio: number) => void) {
-  if (ffmpegInstance) return ffmpegInstance;
+export async function getFFmpegInstance(onProgress?: (ratio: number) => void, forceRetry = false) {
+  if (ffmpegInstance && !forceRetry) return ffmpegInstance;
+  if (forceRetry) {
+    ffmpegInstance = null;
+    isFFmpegLoading = false;
+  }
+  
   if (isFFmpegLoading) {
     let attempts = 0;
     while (isFFmpegLoading && attempts < 150) { // 30s max wait for existing loader
@@ -99,17 +104,17 @@ export async function getFFmpegInstance(onProgress?: (ratio: number) => void) {
       });
     }
 
-    // Try jsdelivr first (faster/more reliable), then unpkg with strict timeouts
     const cdns = [
       'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm',
       'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm',
-      'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.6',
+      'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm',
+      'https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm',
     ];
 
     let success = false;
     for (const baseURL of cdns) {
       if (onProgress) onProgress(15);
-      success = await attemptCDNLoad(ffmpeg, toBlobURL, baseURL, 25000);
+      success = await attemptCDNLoad(ffmpeg, toBlobURL, baseURL, 60000);
       if (success) break;
     }
 
@@ -346,9 +351,9 @@ async function convertAudio(
   const isWav = targetFormat === 'WAV';
   const isAiff = targetFormat === 'AIFF';
 
-  // For MP3, WAV, and AIFF, use instant local WebAudio engine without waiting for network/CDN
+  // For MP3 (LameJS), WAV (16-bit PCM), and AIFF, use high-speed local WebAudio/JS engine
   if (isMp3 || isWav || isAiff) {
-    onProgress(25, 'Decoding audio track in browser memory...');
+    onProgress(25, 'Декодирование аудио в памяти браузера...');
     const arrayBuffer = await file.arrayBuffer();
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     
@@ -357,105 +362,113 @@ async function convertAudio(
       audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
     } catch (e) {
       audioCtx.close();
-      throw new Error('Unable to decode audio format in browser.');
+      throw new Error('Не удалось декодировать аудиофайл в браузере.');
     }
 
     if (isMp3) {
-      onProgress(60, 'Encoding high-speed MP3 audio stream via LameJS...');
+      onProgress(60, 'Кодирование MP3 через LameJS...');
       const bitrateStr = settings.audioBitrate || '256k';
       const bitrate = parseInt(bitrateStr, 10) || 256;
       const mp3Blob = audioBufferToMp3(audioBuffer, bitrate, (p) => {
-        onProgress(60 + Math.round(p * 0.35), `Encoding MP3 (${p}%)...`);
+        onProgress(60 + Math.round(p * 0.35), `Кодирование MP3 (${p}%)...`);
       });
       audioCtx.close();
-      onProgress(100, 'MP3 conversion complete!');
+      onProgress(100, 'Конвертация в MP3 завершена!');
       return { blob: mp3Blob, fileName: `${baseName}.mp3` };
     } else if (isWav) {
-      onProgress(70, 'Encoding uncompressed 16-bit PCM WAV...');
+      onProgress(70, 'Кодирование 16-bit PCM WAV...');
       const wavBlob = audioBufferToWav(audioBuffer);
       audioCtx.close();
-      onProgress(100, 'WAV conversion complete!');
+      onProgress(100, 'Конвертация в WAV завершена!');
       return { blob: wavBlob, fileName: `${baseName}.wav` };
     } else {
-      onProgress(70, 'Encoding uncompressed PCM AIFF...');
+      onProgress(70, 'Кодирование PCM AIFF...');
       const aiffBlob = audioBufferToAiff(audioBuffer);
       audioCtx.close();
-      onProgress(100, 'AIFF conversion complete!');
+      onProgress(100, 'Конвертация в AIFF завершена!');
       return { blob: aiffBlob, fileName: `${baseName}.aiff` };
     }
   }
 
-  // For other formats (OGG, FLAC, M4A, etc.), try fast FFmpeg
-  onProgress(20, `Initializing fast WASM engine for ${targetFormat}...`);
-  const ffmpeg = await getFFmpegInstance((p) => onProgress(30 + Math.round(p * 0.6), `Encoding ${targetFormat} via WASM (${p}%)...`));
-  if (ffmpeg) {
-    try {
-      const { fetchFile } = await import('@ffmpeg/util');
-      const inExt = file.name.split('.').pop() || 'input';
-      const outExt = targetFormat.toLowerCase();
-      
-      const inFileName = `input.${inExt}`;
-      const outFileName = `output.${outExt}`;
-
-      await ffmpeg.writeFile(inFileName, await fetchFile(file));
-
-      let ffmpegArgs = ['-i', inFileName];
-      if (targetFormat === 'OGG') {
-        ffmpegArgs.push('-c:a', 'libvorbis', '-q:a', '4');
-      } else if (targetFormat === 'FLAC') {
-        ffmpegArgs.push('-c:a', 'flac', '-compression_level', '5');
-      } else if (targetFormat === 'M4A') {
-        ffmpegArgs.push('-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-strict', '-2');
-      } else if (targetFormat === 'AAC') {
-        ffmpegArgs.push('-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts', '-strict', '-2');
-      } else if (targetFormat === 'OPUS') {
-        ffmpegArgs.push('-c:a', 'libopus', '-b:a', '128k');
-      }
-
-      ffmpegArgs.push(outFileName);
-
-      onProgress(35, `Starting FFmpeg conversion to ${outExt.toUpperCase()}...`);
-      const audioProgressHandler = ({ progress }: { progress: number }) => {
-        if (typeof progress === 'number') {
-          const pct = Math.min(98, Math.round(35 + progress * 63));
-          onProgress(pct, `FFmpeg Audio Encoding ${outExt.toUpperCase()} (${pct}%)...`);
-        }
-      };
-      ffmpeg.on('progress', audioProgressHandler);
-
-      try {
-        await ffmpeg.exec(ffmpegArgs);
-      } finally {
-        try { ffmpeg.off('progress', audioProgressHandler); } catch (e) {}
-      }
-
-      const data = await ffmpeg.readFile(outFileName);
-      const mimeTypes: Record<string, string> = {
-        ogg: 'audio/ogg',
-        flac: 'audio/flac',
-        m4a: 'audio/mp4',
-        aac: 'audio/aac',
-        opus: 'audio/opus',
-        aiff: 'audio/aiff',
-      };
-
-      const outBlob = new Blob([data as Uint8Array], { type: mimeTypes[outExt] || 'audio/octet-stream' });
-      await ffmpeg.deleteFile(inFileName);
-      await ffmpeg.deleteFile(outFileName);
-
-      onProgress(100, 'Audio conversion complete!');
-      return { blob: outBlob, fileName: `${baseName}.${outExt}` };
-    } catch (ffmpegErr) {
-      console.warn('FFmpeg execution fallback for custom format:', ffmpegErr);
-    }
+  // All other audio formats (AAC, OPUS, FLAC, OGG, M4A, etc.) process strictly via FFmpeg WASM
+  onProgress(20, `Инициализация FFmpeg WASM для ${targetFormat}...`);
+  let ffmpeg;
+  try {
+    ffmpeg = await getFFmpegInstance((p) => onProgress(30 + Math.round(p * 0.2), `Загрузка ядра FFmpeg (${p}%)...`));
+  } catch (err: any) {
+    ffmpegInstance = null;
+    throw new Error(`Ошибка загрузки FFmpeg WASM: ${err.message || String(err)}`);
   }
 
-  // If WASM fails or is unavailable, use honest native browser MediaRecorder stream conversion without false MP3 substitution
-  onProgress(50, `Encoding ${targetFormat} via native audio stream...`);
-  const arrayBuffer = await file.arrayBuffer();
-  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-  return await encodeAudioBufferViaMediaRecorder(audioCtx, audioBuffer, targetFormat, baseName, onProgress);
+  if (!ffmpeg) {
+    ffmpegInstance = null;
+    throw new Error(`Модуль FFmpeg WASM недоступен для конвертации в ${targetFormat}.`);
+  }
+
+  const { fetchFile } = await import('@ffmpeg/util');
+  const inExt = file.name.split('.').pop() || 'input';
+  const outExt = targetFormat.toLowerCase();
+  
+  const inFileName = `input_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${inExt}`;
+  const outFileName = `output_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${outExt}`;
+
+  let ffmpegArgs: string[] = ['-y', '-i', inFileName];
+  if (targetFormat === 'AAC') {
+    ffmpegArgs.push('-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts');
+  } else if (targetFormat === 'OPUS') {
+    ffmpegArgs.push('-c:a', 'libopus', '-b:a', '128k', '-f', 'ogg');
+  } else if (targetFormat === 'FLAC') {
+    ffmpegArgs.push('-c:a', 'flac');
+  } else if (targetFormat === 'MP3') {
+    ffmpegArgs.push('-c:a', 'libmp3lame', '-b:a', settings.audioBitrate || '256k');
+  } else if (targetFormat === 'OGG') {
+    ffmpegArgs.push('-c:a', 'libvorbis', '-q:a', '4', '-f', 'ogg');
+  } else if (targetFormat === 'WAV') {
+    ffmpegArgs.push('-c:a', 'pcm_s16le', '-f', 'wav');
+  } else if (targetFormat === 'M4A') {
+    ffmpegArgs.push('-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'ipod');
+  } else {
+    ffmpegArgs.push('-c:a', 'copy');
+  }
+  ffmpegArgs.push(outFileName);
+
+  onProgress(35, `Подготовка к конвертации в ${outExt.toUpperCase()}...`);
+  const audioProgressHandler = ({ progress }: { progress: number }) => {
+    if (typeof progress === 'number') {
+      const pct = Math.min(98, Math.round(35 + progress * 63));
+      onProgress(pct, `Кодирование ${outExt.toUpperCase()} (${pct}%)...`);
+    }
+  };
+  ffmpeg.on('progress', audioProgressHandler);
+
+  try {
+    await ffmpeg.writeFile(inFileName, await fetchFile(file));
+    await ffmpeg.exec(ffmpegArgs);
+    const data = await ffmpeg.readFile(outFileName);
+
+    const mimeTypes: Record<string, string> = {
+      ogg: 'audio/ogg',
+      flac: 'audio/flac',
+      m4a: 'audio/mp4',
+      aac: 'audio/aac',
+      opus: 'audio/opus',
+      aiff: 'audio/aiff',
+      mp3: 'audio/mpeg',
+      wav: 'audio/wav',
+    };
+
+    const outBlob = new Blob([data as Uint8Array], { type: mimeTypes[outExt] || 'audio/octet-stream' });
+    onProgress(100, `Конвертация в ${targetFormat} завершена!`);
+    return { blob: outBlob, fileName: `${baseName}.${outExt}` };
+  } catch (execErr: any) {
+    console.error(`Ошибка выполнения FFmpeg WASM (${targetFormat}):`, execErr);
+    ffmpegInstance = null; // Reset singleton instance on failure
+    throw new Error(`Ошибка конвертации в ${targetFormat} через FFmpeg WASM: ${execErr.message || String(execErr)}`);
+  } finally {
+    try { ffmpeg.off('progress', audioProgressHandler); } catch (e) {}
+    try { await ffmpeg.deleteFile(inFileName); } catch (e) {}
+    try { await ffmpeg.deleteFile(outFileName); } catch (e) {}
+  }
 }
 
 /**
@@ -595,85 +608,6 @@ function audioBufferToAiff(buffer: AudioBuffer): Blob {
 }
 
 /**
- * Honest Web Audio stream fallback without MP3 substitution
- */
-async function encodeAudioBufferViaMediaRecorder(
-  audioCtx: AudioContext,
-  buffer: AudioBuffer,
-  targetFormat: string,
-  baseName: string,
-  onProgress: (percent: number, text: string) => void
-): Promise<{ blob: Blob; fileName: string }> {
-  onProgress(60, `Encoding ${targetFormat} via native browser audio stream...`);
-  
-  const candidatesMap: Record<string, string[]> = {
-    OGG: ['audio/ogg; codecs=vorbis', 'audio/ogg; codecs=opus', 'audio/ogg', 'audio/webm; codecs=opus'],
-    OPUS: ['audio/ogg; codecs=opus', 'audio/webm; codecs=opus', 'audio/opus', 'audio/ogg'],
-    M4A: ['audio/mp4; codecs=mp4a.40.2', 'audio/mp4', 'audio/aac'],
-    AAC: ['audio/aac', 'audio/mp4; codecs=mp4a.40.2', 'audio/mp4'],
-    FLAC: ['audio/flac', 'audio/ogg; codecs=flac'],
-  };
-
-  const candidates = candidatesMap[targetFormat] || [];
-  let supportedMime = '';
-  for (const mime of candidates) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) {
-      supportedMime = mime;
-      break;
-    }
-  }
-
-  if (!supportedMime) {
-    audioCtx.close();
-    throw new Error(`Для точной конвертации в формат ${targetFormat} требуется загрузка WASM-кодека. Пожалуйста, проверьте интернет-соединение, чтобы браузер смог загрузить кодек для ${targetFormat}.`);
-  }
-
-  const source = audioCtx.createBufferSource();
-  source.buffer = buffer;
-  
-  const destination = audioCtx.createMediaStreamDestination();
-  source.connect(destination);
-  
-  const recorder = new MediaRecorder(destination.stream, { mimeType: supportedMime });
-  const chunks: Blob[] = [];
-  
-  recorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) chunks.push(e.data);
-  };
-
-  return new Promise((resolve, reject) => {
-    recorder.onstop = () => {
-      audioCtx.close();
-      const outExt = targetFormat.toLowerCase();
-      const finalBlob = new Blob(chunks, { type: supportedMime });
-      onProgress(100, `Converted to ${targetFormat}!`);
-      resolve({ blob: finalBlob, fileName: `${baseName}.${outExt}` });
-    };
-
-    recorder.onerror = () => {
-      audioCtx.close();
-      reject(new Error(`Ошибка записи потока ${targetFormat}`));
-    };
-
-    recorder.start(100);
-    source.start(0);
-
-    const durationMs = (buffer.duration * 1000);
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const p = Math.min(95, Math.round(60 + (elapsed / durationMs) * 35));
-      onProgress(p, `Recording ${targetFormat} audio stream (${p}%)...`);
-      if (elapsed >= durationMs + 500) {
-        clearInterval(interval);
-        try { recorder.stop(); } catch (e) {}
-        try { source.stop(); } catch (e) {}
-      }
-    }, 250);
-  });
-}
-
-/**
  * Converts AudioBuffer to real MP3 Blob using LameJS instantly in client memory
  */
 function audioBufferToMp3(buffer: AudioBuffer, bitratekbps = 192, onProgress?: (p: number) => void): Blob {
@@ -726,7 +660,7 @@ function audioBufferToMp3(buffer: AudioBuffer, bitratekbps = 192, onProgress?: (
 }
 
 /* ====================================================================
-   3. VIDEO CONVERSIONS (MediaRecorder / Canvas Stream / FFmpeg.wasm)
+   3. VIDEO CONVERSIONS (FFmpeg.wasm Engine Only)
    ==================================================================== */
 
 async function convertVideo(
@@ -737,235 +671,101 @@ async function convertVideo(
   baseName: string,
   onProgress: (percent: number, text: string) => void
 ): Promise<{ blob: Blob; fileName: string }> {
-  // Check if FFmpeg is available for heavy video format transcode
-  const ffmpeg = await getFFmpegInstance((p) => onProgress(20 + Math.round(p * 0.7), `FFmpeg Transcoding (${p}%)...`));
-
-  if (ffmpeg) {
-    try {
-      const { fetchFile } = await import('@ffmpeg/util');
-      const inExt = file.name.split('.').pop() || 'mp4';
-      let outExt = targetFormat.toLowerCase();
-      if (targetFormat === 'GIF_VID') outExt = 'gif';
-      if (targetFormat === 'MP3_EXTRACT') outExt = 'mp3';
-
-      const inName = `input.${inExt}`;
-      const outName = `output.${outExt}`;
-
-      onProgress(25, 'Writing video stream to memory filesystem...');
-      await ffmpeg.writeFile(inName, await fetchFile(file));
-
-      let args: string[] = ['-i', inName];
-
-      if (targetFormat === 'GIF_VID') {
-        // High quality animated GIF palette filter
-        args.push('-vf', 'fps=10,scale=480:-1:flags=lanczos', '-c:v', 'gif');
-      } else if (targetFormat === 'MP3_EXTRACT' || targetFormat === 'MP3') {
-        args.push('-vn', '-acodec', 'libmp3lame', '-b:a', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
-      } else if (targetFormat === 'WAV') {
-        args.push('-vn', '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', '-f', 'wav');
-      } else if (targetFormat === 'AAC') {
-        args.push('-vn', '-acodec', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts', '-strict', '-2');
-      } else if (targetFormat === 'M4A') {
-        args.push('-vn', '-acodec', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'ipod', '-strict', '-2');
-      } else if (targetFormat === 'OGG') {
-        args.push('-vn', '-acodec', 'libvorbis', '-q:a', '4', '-f', 'ogg');
-      } else if (targetFormat === 'FLAC') {
-        args.push('-vn', '-acodec', 'flac', '-compression_level', '5', '-f', 'flac');
-      } else if (targetFormat === 'OPUS') {
-        args.push('-vn', '-acodec', 'libopus', '-b:a', '128k', '-f', 'opus');
-      } else if (targetFormat === 'MP4' || targetFormat === 'MOV' || targetFormat === 'MKV') {
-        args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac');
-      } else if (targetFormat === 'WEBM') {
-        args.push('-c:v', 'libvpx', '-crf', '30', '-b:v', '1M', '-c:a', 'libvorbis');
-      } else if (targetFormat === 'AVI') {
-        args.push('-c:v', 'mpeg4', '-qscale:v', '3', '-c:a', 'libmp3lame');
-      } else {
-        args.push('-preset', 'ultrafast');
-      }
-
-      args.push(outName);
-
-      onProgress(35, `Starting FFmpeg encoding to ${outExt.toUpperCase()}...`);
-      const progressHandler = ({ progress }: { progress: number }) => {
-        if (typeof progress === 'number') {
-          const pct = Math.min(98, Math.round(35 + progress * 63));
-          onProgress(pct, `FFmpeg Transcoding ${outExt.toUpperCase()} (${pct}%)...`);
-        }
-      };
-      ffmpeg.on('progress', progressHandler);
-
-      try {
-        await ffmpeg.exec(args);
-      } finally {
-        try { ffmpeg.off('progress', progressHandler); } catch (e) {}
-      }
-
-      const data = await ffmpeg.readFile(outName);
-      const mimeMap: Record<string, string> = {
-        mp4: 'video/mp4',
-        webm: 'video/webm',
-        gif: 'image/gif',
-        mp3: 'audio/mpeg',
-        wav: 'audio/wav',
-        aac: 'audio/aac',
-        m4a: 'audio/mp4',
-        ogg: 'audio/ogg',
-        flac: 'audio/flac',
-        opus: 'audio/opus',
-        avi: 'video/x-msvideo',
-        mov: 'video/quicktime',
-        mkv: 'video/x-matroska',
-      };
-
-      const blob = new Blob([data as Uint8Array], { type: mimeMap[outExt] || 'video/mp4' });
-      await ffmpeg.deleteFile(inName);
-      await ffmpeg.deleteFile(outName);
-
-      onProgress(100, 'Video transcode complete!');
-      return { blob, fileName: `${baseName}.${outExt}` };
-    } catch (e) {
-      console.warn('FFmpeg video transcode error, falling back to WebMediaRecorder:', e);
-    }
+  onProgress(20, `Инициализация FFmpeg WASM для ${targetFormat}...`);
+  let ffmpeg;
+  try {
+    ffmpeg = await getFFmpegInstance((p) => onProgress(20 + Math.round(p * 0.2), `Загрузка ядра FFmpeg (${p}%)...`));
+  } catch (err: any) {
+    ffmpegInstance = null;
+    throw new Error(`Ошибка загрузки FFmpeg WASM: ${err.message || String(err)}`);
   }
 
-  // Fallback Web Audio API for audio extraction from video
-  const isAudioTarget = ['MP3', 'MP3_EXTRACT', 'WAV', 'AAC', 'M4A', 'OGG', 'FLAC', 'OPUS'].includes(targetFormat.toUpperCase());
-  if (isAudioTarget) {
-    try {
-      onProgress(15, 'Extracting audio track via Web Audio API...');
-      const arrayBuf = await file.arrayBuffer();
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuf);
-
-      if (targetFormat === 'WAV') {
-        onProgress(80, 'Encoding WAV PCM audio...');
-        const blob = audioBufferToWav(decodedBuffer);
-        audioCtx.close();
-        onProgress(100, 'WAV extraction complete!');
-        return { blob, fileName: `${baseName}.wav` };
-      }
-
-      if (targetFormat === 'MP3' || targetFormat === 'MP3_EXTRACT') {
-        onProgress(60, 'Encoding MP3 audio...');
-        const kbps = parseInt(settings.audioBitrate || '256', 10) || 256;
-        const blob = audioBufferToMp3(decodedBuffer, kbps, (p) => onProgress(60 + Math.round(p * 0.35), 'Encoding MP3...'));
-        audioCtx.close();
-        onProgress(100, 'MP3 extraction complete!');
-        return { blob, fileName: `${baseName}.mp3` };
-      }
-
-      return await encodeAudioBufferViaMediaRecorder(audioCtx, decodedBuffer, targetFormat, baseName, onProgress);
-    } catch (audioErr) {
-      console.warn('AudioContext extraction fallback error:', audioErr);
-    }
+  if (!ffmpeg) {
+    ffmpegInstance = null;
+    throw new Error(`Модуль FFmpeg WASM недоступен для транскодирования видео.`);
   }
 
-  // Fallback WebMediaRecorder
-  onProgress(10, `Extracting HTML5 video stream for ${targetFormat}...`);
-  const url = URL.createObjectURL(file);
-  const video = document.createElement('video');
-  video.src = url;
-  video.muted = true;
-  video.playsInline = true;
-  video.playbackRate = 1.0; // STRICT 1.0x standard playback speed to avoid acceleration!
-
-  // Start playback first so browser decodes frames and activates stream tracks before recording
-  video.play().catch(() => {});
-  await new Promise((res) => {
-    const timer = setTimeout(() => res(true), 2000);
-    if (video.readyState >= 2 && !video.paused) {
-      clearTimeout(timer);
-      res(true);
-      return;
-    }
-    video.onplaying = () => {
-      clearTimeout(timer);
-      res(true);
-    };
-    video.oncanplay = () => {
-      if (!video.paused) {
-        clearTimeout(timer);
-        res(true);
-      }
-    };
-    video.onerror = () => {
-      clearTimeout(timer);
-      res(true);
-    };
-  });
-
-  const stream = (video as any).captureStream ? (video as any).captureStream() : (video as any).mozCaptureStream ? (video as any).mozCaptureStream() : null;
-  if (!stream || stream.getTracks().length === 0 || !stream.active) {
-    URL.revokeObjectURL(url);
-    try { video.pause(); } catch (e) {}
-    throw new Error(`Браузер не смог извлечь видеопоток для ${targetFormat}. Пожалуйста, проверьте подключение к интернету для загрузки WASM-кодека FFmpeg.`);
-  }
-
-  let candidateMimes: string[] = [];
-  if (targetFormat === 'MP4' || targetFormat === 'MOV') {
-    candidateMimes = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-  } else {
-    candidateMimes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
-  }
-
-  let mimeType = '';
-  for (const m of candidateMimes) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) {
-      mimeType = m;
-      break;
-    }
-  }
-
-  if (!mimeType) {
-    URL.revokeObjectURL(url);
-    try { video.pause(); } catch (e) {}
-    throw new Error(`Встроенный видеокодек для ${targetFormat} не поддерживается в вашем браузере. Требуется загрузка FFmpeg WASM.`);
-  }
-
+  const { fetchFile } = await import('@ffmpeg/util');
+  const inExt = file.name.split('.').pop() || 'mp4';
   let outExt = targetFormat.toLowerCase();
-  const recorder = new MediaRecorder(stream, { mimeType });
-  const chunks: Blob[] = [];
+  if (targetFormat === 'GIF_VID') outExt = 'gif';
+  if (targetFormat === 'MP3_EXTRACT') outExt = 'mp3';
 
-  recorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) chunks.push(e.data);
-  };
-  recorder.start(250);
+  const inName = `input_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${inExt}`;
+  const outName = `output_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${outExt}`;
 
-  // Smooth real-time progress update during stream recording
-  const progressInterval = setInterval(() => {
-    if (video.duration && video.duration > 0) {
-      const currentPct = Math.min(98, Math.round(15 + (video.currentTime / video.duration) * 83));
-      onProgress(currentPct, `Recording video stream ${targetFormat} (${currentPct}%)...`);
-    } else {
-      onProgress(50, `Recording video stream ${targetFormat}...`);
+  let args: string[] = ['-y', '-i', inName];
+
+  if (targetFormat === 'GIF_VID') {
+    args.push('-vf', 'fps=10,scale=480:-1:flags=lanczos', '-c:v', 'gif');
+  } else if (targetFormat === 'MP3_EXTRACT' || targetFormat === 'MP3') {
+    args.push('-vn', '-c:a', 'libmp3lame', '-b:a', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
+  } else if (targetFormat === 'WAV') {
+    args.push('-vn', '-c:a', 'pcm_s16le', '-f', 'wav');
+  } else if (targetFormat === 'AAC') {
+    args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts');
+  } else if (targetFormat === 'M4A') {
+    args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'ipod');
+  } else if (targetFormat === 'OGG') {
+    args.push('-vn', '-c:a', 'libvorbis', '-q:a', '4', '-f', 'ogg');
+  } else if (targetFormat === 'FLAC') {
+    args.push('-vn', '-c:a', 'flac');
+  } else if (targetFormat === 'OPUS') {
+    args.push('-vn', '-c:a', 'libopus', '-b:a', '128k', '-f', 'ogg');
+  } else if (targetFormat === 'WEBM') {
+    args.push('-c:v', 'libvpx-vp9', '-c:a', 'libopus');
+  } else if (targetFormat === 'MP4' || targetFormat === 'MOV' || targetFormat === 'MKV') {
+    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac');
+  } else if (targetFormat === 'AVI') {
+    args.push('-c:v', 'mpeg4', '-qscale:v', '3', '-c:a', 'libmp3lame');
+  } else {
+    args.push('-preset', 'ultrafast');
+  }
+
+  args.push(outName);
+
+  onProgress(35, `Транскодирование видео в ${outExt.toUpperCase()}...`);
+  const progressHandler = ({ progress }: { progress: number }) => {
+    if (typeof progress === 'number') {
+      const pct = Math.min(98, Math.round(35 + progress * 63));
+      onProgress(pct, `FFmpeg Transcoding ${outExt.toUpperCase()} (${pct}%)...`);
     }
-  }, 200);
+  };
+  ffmpeg.on('progress', progressHandler);
 
-  await new Promise((res) => {
-    const timer = setTimeout(() => {
-      clearInterval(progressInterval);
-      try { recorder.stop(); } catch (e) {}
-      res(true);
-    }, 120000); // 120s safety limit for stream recording
+  try {
+    await ffmpeg.writeFile(inName, await fetchFile(file));
+    await ffmpeg.exec(args);
+    const data = await ffmpeg.readFile(outName);
 
-    video.onended = () => {
-      clearInterval(progressInterval);
-      clearTimeout(timer);
-      try { recorder.stop(); } catch (e) {}
-      res(true);
+    const mimeMap: Record<string, string> = {
+      mp4: 'video/mp4',
+      webm: 'video/webm',
+      gif: 'image/gif',
+      mp3: 'audio/mpeg',
+      wav: 'audio/wav',
+      aac: 'audio/aac',
+      m4a: 'audio/mp4',
+      ogg: 'audio/ogg',
+      flac: 'audio/flac',
+      opus: 'audio/opus',
+      avi: 'video/x-msvideo',
+      mov: 'video/quicktime',
+      mkv: 'video/x-matroska',
     };
-    video.onerror = () => {
-      clearInterval(progressInterval);
-      clearTimeout(timer);
-      try { recorder.stop(); } catch (e) {}
-      res(true);
-    };
-  });
 
-  URL.revokeObjectURL(url);
-  const blob = new Blob(chunks, { type: mimeType });
-  onProgress(100, `Video render complete for ${targetFormat}!`);
-  return { blob, fileName: `${baseName}.${outExt}` };
+    const blob = new Blob([data as Uint8Array], { type: mimeMap[outExt] || 'video/mp4' });
+    onProgress(100, 'Конвертация видео завершена!');
+    return { blob, fileName: `${baseName}.${outExt}` };
+  } catch (execErr: any) {
+    console.error(`Ошибка транскодирования видео FFmpeg WASM (${targetFormat}):`, execErr);
+    ffmpegInstance = null; // Reset singleton instance on failure
+    throw new Error(`Ошибка транскодирования видео в ${targetFormat} через FFmpeg WASM: ${execErr.message || String(execErr)}`);
+  } finally {
+    try { ffmpeg.off('progress', progressHandler); } catch (e) {}
+    try { await ffmpeg.deleteFile(inName); } catch (e) {}
+    try { await ffmpeg.deleteFile(outName); } catch (e) {}
+  }
 }
 
 /* ====================================================================

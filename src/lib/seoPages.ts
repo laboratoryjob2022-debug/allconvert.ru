@@ -680,7 +680,7 @@ export function getSeoPageDataBySlug(slug: string): SeoConversionRoute {
 }
 
 export function getLocalizedSeoRoute(route: SeoConversionRoute, langCode: string): SeoConversionRoute {
-  const supported = ['ru', 'en', 'zh', 'es', 'de', 'fr'];
+  const supported = ['ru', 'en', 'zh', 'es', 'de'];
   // Fallback to English if non-Russian language is selected and not directly mapped
   const lang = supported.includes(langCode) ? langCode : (langCode === 'ru' ? 'ru' : 'en');
 

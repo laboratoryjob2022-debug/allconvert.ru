@@ -9,7 +9,7 @@ import {
   UserProfile,
 } from '../types/converter';
 import { detectMagicBytes } from '../lib/magicBytes';
-import { getDefaultTargetForCategory } from '../lib/formatSpecs';
+import { getDefaultTargetForCategory, SUPPORTED_FORMATS } from '../lib/formatSpecs';
 import { convertFileClientSide } from '../lib/converterEngine';
 import { addHistoryRecord, getAllHistoryRecords, clearAllHistoryRecords, deleteHistoryRecord } from '../lib/db';
 
@@ -262,35 +262,58 @@ export const useConverterStore = create<ConverterState>()(
   },
 
   setGlobalTargetFormat: (format) => {
-    const { selectedIds } = get();
+    const { queue, selectedIds } = get();
     if (selectedIds.length > 0) {
+      get().applyFormatToSelected(format);
+    } else {
+      const targetFmtObj = SUPPORTED_FORMATS.find(
+        (f) => f.id.toUpperCase() === format.toUpperCase()
+      );
+      const formatCategory = targetFmtObj ? targetFmtObj.category : null;
+
+      const targetItems = queue.filter(
+        (q) => !formatCategory || q.category === formatCategory
+      );
+      const targetSet = new Set(targetItems.map((i) => i.id));
       set((state) => ({
         globalTargetFormat: format,
         queue: state.queue.map((item) =>
-          state.selectedIds.includes(item.id)
+          targetSet.has(item.id)
             ? { ...item, targetFormat: format }
             : item
         ),
       }));
-      get().showToast(`Applied ${format} format to ${selectedIds.length} selected items`, 'success');
-    } else {
-      set((state) => ({
-        globalTargetFormat: format,
-        queue: state.queue.map((item) => ({
-          ...item,
-          targetFormat: format,
-        })),
-      }));
-      get().showToast(`Set global target format to ${format}`, 'info');
+      get().showToast(`Установлен формат ${format} для подходящих файлов (${targetItems.length})`, 'info');
     }
   },
 
   applyFormatToSelected: (format, sector) => {
     const { queue, selectedIds } = get();
-    const targetItems = queue.filter(
-      (q) => selectedIds.includes(q.id) && (!sector || sector === 'all' || q.category === sector)
+    const targetFmtObj = SUPPORTED_FORMATS.find(
+      (f) => f.id.toUpperCase() === format.toUpperCase()
     );
-    if (targetItems.length === 0) return;
+    const formatCategory = targetFmtObj ? targetFmtObj.category : null;
+
+    const targetItems = queue.filter(
+      (q) =>
+        selectedIds.includes(q.id) &&
+        (!sector || sector === 'all' || q.category === sector) &&
+        (!formatCategory || q.category === formatCategory)
+    );
+
+    if (targetItems.length === 0) {
+      if (formatCategory) {
+        const catLabels: Record<string, string> = {
+          image: 'Изображения',
+          audio: 'Аудио',
+          video: 'Видео',
+          document: 'Документы',
+        };
+        get().showToast(`Формат ${format} подходит только для файлов категории ${catLabels[formatCategory] || formatCategory}`, 'warning');
+      }
+      return;
+    }
+
     const targetSet = new Set(targetItems.map((i) => i.id));
     set((state) => ({
       globalTargetFormat: format,
@@ -300,7 +323,15 @@ export const useConverterStore = create<ConverterState>()(
           : item
       ),
     }));
-    get().showToast(`Применен формат ${format} для ${targetItems.length} выбранных файлов`, 'success');
+
+    const catLabels: Record<string, string> = {
+      image: 'Изображения',
+      audio: 'Аудио',
+      video: 'Видео',
+      document: 'Документы',
+    };
+    const catText = formatCategory ? (catLabels[formatCategory] || formatCategory) : 'совместимых';
+    get().showToast(`Применен формат ${format} для ${targetItems.length} файлов (${catText})`, 'success');
   },
 
   updateSettings: (id, newSettings) => {
