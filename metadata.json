@@ -1,0 +1,8 @@
+{
+  "name": "allconvert.ru",
+  "description": "Universal 100% Client-Side High-Performance File Converter for Audio, Video, Images, and Documents with Magic Byte Detection and WebAssembly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

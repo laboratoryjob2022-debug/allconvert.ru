@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <!-- SPA Github Pages redirect handler -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location));
+    </script>
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){
+            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();
+            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=111198905', 'ym');
+
+        ym(111198905, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+    </script>
+    <!-- /Yandex.Metrika counter -->
+    <meta charset="UTF-8" />
+    <meta name="google-site-verification" content="0Dereg7PWWefYcs74AsPu5qCsmy1X6FRZgoYIycmnwk" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AllConvert — 100% Приватный конвертер файлов в браузере</title>
+    <meta name="description" content="AllConvert — бесплатный и 100% приватный универсальный конвертер файлов. Конвертируйте видео, аудио, изображения и документы (MP3, MP4, PDF, PNG, WEBP и др.) прямо в памяти вашего браузера без загрузки на сервер и без регистрации." />
+    <meta name="keywords" content="конвертер файлов, конвертер видео, аудио конвертер, онлайн конвертер, mp4 в mp3, webm в mp4, pdf конвертер, webp в jpg, конвертер без интернета, ffmpeg wasm, приватный конвертер, без загрузки на сервер, allconvert" />
+    <meta name="author" content="AllConvert" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://allconvert.ru/" />
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <link rel="shortcut icon" href="/favicon.ico?v=3" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=3" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=3" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png?v=3" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png?v=3" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png?v=3" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+    <link rel="manifest" href="/site.webmanifest?v=3" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://allconvert.ru/" />
+    <meta property="og:title" content="AllConvert — 100% Приватный конвертер файлов" />
+    <meta property="og:description" content="Конвертируйте видео, аудио, изображения и документы прямо в памяти вашего браузера без отправки на сервер, слежки и регистрации." />
+    <meta property="og:image" content="https://allconvert.ru/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="AllConvert" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AllConvert — 100% Приватный конвертер файлов" />
+    <meta name="twitter:description" content="Бесплатная и мгновенная конвертация аудио, видео, графики и документов локально в вашем браузере через FFmpeg.wasm." />
+    <meta name="twitter:image" content="https://allconvert.ru/og-image.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "AllConvert",
+        "url": "https://allconvert.ru/",
+        "image": "https://allconvert.ru/og-image.png",
+        "logo": "https://allconvert.ru/android-chrome-512x512.png",
+        "description": "100% приватный универсальный конвертер видео, аудио, изображений и документов, работающий локально в браузере без загрузки файлов на сервер.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "All",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "100% локальная обработка файлов в браузере без отправки на сервер",
+          "Конвертация видео, аудио, графики и документов любых размеров в ОЗУ",
+          "Технологии FFmpeg.wasm и WebCodecs для максимальной скорости",
+          "Без регистрации, без Google / Yandex Auth и без слежки"
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Yandex.Metrika noscript counter -->
+    <noscript><div><img src="https://mc.yandex.ru/watch/111198905" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Yandex.Metrika noscript counter -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
