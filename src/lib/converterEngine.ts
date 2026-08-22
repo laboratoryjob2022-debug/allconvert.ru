@@ -1,6 +1,6 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { ConversionSettings, FileItem } from '../types/converter';
 import {
   parsePdfPageToBlocks,
@@ -1913,12 +1913,17 @@ async function convertDocument(
           }
         });
 
-        // Динамическая формула:
-        // Минимальная ширина: 7 символов (для компактных индексов, дат, статусов)
-        // Максимальная ширина: 42 символа (длинный текст переносится по строкам)
-        // Запас +2 на отступы ячейки
-        const calculatedWidth = Math.min(Math.max(maxLen + 2, 7), 42);
-        colWidths[c] = calculatedWidth;
+        // Динамический расчёт ширины с учётом типа колонки:
+        if (c === 0 && maxCols > 2) {
+          // Колонка № (компактная)
+          colWidths[c] = Math.min(Math.max(maxLen + 2, 6), 10);
+        } else if (c === 1 && maxCols > 2) {
+          // Колонка Наименование (просторная, с комфортным чтением)
+          colWidths[c] = Math.min(Math.max(maxLen + 3, 38), 65);
+        } else {
+          // Остальные колонки (методики, результаты, примечания)
+          colWidths[c] = Math.min(Math.max(maxLen + 3, 14), 40);
+        }
       }
 
       if (colWidths.length > 0) {
@@ -1926,11 +1931,9 @@ async function convertDocument(
       }
 
       // Настройка метаданных страницы и печати:
-      // fitToWidth: 1 гарантирует, что при печати (на любом формате бумаги: A4, Letter, A3)
-      // Excel автоматически уместит все столбцы по ширине одной страницы без разрывов.
       worksheet['!pageSetup'] = {
-        paperSize: 9, // Код 9 = международный стандарт А4
-        orientation: maxCols > 6 ? 'landscape' : 'portrait', // Автоматическая альбомная ориентация для широких таблиц (>6 колонок)
+        paperSize: 9, // Стандарт А4
+        orientation: maxCols > 6 ? 'landscape' : 'portrait',
         fitToWidth: 1,
         fitToHeight: 0,
         scale: 100,
@@ -1955,15 +1958,26 @@ async function convertDocument(
         },
       ];
 
-      // Включаем автоперенос строк (wrapText: true) и верхнее выравнивание для всех ячеек
+      // Стилизация ячеек через xlsx-js-style:
+      // Включаем реальный автоперенос строк (wrapText: true), вертикальное выравнивание и легкие границы для таблиц
       Object.keys(worksheet).forEach((cellKey) => {
         if (!cellKey.startsWith('!')) {
           const cell = worksheet[cellKey];
           if (cell && typeof cell === 'object') {
+            const rawVal = (cell.v || '').toString();
+            const isHeader = rawVal.includes('Наименование') || rawVal.includes('Результат') || rawVal === '№' || rawVal.includes('Протокол');
+
             cell.s = {
+              font: {
+                name: 'Calibri',
+                sz: isHeader && rawVal.includes('Протокол') ? 12 : 11,
+                bold: isHeader,
+                color: { rgb: '1E293B' },
+              },
               alignment: {
                 wrapText: true,
                 vertical: 'top',
+                horizontal: rawVal === '№' || /^\d+\.?$/.test(rawVal.trim()) ? 'center' : 'left',
               },
             };
           }

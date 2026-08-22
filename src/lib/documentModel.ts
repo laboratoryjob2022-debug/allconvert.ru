@@ -5,7 +5,7 @@
  * separating document spatial layout understanding from specific output format exporters (XLSX, HTML, DOCX, TXT, CSV).
  */
 
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { Document, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, WidthType, BorderStyle } from 'docx';
 
 // --- TYPE DEFINITIONS ---
