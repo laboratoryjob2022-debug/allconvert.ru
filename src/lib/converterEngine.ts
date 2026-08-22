@@ -1894,48 +1894,68 @@ async function convertDocument(
       const aoa = parseDocxHtmlToAoa(docxHtml);
       const worksheet = XLSX.utils.aoa_to_sheet(aoa);
 
-      // Рассчитываем ширину колонок ТОЛЬКО по строкам таблицы (где колонок >= 3),
-      // чтобы длинные внетабличные параграфы и примечания не раздували ширину столбцов.
-      const tableRows = aoa.filter(r => r.length >= 3);
+      // Универсальный динамический расчёт ширины колонок (Dynamic Content-Aware Layout)
+      // Находим строки, относящиеся к таблицам (от 2+ колонок)
+      const tableRows = aoa.filter(r => r.length >= 2);
       let maxCols = 0;
-      tableRows.forEach(r => {
+      aoa.forEach(r => {
         if (r.length > maxCols) maxCols = r.length;
       });
 
       const colWidths: number[] = [];
       for (let c = 0; c < maxCols; c++) {
         let maxLen = 0;
-        tableRows.forEach(row => {
-          const val = (row[c] || '').toString();
+        const targetRows = tableRows.length > 0 ? tableRows : aoa;
+        targetRows.forEach(row => {
+          const val = (row[c] || '').toString().trim();
           if (val.length > maxLen) {
             maxLen = val.length;
           }
         });
 
-        // Индивидуальные эргономичные лимиты по колонкам
-        if (c === 0) {
-          // Колонка № (краткий номер)
-          colWidths[c] = Math.min(Math.max(maxLen + 2, 6), 10);
-        } else if (c === 1) {
-          // Наименование испытания (широкая колонка с переносом)
-          colWidths[c] = Math.min(Math.max(maxLen + 2, 35), 55);
-        } else if (c === 2) {
-          // № методики
-          colWidths[c] = Math.min(Math.max(maxLen + 2, 16), 25);
-        } else if (c === 3) {
-          // Результаты испытаний
-          colWidths[c] = Math.min(Math.max(maxLen + 2, 20), 40);
-        } else {
-          // Примечание и прочие колонки
-          colWidths[c] = Math.min(Math.max(maxLen + 2, 14), 30);
-        }
+        // Динамическая формула:
+        // Минимальная ширина: 7 символов (для компактных индексов, дат, статусов)
+        // Максимальная ширина: 42 символа (длинный текст переносится по строкам)
+        // Запас +2 на отступы ячейки
+        const calculatedWidth = Math.min(Math.max(maxLen + 2, 7), 42);
+        colWidths[c] = calculatedWidth;
       }
 
       if (colWidths.length > 0) {
         worksheet['!cols'] = colWidths.map(wch => ({ wch }));
       }
 
-      // Включаем автоперенос строк (wrapText: true) и верхнее выравнивание для ячеек
+      // Настройка метаданных страницы и печати:
+      // fitToWidth: 1 гарантирует, что при печати (на любом формате бумаги: A4, Letter, A3)
+      // Excel автоматически уместит все столбцы по ширине одной страницы без разрывов.
+      worksheet['!pageSetup'] = {
+        paperSize: 9, // Код 9 = международный стандарт А4
+        orientation: maxCols > 6 ? 'landscape' : 'portrait', // Автоматическая альбомная ориентация для широких таблиц (>6 колонок)
+        fitToWidth: 1,
+        fitToHeight: 0,
+        scale: 100,
+      };
+
+      worksheet['!margins'] = {
+        left: 0.5,
+        right: 0.5,
+        top: 0.6,
+        bottom: 0.6,
+        header: 0.3,
+        footer: 0.3,
+      };
+
+      worksheet['!printOptions'] = {
+        gridLines: true,
+      };
+
+      worksheet['!views'] = [
+        {
+          showGridLines: true,
+        },
+      ];
+
+      // Включаем автоперенос строк (wrapText: true) и верхнее выравнивание для всех ячеек
       Object.keys(worksheet).forEach((cellKey) => {
         if (!cellKey.startsWith('!')) {
           const cell = worksheet[cellKey];
