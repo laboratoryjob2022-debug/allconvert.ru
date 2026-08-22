@@ -1566,53 +1566,73 @@ function parseDocxHtmlToAoa(html: string): string[][] {
   const doc = parser.parseFromString(html, 'text/html');
   const aoa: string[][] = [];
 
-  const extractCellText = (cell: HTMLElement): string => {
-    const paragraphs = Array.from(cell.querySelectorAll('p, div, li'));
-    if (paragraphs.length > 0) {
-      return paragraphs
-        .map((p) => (p.textContent || '').replace(/\s+/g, ' ').trim())
+  const cleanCellText = (cell: Element): string => {
+    // If cell has paragraphs/divs/lists, join their text with single space
+    const blocks = Array.from(cell.querySelectorAll('p, div, li, tr'));
+    if (blocks.length > 0) {
+      return blocks
+        .map(b => (b.textContent || '').replace(/\s+/g, ' ').trim())
         .filter(Boolean)
         .join(' ');
     }
     return (cell.textContent || '').replace(/\s+/g, ' ').trim();
   };
 
-  const processNodes = (elements: Element[]) => {
-    for (const child of elements) {
-      const tag = child.tagName.toLowerCase();
-      if (tag === 'table') {
-        const rows = Array.from(child.querySelectorAll('tr'));
-        let expectedCols = 0;
-        for (const row of rows) {
-          const cellsCount = row.querySelectorAll('th, td').length;
-          if (cellsCount > expectedCols) {
-            expectedCols = cellsCount;
-          }
+  const processNode = (node: Element) => {
+    const tagName = node.tagName.toLowerCase();
+
+    if (tagName === 'table') {
+      const tableRows = Array.from(node.querySelectorAll('tr'));
+      let maxCols = 0;
+
+      // First pass: find maximum columns
+      const parsedRows: string[][] = [];
+      for (const tr of tableRows) {
+        const cells = Array.from(tr.children).filter(c => {
+          const t = c.tagName.toLowerCase();
+          return t === 'td' || t === 'th';
+        });
+
+        const rowValues: string[] = [];
+        for (const cell of cells) {
+          rowValues.push(cleanCellText(cell));
         }
 
-        rows.forEach((row) => {
-          const cells = Array.from(row.querySelectorAll('th, td'));
-          const cellValues = cells.map((c) => extractCellText(c as HTMLElement));
-          while (expectedCols > 0 && cellValues.length < expectedCols) {
-            cellValues.push('');
-          }
-          if (cellValues.length > 0) {
-            aoa.push(cellValues);
-          }
-        });
-        aoa.push([]); // empty row
-      } else if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
-        const text = (child.textContent || '').replace(/\s+/g, ' ').trim();
+        if (rowValues.length > maxCols) {
+          maxCols = rowValues.length;
+        }
+        parsedRows.push(rowValues);
+      }
+
+      // Second pass: pad all rows to maxCols so that every column index is aligned
+      for (const rowValues of parsedRows) {
+        while (rowValues.length < maxCols) {
+          rowValues.push('');
+        }
+        aoa.push(rowValues);
+      }
+      aoa.push([]); // empty row separator
+    } else if (tagName === 'p' || tagName.startsWith('h') || tagName === 'li') {
+      // Check if table is somehow inside
+      const nestedTable = node.querySelector('table');
+      if (nestedTable) {
+        processNode(nestedTable);
+      } else {
+        const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
         if (text) {
           aoa.push([text]);
         }
-      } else {
-        processNodes(Array.from(child.children));
+      }
+    } else {
+      for (const child of Array.from(node.children)) {
+        processNode(child);
       }
     }
   };
 
-  processNodes(Array.from(doc.body.children));
+  for (const child of Array.from(doc.body.children)) {
+    processNode(child);
+  }
 
   return aoa;
 }
