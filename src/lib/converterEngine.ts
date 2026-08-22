@@ -1348,12 +1348,136 @@ async function renderPdfFirstPageToImage(file: File, mimeType: 'image/png' | 'im
   });
 }
 
+async function renderHtmlToPdfBlob(htmlContent: string, baseName: string, onProgress?: (p: number, t: string) => void): Promise<Blob> {
+  onProgress?.(50, 'Рендеринг разметки документа в PDF...');
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
+  container.style.width = '794px'; // A4 width at 96 DPI
+  container.style.minHeight = '1123px';
+  container.style.padding = '40px';
+  container.style.background = '#ffffff';
+  container.style.color = '#111827';
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+  container.style.fontSize = '11pt';
+  container.style.lineHeight = '1.5';
+  container.style.zIndex = '-9999';
+  container.style.boxSizing = 'border-box';
+  container.style.pointerEvents = 'none';
+
+  const fullHtml = `
+    <style>
+      table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+      th, td { border: 1px solid #94a3b8; padding: 6px 10px; text-align: left; vertical-align: top; }
+      th { background-color: #f1f5f9; font-weight: bold; }
+      p { margin: 6px 0; }
+      h1, h2, h3 { margin: 16px 0 8px 0; font-weight: bold; }
+      h1 { font-size: 15pt; }
+      h2 { font-size: 13pt; }
+      h3 { font-size: 11pt; }
+    </style>
+    <div>
+      <h2 style="margin-top: 0; margin-bottom: 16px; font-size: 16pt;">${escapeHtml(baseName)}</h2>
+      ${htmlContent}
+    </div>
+  `;
+  container.innerHTML = fullHtml;
+  document.body.appendChild(container);
+
+  try {
+    const { jsPDF } = await import('jspdf');
+    const html2canvas = (await import('html2canvas')).default;
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    });
+
+    onProgress?.(85, 'Сборка страниц PDF...');
+
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const imgWidth = 595.28; // A4 width in pt
+    const pageHeight = 841.89; // A4 height in pt
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    const imgData = canvas.toDataURL('image/png');
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+    }
+
+    onProgress?.(100, 'Готово!');
+    return pdf.output('blob');
+  } finally {
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  }
+}
+
+function parseHtmlToStructuredText(html: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const lines: string[] = [];
+
+  const processNode = (node: Node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      const tag = el.tagName.toLowerCase();
+
+      if (tag === 'table') {
+        const rows = Array.from(el.querySelectorAll('tr'));
+        for (const row of rows) {
+          const cells = Array.from(row.querySelectorAll('th, td')).map((c) => {
+            return (c.textContent || '').replace(/\s+/g, ' ').trim();
+          });
+          if (cells.length > 0) {
+            lines.push(cells.join('\t'));
+          }
+        }
+        lines.push('');
+        return;
+      }
+
+      if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
+        const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text) {
+          lines.push(text);
+        }
+        return;
+      }
+
+      for (const child of Array.from(el.childNodes)) {
+        processNode(child);
+      }
+    }
+  };
+
+  for (const child of Array.from(doc.body.childNodes)) {
+    processNode(child);
+  }
+
+  return lines.join('\n');
+}
+
 async function extractTextFromDocx(file: File, onProgress: (p: number, t: string) => void): Promise<string> {
   onProgress(30, 'Parsing DOCX structure with Mammoth...');
   const mammoth = await import('mammoth');
   const arrayBuffer = await file.arrayBuffer();
-  const result = await (mammoth.default || mammoth).extractRawText({ arrayBuffer });
-  return result.value || '';
+  const result = await (mammoth.default || mammoth).convertToHtml({ arrayBuffer });
+  return parseHtmlToStructuredText(result.value || '');
 }
 
 async function extractHtmlFromDocx(file: File, onProgress: (p: number, t: string) => void): Promise<string> {
@@ -1600,24 +1724,48 @@ async function convertDocument(
   if (srcFmt === 'PDF') {
     textContent = await extractTextFromPdf(file, onProgress);
   } else if (srcFmt === 'DOCX') {
+    const docxHtml = await extractHtmlFromDocx(file, onProgress);
+    textContent = parseHtmlToStructuredText(docxHtml);
+
     if (tgtFmt === 'HTML') {
-      const docxHtml = await extractHtmlFromDocx(file, onProgress);
       const fullHtml = `<!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>${baseName}</title>
-  <style>body { font-family: system-ui, sans-serif; padding: 2rem; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #1e293b; background: #f8fafc; }</style>
+  <title>${escapeHtml(baseName)}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 32px; line-height: 1.6; max-width: 900px; margin: 0 auto; color: #1e293b; background: #ffffff; }
+    h1 { font-size: 22px; color: #0f172a; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+    table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; font-weight: bold; }
+    p { margin: 6px 0; }
+  </style>
 </head>
 <body>
-  <h1>${baseName}</h1>
+  <h1>${escapeHtml(baseName)}</h1>
   ${docxHtml}
 </body>
 </html>`;
       const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
       return { blob, fileName: `${baseName}.html` };
     }
-    textContent = await extractTextFromDocx(file, onProgress);
+
+    if (tgtFmt === 'PDF') {
+      const blob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress);
+      return { blob, fileName: `${baseName}.pdf` };
+    }
+
+    if (tgtFmt === 'TXT') {
+      const blob = new Blob(['\uFEFF' + textContent], { type: 'text/plain;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.txt` };
+    }
+
+    if (tgtFmt === 'CSV') {
+      const csvStr = convertTextToStructuredCsv(textContent);
+      const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.csv` };
+    }
   } else {
     textContent = await file.text();
   }
