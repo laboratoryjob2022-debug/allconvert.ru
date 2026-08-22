@@ -1893,6 +1893,63 @@ async function convertDocument(
       onProgress(50, 'Сборка Excel файла из таблиц документа...');
       const aoa = parseDocxHtmlToAoa(docxHtml);
       const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Рассчитываем ширину колонок ТОЛЬКО по строкам таблицы (где колонок >= 3),
+      // чтобы длинные внетабличные параграфы и примечания не раздували ширину столбцов.
+      const tableRows = aoa.filter(r => r.length >= 3);
+      let maxCols = 0;
+      tableRows.forEach(r => {
+        if (r.length > maxCols) maxCols = r.length;
+      });
+
+      const colWidths: number[] = [];
+      for (let c = 0; c < maxCols; c++) {
+        let maxLen = 0;
+        tableRows.forEach(row => {
+          const val = (row[c] || '').toString();
+          if (val.length > maxLen) {
+            maxLen = val.length;
+          }
+        });
+
+        // Индивидуальные эргономичные лимиты по колонкам
+        if (c === 0) {
+          // Колонка № (краткий номер)
+          colWidths[c] = Math.min(Math.max(maxLen + 2, 6), 10);
+        } else if (c === 1) {
+          // Наименование испытания (широкая колонка с переносом)
+          colWidths[c] = Math.min(Math.max(maxLen + 2, 35), 55);
+        } else if (c === 2) {
+          // № методики
+          colWidths[c] = Math.min(Math.max(maxLen + 2, 16), 25);
+        } else if (c === 3) {
+          // Результаты испытаний
+          colWidths[c] = Math.min(Math.max(maxLen + 2, 20), 40);
+        } else {
+          // Примечание и прочие колонки
+          colWidths[c] = Math.min(Math.max(maxLen + 2, 14), 30);
+        }
+      }
+
+      if (colWidths.length > 0) {
+        worksheet['!cols'] = colWidths.map(wch => ({ wch }));
+      }
+
+      // Включаем автоперенос строк (wrapText: true) и верхнее выравнивание для ячеек
+      Object.keys(worksheet).forEach((cellKey) => {
+        if (!cellKey.startsWith('!')) {
+          const cell = worksheet[cellKey];
+          if (cell && typeof cell === 'object') {
+            cell.s = {
+              alignment: {
+                wrapText: true,
+                vertical: 'top',
+              },
+            };
+          }
+        }
+      });
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Лист1');
       const xlsxBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
