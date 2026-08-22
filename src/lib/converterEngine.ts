@@ -1543,6 +1543,9 @@ function parseDocxHtmlToXml(html: string, baseName: string): string {
 
         lines.push('    </table>');
       } else if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
+        if (el.closest('table')) {
+          continue;
+        }
         const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
         if (text) {
           lines.push(`    <paragraph>${escapeHtml(text)}</paragraph>`);
@@ -1567,8 +1570,7 @@ function parseDocxHtmlToAoa(html: string): string[][] {
   const aoa: string[][] = [];
 
   const cleanCellText = (cell: Element): string => {
-    // If cell has paragraphs/divs/lists, join their text with single space
-    const blocks = Array.from(cell.querySelectorAll('p, div, li, tr'));
+    const blocks = Array.from(cell.querySelectorAll('p, div, li'));
     if (blocks.length > 0) {
       return blocks
         .map(b => (b.textContent || '').replace(/\s+/g, ' ').trim())
@@ -1584,10 +1586,10 @@ function parseDocxHtmlToAoa(html: string): string[][] {
     if (tagName === 'table') {
       const tableRows = Array.from(node.querySelectorAll('tr'));
       let maxCols = 0;
-
-      // First pass: find maximum columns
       const parsedRows: string[][] = [];
+
       for (const tr of tableRows) {
+        // Берем только прямые ячейки строки
         const cells = Array.from(tr.children).filter(c => {
           const t = c.tagName.toLowerCase();
           return t === 'td' || t === 'th';
@@ -1604,16 +1606,20 @@ function parseDocxHtmlToAoa(html: string): string[][] {
         parsedRows.push(rowValues);
       }
 
-      // Second pass: pad all rows to maxCols so that every column index is aligned
+      // Выравниваем все строки таблицы до maxCols
       for (const rowValues of parsedRows) {
         while (rowValues.length < maxCols) {
           rowValues.push('');
         }
         aoa.push(rowValues);
       }
-      aoa.push([]); // empty row separator
+      aoa.push([]); // пустая строка после таблицы
     } else if (tagName === 'p' || tagName.startsWith('h') || tagName === 'li') {
-      // Check if table is somehow inside
+      // Игнорируем параграфы внутри таблицы, так как таблица разбирается целиком выше
+      if (node.closest('table')) {
+        return;
+      }
+
       const nestedTable = node.querySelector('table');
       if (nestedTable) {
         processNode(nestedTable);
