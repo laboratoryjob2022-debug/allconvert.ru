@@ -1432,6 +1432,18 @@ function parseHtmlToStructuredText(html: string): string {
   const doc = parser.parseFromString(html, 'text/html');
   const lines: string[] = [];
 
+  const extractCellText = (cell: HTMLElement): string => {
+    // Collect all paragraphs or text chunks inside the cell separated by spaces
+    const paragraphs = Array.from(cell.querySelectorAll('p, div, li'));
+    if (paragraphs.length > 0) {
+      return paragraphs
+        .map((p) => (p.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+    return (cell.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+
   const processNode = (node: Node) => {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as HTMLElement;
@@ -1440,9 +1452,7 @@ function parseHtmlToStructuredText(html: string): string {
       if (tag === 'table') {
         const rows = Array.from(el.querySelectorAll('tr'));
         for (const row of rows) {
-          const cells = Array.from(row.querySelectorAll('th, td')).map((c) => {
-            return (c.textContent || '').replace(/\s+/g, ' ').trim();
-          });
+          const cells = Array.from(row.querySelectorAll('th, td')).map((c) => extractCellText(c as HTMLElement));
           if (cells.length > 0) {
             lines.push(cells.join('\t'));
           }
@@ -1470,6 +1480,44 @@ function parseHtmlToStructuredText(html: string): string {
   }
 
   return lines.join('\n');
+}
+
+function parseDocxHtmlToAoa(html: string): string[][] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const aoa: string[][] = [];
+
+  const extractCellText = (cell: HTMLElement): string => {
+    const paragraphs = Array.from(cell.querySelectorAll('p, div, li'));
+    if (paragraphs.length > 0) {
+      return paragraphs
+        .map((p) => (p.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+    return (cell.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+
+  for (const child of Array.from(doc.body.children)) {
+    const tag = child.tagName.toLowerCase();
+    if (tag === 'table') {
+      const rows = Array.from(child.querySelectorAll('tr'));
+      for (const row of rows) {
+        const cells = Array.from(row.querySelectorAll('th, td')).map((c) => extractCellText(c as HTMLElement));
+        if (cells.length > 0) {
+          aoa.push(cells);
+        }
+      }
+      aoa.push([]); // empty row
+    } else {
+      const text = (child.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text) {
+        aoa.push([text]);
+      }
+    }
+  }
+
+  return aoa;
 }
 
 async function extractTextFromDocx(file: File, onProgress: (p: number, t: string) => void): Promise<string> {
@@ -1761,10 +1809,23 @@ async function convertDocument(
       return { blob, fileName: `${baseName}.txt` };
     }
 
-    if (tgtFmt === 'CSV') {
-      const csvStr = convertTextToStructuredCsv(textContent);
-      const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
-      return { blob, fileName: `${baseName}.csv` };
+    if (tgtFmt === 'XLSX') {
+      onProgress(50, 'Сборка Excel файла из таблиц документа...');
+      const aoa = parseDocxHtmlToAoa(docxHtml);
+      const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Лист1');
+      const xlsxBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([xlsxBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      return { blob, fileName: `${baseName}.xlsx` };
+    }
+
+    if (tgtFmt === 'XML') {
+      const xml = convertTextToStructuredXml(textContent, baseName);
+      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.xml` };
     }
   } else {
     textContent = await file.text();
