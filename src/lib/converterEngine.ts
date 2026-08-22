@@ -1570,14 +1570,24 @@ function parseDocxHtmlToAoa(html: string): string[][] {
   const aoa: string[][] = [];
 
   const cleanCellText = (cell: Element): string => {
-    const blocks = Array.from(cell.querySelectorAll('p, div, li'));
+    // Сначала заменяем все теги <br> внутри ячейки на символ перевода строки
+    const clone = cell.cloneNode(true) as Element;
+    clone.querySelectorAll('br').forEach(br => {
+      br.replaceWith('\n');
+    });
+
+    const blocks = Array.from(clone.querySelectorAll('p, div, li'));
     if (blocks.length > 0) {
       return blocks
-        .map(b => (b.textContent || '').replace(/\s+/g, ' ').trim())
+        .map(b => (b.textContent || '').replace(/[ \t\f\v]+/g, ' ').trim())
         .filter(Boolean)
-        .join(' ');
+        .join('\n');
     }
-    return (cell.textContent || '').replace(/\s+/g, ' ').trim();
+    return (clone.textContent || '')
+      .split('\n')
+      .map(line => line.replace(/[ \t\f\v]+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n');
   };
 
   const processNode = (node: Element) => {
@@ -1624,7 +1634,11 @@ function parseDocxHtmlToAoa(html: string): string[][] {
       if (nestedTable) {
         processNode(nestedTable);
       } else {
-        const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        const clone = node.cloneNode(true) as Element;
+        clone.querySelectorAll('br').forEach(br => {
+          br.replaceWith('\n');
+        });
+        const text = (clone.textContent || '').split('\n').map(l => l.replace(/[ \t\f\v]+/g, ' ').trim()).filter(Boolean).join('\n');
         if (text) {
           aoa.push([text]);
         }
@@ -1649,6 +1663,49 @@ async function extractTextFromDocx(file: File, onProgress: (p: number, t: string
   const arrayBuffer = await file.arrayBuffer();
   const result = await (mammoth.default || mammoth).convertToHtml({ arrayBuffer });
   return parseHtmlToStructuredText(result.value || '');
+}
+
+async function extractDocxTableGrids(file: File): Promise<number[][]> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const docXmlFile = zip.file('word/document.xml');
+    if (!docXmlFile) return [];
+
+    const xmlStr = await docXmlFile.async('text');
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
+    
+    // Находим все таблицы <w:tbl>
+    const tbls = Array.from(xmlDoc.getElementsByTagName('w:tbl'));
+    const grids: number[][] = [];
+
+    for (const tbl of tbls) {
+      // Ищем <w:tblGrid>
+      const gridElem = tbl.getElementsByTagName('w:tblGrid')[0];
+      if (gridElem) {
+        const colElems = Array.from(gridElem.getElementsByTagName('w:gridCol'));
+        const widths: number[] = [];
+        for (const col of colElems) {
+          const wAttr = col.getAttribute('w:w');
+          if (wAttr) {
+            const wVal = parseFloat(wAttr);
+            if (!isNaN(wVal) && wVal > 0) {
+              widths.push(wVal);
+            }
+          }
+        }
+        if (widths.length > 0) {
+          grids.push(widths);
+        }
+      }
+    }
+    return grids;
+  } catch (err) {
+    console.warn('Не удалось извлечь tblGrid из OpenXML:', err);
+    return [];
+  }
 }
 
 async function extractHtmlFromDocx(file: File, onProgress: (p: number, t: string) => void): Promise<string> {
@@ -1891,38 +1948,58 @@ async function convertDocument(
 
     if (tgtFmt === 'XLSX') {
       onProgress(50, 'Сборка Excel файла из таблиц документа...');
-      const aoa = parseDocxHtmlToAoa(docxHtml);
+      const [tableGrids, aoa] = await Promise.all([
+        extractDocxTableGrids(file),
+        Promise.resolve(parseDocxHtmlToAoa(docxHtml)),
+      ]);
       const worksheet = XLSX.utils.aoa_to_sheet(aoa);
 
-      // Универсальный динамический расчёт ширины колонок (Dynamic Content-Aware Layout)
-      // Находим строки, относящиеся к таблицам (от 2+ колонок)
-      const tableRows = aoa.filter(r => r.length >= 2);
+      // 1. Поиск максимального числа колонок среди всех строк
       let maxCols = 0;
       aoa.forEach(r => {
         if (r.length > maxCols) maxCols = r.length;
       });
 
       const colWidths: number[] = [];
-      for (let c = 0; c < maxCols; c++) {
-        let maxLen = 0;
-        const targetRows = tableRows.length > 0 ? tableRows : aoa;
-        targetRows.forEach(row => {
-          const val = (row[c] || '').toString().trim();
-          if (val.length > maxLen) {
-            maxLen = val.length;
-          }
-        });
 
-        // Динамический расчёт ширины с учётом типа колонки:
-        if (c === 0 && maxCols > 2) {
-          // Колонка № (компактная)
-          colWidths[c] = Math.min(Math.max(maxLen + 2, 6), 10);
-        } else if (c === 1 && maxCols > 2) {
-          // Колонка Наименование (просторная, с комфортным чтением)
-          colWidths[c] = Math.min(Math.max(maxLen + 3, 38), 65);
-        } else {
-          // Остальные колонки (методики, результаты, примечания)
-          colWidths[c] = Math.min(Math.max(maxLen + 3, 14), 40);
+      // Проверяем наличие оригинальной физической сетки OpenXML (w:tblGrid / w:gridCol)
+      const primaryGrid = tableGrids.find(g => g.length === maxCols) || tableGrids[0];
+
+      if (primaryGrid && primaryGrid.length === maxCols) {
+        // Универсальный расчёт: переносим точные физические пропорции колонок из DOCX в Excel
+        const totalDxa = primaryGrid.reduce((sum, val) => sum + val, 0);
+        // Стандартная доступная ширина листа A4 при портретной ориентации ~82-86 символов, при альбомной ~130-140
+        const isLandscape = maxCols > 6;
+        const targetPageCharWidth = isLandscape ? 130 : 82;
+
+        for (let c = 0; c < maxCols; c++) {
+          const proportion = primaryGrid[c] / (totalDxa || 1);
+          const calculatedWidth = Math.round(proportion * targetPageCharWidth);
+          // Минимальная ширина 5 символов, чтобы контент не схлопывался
+          colWidths[c] = Math.max(calculatedWidth, 5);
+        }
+      } else {
+        // Fallback: Контент-зависимый динамический расчёт по содержимому строк
+        const tableRows = aoa.filter(r => r.length >= 2);
+        for (let c = 0; c < maxCols; c++) {
+          let maxLen = 0;
+          const targetRows = tableRows.length > 0 ? tableRows : aoa;
+          targetRows.forEach(row => {
+            const val = (row[c] || '').toString().trim();
+            const subLines = val.split('\n');
+            for (const sub of subLines) {
+              const trimmed = sub.trim();
+              if (trimmed.length > maxLen) {
+                maxLen = trimmed.length;
+              }
+            }
+          });
+
+          if (c === 0 && maxCols > 2) {
+            colWidths[c] = Math.min(Math.max(maxLen + 2, 6), 10);
+          } else {
+            colWidths[c] = Math.min(Math.max(maxLen + 3, 15), 45);
+          }
         }
       }
 
@@ -1930,7 +2007,7 @@ async function convertDocument(
         worksheet['!cols'] = colWidths.map(wch => ({ wch }));
       }
 
-      // Настройка метаданных страницы и печати:
+      // Настройка метаданных страницы и печати (100% совместимость с печатью А4):
       worksheet['!pageSetup'] = {
         paperSize: 9, // Стандарт А4
         orientation: maxCols > 6 ? 'landscape' : 'portrait',
@@ -1959,34 +2036,77 @@ async function convertDocument(
       ];
 
       // Стилизация ячеек через xlsx-js-style:
-      // Перенос строк (wrapText: true) включаем ТОЛЬКО для строк таблицы (где заполнено >= 2 колонок),
-      // чтобы заголовки документов, даты, примечания и подписи естественно перетекали по строке без сжатия в гармошку.
+      // Перенос строк (wrapText: true) и четкие рамки (border) включаем для строк таблицы (где заполнено >= 2 колонок),
+      // чтобы таблица выглядела в точности как в оригинальном DOCX бланке.
+      const thinBorder = {
+        top: { style: 'thin', color: { rgb: '475569' } },
+        bottom: { style: 'thin', color: { rgb: '475569' } },
+        left: { style: 'thin', color: { rgb: '475569' } },
+        right: { style: 'thin', color: { rgb: '475569' } },
+      };
+
       Object.keys(worksheet).forEach((cellKey) => {
         if (!cellKey.startsWith('!')) {
           const cell = worksheet[cellKey];
           if (cell && typeof cell === 'object') {
             const rawVal = (cell.v || '').toString();
             
-            // Определяем индекс строки (1-based)
+            // Определяем индекс строки (1-based) и колонку (A, B, C...)
+            const colLetter = cellKey.replace(/\d+$/, '');
             const rowMatch = cellKey.match(/\d+$/);
             const rowIndex = rowMatch ? parseInt(rowMatch[0], 10) - 1 : -1;
             const rowData = rowIndex >= 0 && rowIndex < aoa.length ? aoa[rowIndex] : [];
             const isTableRow = rowData && rowData.length >= 2;
-            const isHeader = rawVal.includes('Наименование') || rawVal.includes('Результат') || rawVal === '№' || (isTableRow && rowIndex === 6);
+            
+            // Проверяем, является ли строка шапкой таблицы (первая строка таблицы с текстом "№" или "Наименование")
+            const isHeaderRow = isTableRow && (
+              rowData.some(c => typeof c === 'string' && (c.includes('Наименование') || c.includes('Результат') || c === '№'))
+            );
 
-            cell.s = {
-              font: {
-                name: 'Calibri',
-                sz: 11,
-                bold: isHeader,
-                color: { rgb: '1E293B' },
-              },
-              alignment: {
-                wrapText: isTableRow, // перенос только внутри ячеек таблиц
-                vertical: 'top',
-                horizontal: isTableRow && (rawVal === '№' || /^\d+\.?$/.test(rawVal.trim())) ? 'center' : 'left',
-              },
+            const isTitle = rowIndex === 0 || rawVal.startsWith('Протокол');
+
+            // Стилизация шрифта
+            const font: any = {
+              name: 'Calibri',
+              sz: isTitle ? 11 : 10.5,
+              bold: isHeaderRow || isTitle || rawVal.startsWith('Наименование материала:') || rawVal.startsWith('Результаты испытаний'),
+              color: { rgb: '0F172A' },
             };
+
+            // Выравнивание текста
+            let horizontal: 'left' | 'center' | 'right' = 'left';
+            if (isHeaderRow) {
+              horizontal = 'center';
+            } else if (isTableRow) {
+              if (colLetter === 'A' || /^\d+\.?$/.test(rawVal.trim())) {
+                horizontal = 'center'; // Номера по центру
+              } else if (colLetter === 'C') {
+                horizontal = 'center'; // № методики по центру
+              }
+            }
+
+            const alignment: any = {
+              wrapText: isTableRow, // перенос только внутри ячеек таблиц
+              vertical: 'top',
+              horizontal,
+            };
+
+            const styleObj: any = {
+              font,
+              alignment,
+            };
+
+            // Для табличных строк добавляем реальные границы (Borders) и заливку шапки
+            if (isTableRow) {
+              styleObj.border = thinBorder;
+              if (isHeaderRow) {
+                styleObj.fill = {
+                  fgColor: { rgb: 'F1F5F9' }, // Светло-серый профессиональный фон для шапки
+                };
+              }
+            }
+
+            cell.s = styleObj;
           }
         }
       });
