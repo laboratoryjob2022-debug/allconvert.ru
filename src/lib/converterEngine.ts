@@ -2008,9 +2008,12 @@ async function convertDocument(
       }
 
       // Настройка метаданных страницы и печати (100% совместимость с печатью А4):
+      const isLandscape = maxCols > 6;
+      const targetPageCharWidth = isLandscape ? 130 : 82;
+
       worksheet['!pageSetup'] = {
         paperSize: 9, // Стандарт А4
-        orientation: maxCols > 6 ? 'landscape' : 'portrait',
+        orientation: isLandscape ? 'landscape' : 'portrait',
         fitToWidth: 1,
         fitToHeight: 0,
         scale: 100,
@@ -2034,6 +2037,33 @@ async function convertDocument(
           showGridLines: true,
         },
       ];
+
+      // Автоматическое объединение ячеек по ширине страницы для длинных внетабличных абзацев
+      const merges: XLSX.Range[] = [];
+      const rowHeights: Array<{ hpt: number }> = [];
+
+      aoa.forEach((row, rIdx) => {
+        const isTableRow = row && row.length >= 2;
+        if (!isTableRow && row && row.length > 0) {
+          const firstVal = (row[0] || '').toString();
+          if (firstVal.length > 50 && maxCols > 1) {
+            // Объединяем ячейки от первой до последней колонки таблицы (A:E), чтобы текст не уходил за границу листа
+            merges.push({
+              s: { r: rIdx, c: 0 },
+              e: { r: rIdx, c: maxCols - 1 },
+            });
+            const estLines = Math.max(1, Math.ceil(firstVal.length / targetPageCharWidth));
+            rowHeights[rIdx] = { hpt: Math.max(18, estLines * 16) };
+          }
+        }
+      });
+
+      if (merges.length > 0) {
+        worksheet['!merges'] = merges;
+      }
+      if (rowHeights.length > 0) {
+        worksheet['!rows'] = rowHeights;
+      }
 
       // Стилизация ячеек через xlsx-js-style:
       // Перенос строк (wrapText: true) и четкие рамки (border) включаем для строк таблицы (где заполнено >= 2 колонок),
@@ -2085,8 +2115,10 @@ async function convertDocument(
               }
             }
 
+            const isLongNonTableRow = !isTableRow && rawVal.length > 50 && maxCols > 1;
+
             const alignment: any = {
-              wrapText: isTableRow, // перенос только внутри ячеек таблиц
+              wrapText: isTableRow || isLongNonTableRow, // перенос внутри таблиц и в объединенных длинных строках
               vertical: 'top',
               horizontal,
             };
