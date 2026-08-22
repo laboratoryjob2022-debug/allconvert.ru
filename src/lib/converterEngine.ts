@@ -1959,25 +1959,32 @@ async function convertDocument(
       ];
 
       // Стилизация ячеек через xlsx-js-style:
-      // Включаем реальный автоперенос строк (wrapText: true), вертикальное выравнивание и легкие границы для таблиц
+      // Перенос строк (wrapText: true) включаем ТОЛЬКО для строк таблицы (где заполнено >= 2 колонок),
+      // чтобы заголовки документов, даты, примечания и подписи естественно перетекали по строке без сжатия в гармошку.
       Object.keys(worksheet).forEach((cellKey) => {
         if (!cellKey.startsWith('!')) {
           const cell = worksheet[cellKey];
           if (cell && typeof cell === 'object') {
             const rawVal = (cell.v || '').toString();
-            const isHeader = rawVal.includes('Наименование') || rawVal.includes('Результат') || rawVal === '№' || rawVal.includes('Протокол');
+            
+            // Определяем индекс строки (1-based)
+            const rowMatch = cellKey.match(/\d+$/);
+            const rowIndex = rowMatch ? parseInt(rowMatch[0], 10) - 1 : -1;
+            const rowData = rowIndex >= 0 && rowIndex < aoa.length ? aoa[rowIndex] : [];
+            const isTableRow = rowData && rowData.length >= 2;
+            const isHeader = rawVal.includes('Наименование') || rawVal.includes('Результат') || rawVal === '№' || (isTableRow && rowIndex === 6);
 
             cell.s = {
               font: {
                 name: 'Calibri',
-                sz: isHeader && rawVal.includes('Протокол') ? 12 : 11,
+                sz: 11,
                 bold: isHeader,
                 color: { rgb: '1E293B' },
               },
               alignment: {
-                wrapText: true,
+                wrapText: isTableRow, // перенос только внутри ячеек таблиц
                 vertical: 'top',
-                horizontal: rawVal === '№' || /^\d+\.?$/.test(rawVal.trim()) ? 'center' : 'left',
+                horizontal: isTableRow && (rawVal === '№' || /^\d+\.?$/.test(rawVal.trim())) ? 'center' : 'left',
               },
             };
           }
