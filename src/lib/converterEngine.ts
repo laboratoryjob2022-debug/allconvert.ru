@@ -1482,6 +1482,85 @@ function parseHtmlToStructuredText(html: string): string {
   return lines.join('\n');
 }
 
+function parseDocxHtmlToXml(html: string, baseName: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const lines: string[] = [];
+
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
+  lines.push(`<document name="${escapeHtml(baseName)}">`);
+  lines.push('  <section id="1" title="General">');
+
+  const extractCellText = (cell: HTMLElement): string => {
+    const paragraphs = Array.from(cell.querySelectorAll('p, div, li'));
+    if (paragraphs.length > 0) {
+      return paragraphs
+        .map((p) => (p.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+    return (cell.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+
+  const processNodes = (elements: Element[]) => {
+    for (const el of elements) {
+      const tag = el.tagName.toLowerCase();
+
+      if (tag === 'table') {
+        lines.push('    <table>');
+        const rows = Array.from(el.querySelectorAll('tr'));
+        let expectedCols = 0;
+
+        // Determine maximum columns in table
+        for (const row of rows) {
+          const cellsCount = row.querySelectorAll('th, td').length;
+          if (cellsCount > expectedCols) {
+            expectedCols = cellsCount;
+          }
+        }
+
+        rows.forEach((row, rowIndex) => {
+          const cells = Array.from(row.querySelectorAll('th, td'));
+          const isHeader = rowIndex === 0 || cells.some(c => c.tagName.toLowerCase() === 'th');
+
+          const cellValues = cells.map(c => extractCellText(c as HTMLElement));
+          
+          // Pad with empty cells if fewer than expectedCols
+          while (expectedCols > 0 && cellValues.length < expectedCols) {
+            cellValues.push('');
+          }
+
+          lines.push(`      <row${isHeader ? ' type="header"' : ''}>`);
+          for (const val of cellValues) {
+            if (val) {
+              lines.push(`        <cell>${escapeHtml(val)}</cell>`);
+            } else {
+              lines.push('        <cell></cell>');
+            }
+          }
+          lines.push('      </row>');
+        });
+
+        lines.push('    </table>');
+      } else if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
+        const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text) {
+          lines.push(`    <paragraph>${escapeHtml(text)}</paragraph>`);
+        }
+      } else {
+        processNodes(Array.from(el.children));
+      }
+    }
+  };
+
+  processNodes(Array.from(doc.body.children));
+
+  lines.push('  </section>');
+  lines.push('</document>');
+
+  return lines.join('\n');
+}
+
 function parseDocxHtmlToAoa(html: string): string[][] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -1498,24 +1577,42 @@ function parseDocxHtmlToAoa(html: string): string[][] {
     return (cell.textContent || '').replace(/\s+/g, ' ').trim();
   };
 
-  for (const child of Array.from(doc.body.children)) {
-    const tag = child.tagName.toLowerCase();
-    if (tag === 'table') {
-      const rows = Array.from(child.querySelectorAll('tr'));
-      for (const row of rows) {
-        const cells = Array.from(row.querySelectorAll('th, td')).map((c) => extractCellText(c as HTMLElement));
-        if (cells.length > 0) {
-          aoa.push(cells);
+  const processNodes = (elements: Element[]) => {
+    for (const child of elements) {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'table') {
+        const rows = Array.from(child.querySelectorAll('tr'));
+        let expectedCols = 0;
+        for (const row of rows) {
+          const cellsCount = row.querySelectorAll('th, td').length;
+          if (cellsCount > expectedCols) {
+            expectedCols = cellsCount;
+          }
         }
-      }
-      aoa.push([]); // empty row
-    } else {
-      const text = (child.textContent || '').replace(/\s+/g, ' ').trim();
-      if (text) {
-        aoa.push([text]);
+
+        rows.forEach((row) => {
+          const cells = Array.from(row.querySelectorAll('th, td'));
+          const cellValues = cells.map((c) => extractCellText(c as HTMLElement));
+          while (expectedCols > 0 && cellValues.length < expectedCols) {
+            cellValues.push('');
+          }
+          if (cellValues.length > 0) {
+            aoa.push(cellValues);
+          }
+        });
+        aoa.push([]); // empty row
+      } else if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
+        const text = (child.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text) {
+          aoa.push([text]);
+        }
+      } else {
+        processNodes(Array.from(child.children));
       }
     }
-  }
+  };
+
+  processNodes(Array.from(doc.body.children));
 
   return aoa;
 }
@@ -1727,53 +1824,10 @@ async function convertDocument(
     }
   }
 
-  // 4. TARGET: XLSX (Convert CSV / JSON / TXT / HTML -> XLSX)
-  if (tgtFmt === 'XLSX') {
-    onProgress(40, 'Generating Excel spreadsheet (.xlsx)...');
-    let textContent = '';
-    if (srcFmt === 'DOCX') {
-      textContent = await extractTextFromDocx(file, onProgress);
-    } else {
-      textContent = await file.text();
-    }
-
-    let workbook: XLSX.WorkBook;
-
-    if (srcFmt === 'JSON' || textContent.trim().startsWith('[') || textContent.trim().startsWith('{')) {
-      try {
-        const parsed = JSON.parse(textContent);
-        const dataArray = Array.isArray(parsed) ? parsed : [parsed];
-        const worksheet = XLSX.utils.json_to_sheet(dataArray);
-        workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
-      } catch {
-        const worksheet = XLSX.utils.aoa_to_sheet(textContent.split('\n').map(l => [l]));
-        workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-      }
-    } else if (srcFmt === 'CSV') {
-      workbook = XLSX.read(textContent, { type: 'string' });
-    } else {
-      const lines = textContent.split('\n').map(line => line.split(/,|\t|;/).map(cell => cell.trim()));
-      const worksheet = XLSX.utils.aoa_to_sheet(lines);
-      workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    }
-
-    const xlsxBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([xlsxBuffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
-    return { blob, fileName: `${baseName}.xlsx` };
-  }
-
-  // 4. EXTRACT TEXT CONTENT CAREFULLY ACCORDING TO SOURCE FORMAT
-  let textContent = '';
-  if (srcFmt === 'PDF') {
-    textContent = await extractTextFromPdf(file, onProgress);
-  } else if (srcFmt === 'DOCX') {
+  // 4. SPECIALIZED SOURCE HANDLING: DOCX (Word Document)
+  if (srcFmt === 'DOCX') {
     const docxHtml = await extractHtmlFromDocx(file, onProgress);
-    textContent = parseHtmlToStructuredText(docxHtml);
+    const textContent = parseHtmlToStructuredText(docxHtml);
 
     if (tgtFmt === 'HTML') {
       const fullHtml = `<!DOCTYPE html>
@@ -1823,10 +1877,69 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'XML') {
-      const xml = convertTextToStructuredXml(textContent, baseName);
+      const xml = parseDocxHtmlToXml(docxHtml, baseName);
       const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
       return { blob, fileName: `${baseName}.xml` };
     }
+
+    if (tgtFmt === 'CSV') {
+      const csvStr = convertTextToStructuredCsv(textContent);
+      const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.csv` };
+    }
+
+    if (tgtFmt === 'MD') {
+      const mdContent = `# ${baseName}\n\n${textContent}`;
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.md` };
+    }
+
+    if (tgtFmt === 'JSON') {
+      const jsonStr = JSON.stringify({ title: baseName, content: textContent }, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      return { blob, fileName: `${baseName}.json` };
+    }
+  }
+
+  // 5. TARGET: XLSX (Convert CSV / JSON / TXT / HTML -> XLSX)
+  if (tgtFmt === 'XLSX') {
+    onProgress(40, 'Generating Excel spreadsheet (.xlsx)...');
+    const textContent = await file.text();
+
+    let workbook: XLSX.WorkBook;
+
+    if (srcFmt === 'JSON' || textContent.trim().startsWith('[') || textContent.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(textContent);
+        const dataArray = Array.isArray(parsed) ? parsed : [parsed];
+        const worksheet = XLSX.utils.json_to_sheet(dataArray);
+        workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+      } catch {
+        const worksheet = XLSX.utils.aoa_to_sheet(textContent.split('\n').map(l => [l]));
+        workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      }
+    } else if (srcFmt === 'CSV') {
+      workbook = XLSX.read(textContent, { type: 'string' });
+    } else {
+      const lines = textContent.split('\n').map(line => line.split(/,|\t|;/).map(cell => cell.trim()));
+      const worksheet = XLSX.utils.aoa_to_sheet(lines);
+      workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+    }
+
+    const xlsxBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([xlsxBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    return { blob, fileName: `${baseName}.xlsx` };
+  }
+
+  // 6. EXTRACT TEXT CONTENT FOR OTHER FORMATS
+  let textContent = '';
+  if (srcFmt === 'PDF') {
+    textContent = await extractTextFromPdf(file, onProgress);
   } else {
     textContent = await file.text();
   }
