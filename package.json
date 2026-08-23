@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "mkdir -p public/ffmpeg && cp -f node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.* public/ffmpeg/ && vite --port=3000 --host=0.0.0.0",
-    "build": "mkdir -p public/ffmpeg && cp -f node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.* public/ffmpeg/ && vite build && node scripts/prerender.cjs",
+    "dev": "mkdir -p public/ffmpeg public/fonts && cp -f node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.* public/ffmpeg/ && cp -f node_modules/pdfjs-dist/standard_fonts/LiberationSans-*.ttf public/fonts/ && vite --port=3000 --host=0.0.0.0",
+    "build": "mkdir -p public/ffmpeg public/fonts && cp -f node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.* public/ffmpeg/ && cp -f node_modules/pdfjs-dist/standard_fonts/LiberationSans-*.ttf public/fonts/ && vite build && node scripts/prerender.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

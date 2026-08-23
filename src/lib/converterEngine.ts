@@ -1233,37 +1233,77 @@ function isDocumentTarget(fmt: string): boolean {
   return ['PDF', 'TXT', 'MD', 'HTML', 'JSON', 'CSV', 'XML', 'DOCX', 'EPUB', 'XLSX', 'XLS'].includes(fmt.toUpperCase());
 }
 
-let cachedRobotoFontBytes: ArrayBuffer | null = null;
+let cachedLiberationRegular: ArrayBuffer | null = null;
+let cachedLiberationBold: ArrayBuffer | null = null;
 
-async function fetchCyrillicFontBytes(): Promise<ArrayBuffer | null> {
-  if (cachedRobotoFontBytes) return cachedRobotoFontBytes;
+async function fetchCyrillicFonts(): Promise<{ regular: ArrayBuffer | null; bold: ArrayBuffer | null }> {
+  if (cachedLiberationRegular && cachedLiberationBold) {
+    return { regular: cachedLiberationRegular, bold: cachedLiberationBold };
+  }
+
+  // 1. Local /fonts/
+  try {
+    const [regRes, boldRes] = await Promise.all([
+      fetch('/fonts/LiberationSans-Regular.ttf'),
+      fetch('/fonts/LiberationSans-Bold.ttf'),
+    ]);
+    if (regRes.ok && boldRes.ok) {
+      cachedLiberationRegular = await regRes.arrayBuffer();
+      cachedLiberationBold = await boldRes.arrayBuffer();
+      return { regular: cachedLiberationRegular, bold: cachedLiberationBold };
+    }
+  } catch (e) {
+    console.warn('Local /fonts/ fetch failed, trying fallback CDN:', e);
+  }
+
+  // 2. CDN fallback
+  try {
+    const [regRes, boldRes] = await Promise.all([
+      fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/standard_fonts/LiberationSans-Regular.ttf'),
+      fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/standard_fonts/LiberationSans-Bold.ttf'),
+    ]);
+    if (regRes.ok && boldRes.ok) {
+      cachedLiberationRegular = await regRes.arrayBuffer();
+      cachedLiberationBold = await boldRes.arrayBuffer();
+      return { regular: cachedLiberationRegular, bold: cachedLiberationBold };
+    }
+  } catch (e) {
+    console.warn('CDN font fetch failed, trying Roboto fallback:', e);
+  }
+
+  // 3. Fallback to Roboto
   try {
     const res = await fetch('https://cdn.jsdelivr.net/fontsource/fonts/roboto@latest/cyrillic-400-normal.ttf');
     if (res.ok) {
-      cachedRobotoFontBytes = await res.arrayBuffer();
-      return cachedRobotoFontBytes;
+      const bytes = await res.arrayBuffer();
+      cachedLiberationRegular = bytes;
+      cachedLiberationBold = bytes;
+      return { regular: bytes, bold: bytes };
     }
   } catch (e) {
-    console.warn('Network fetch for Roboto TTF failed, falling back to canvas PDF rendering:', e);
+    console.warn('All font fetches failed:', e);
   }
-  return null;
+
+  return { regular: null, bold: null };
 }
 
 async function renderTextToPdf(textContent: string, baseName: string, onProgress: (percent: number, text: string) => void): Promise<Blob> {
-  onProgress(50, 'Building UTF-8 PDF document...');
+  onProgress(50, 'Генерация векторного PDF документа...');
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 
-  const fontBytes = await fetchCyrillicFontBytes();
+  const fonts = await fetchCyrillicFonts();
   
-  if (fontBytes) {
+  if (fonts.regular) {
     try {
-      const customFont = await pdfDoc.embedFont(fontBytes);
+      const regFont = await pdfDoc.embedFont(fonts.regular);
+      const boldFont = fonts.bold ? await pdfDoc.embedFont(fonts.bold) : regFont;
+
       const lines = textContent.split('\n');
       let page = pdfDoc.addPage([595.28, 841.89]); // A4
       let y = 800;
-      const fontSize = 11;
-      const lineHeight = 15;
+      const fontSize = 10;
+      const lineHeight = 14;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -1271,22 +1311,23 @@ async function renderTextToPdf(textContent: string, baseName: string, onProgress
           page = pdfDoc.addPage([595.28, 841.89]);
           y = 800;
         }
-        const safeLine = line.substring(0, 110);
-        page.drawText(safeLine, {
+        const isHeader = line.startsWith('#') || line.startsWith('Протокол') || i === 0;
+        const cleanText = line.replace(/^#+\s*/, '').substring(0, 110);
+        page.drawText(cleanText, {
           x: 40,
           y,
-          size: fontSize,
-          font: customFont,
-          color: rgb(0.1, 0.1, 0.1),
+          size: isHeader ? fontSize + 2 : fontSize,
+          font: isHeader ? boldFont : regFont,
+          color: rgb(0.08, 0.1, 0.14),
         });
         y -= lineHeight;
       }
 
-      onProgress(90, 'Saving PDF document...');
+      onProgress(90, 'Сохранение PDF документа...');
       const pdfBytes = await pdfDoc.save();
       return new Blob([pdfBytes], { type: 'application/pdf' });
     } catch (err) {
-      console.warn('Custom font rendering error, using canvas fallback:', err);
+      console.warn('Векторный рендеринг текста завершился ошибкой, используем Canvas:', err);
     }
   }
 
@@ -1422,14 +1463,359 @@ async function renderPdfFirstPageToImage(file: File, mimeType: 'image/png' | 'im
   });
 }
 
-async function renderHtmlToPdfBlob(htmlContent: string, baseName: string, onProgress?: (p: number, t: string) => void): Promise<Blob> {
-  onProgress?.(50, 'Рендеринг разметки документа в PDF...');
+interface VectorPdfOptions {
+  headerHtml?: string;
+  footerHtml?: string;
+  tableGrids?: number[][];
+}
 
+async function renderHtmlToPdfBlob(
+  htmlContent: string,
+  baseName: string,
+  onProgress?: (p: number, t: string) => void,
+  options?: VectorPdfOptions
+): Promise<Blob> {
+  onProgress?.(25, 'Генерация векторного PDF документа...');
+
+  const fonts = await fetchCyrillicFonts();
+
+  if (fonts.regular) {
+    try {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.registerFontkit(fontkit);
+
+      const regFont = await pdfDoc.embedFont(fonts.regular);
+      const boldFont = fonts.bold ? await pdfDoc.embedFont(fonts.bold) : regFont;
+
+      const pageWidth = 595.28; // A4 width pt
+      const pageHeight = 841.89; // A4 height pt
+      const marginX = 36; // 0.5 in / 12.7 mm
+      const marginY = 36;
+      const contentWidth = pageWidth - marginX * 2;
+      const minY = marginY + 20;
+      const maxY = pageHeight - marginY;
+
+      let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+      let curY = maxY;
+
+      const wrapText = (text: string, font: any, fontSize: number, maxWidth: number): string[] => {
+        if (!text) return [''];
+        const rawLines = text.split(/\r?\n/);
+        const resultLines: string[] = [];
+
+        for (const rawLine of rawLines) {
+          const trimmed = rawLine.replace(/[ \t\f\v]+/g, ' ').trim();
+          if (!trimmed) continue;
+          const words = trimmed.split(' ');
+          let curLine = '';
+
+          for (const word of words) {
+            const testLine = curLine ? `${curLine} ${word}` : word;
+            let testWidth = 0;
+            try {
+              testWidth = font.widthOfTextAtSize(testLine, fontSize);
+            } catch {
+              testWidth = testLine.length * (fontSize * 0.55);
+            }
+
+            if (testWidth <= maxWidth) {
+              curLine = testLine;
+            } else {
+              if (curLine) {
+                resultLines.push(curLine);
+              }
+              // Check if word itself exceeds maxWidth
+              let wordWidth = 0;
+              try {
+                wordWidth = font.widthOfTextAtSize(word, fontSize);
+              } catch {
+                wordWidth = word.length * (fontSize * 0.55);
+              }
+              if (wordWidth > maxWidth) {
+                let partial = '';
+                for (const char of word) {
+                  const candidate = partial + char;
+                  let cWidth = 0;
+                  try {
+                    cWidth = font.widthOfTextAtSize(candidate, fontSize);
+                  } catch {
+                    cWidth = candidate.length * (fontSize * 0.55);
+                  }
+                  if (cWidth <= maxWidth) {
+                    partial = candidate;
+                  } else {
+                    if (partial) resultLines.push(partial);
+                    partial = char;
+                  }
+                }
+                curLine = partial;
+              } else {
+                curLine = word;
+              }
+            }
+          }
+          if (curLine) {
+            resultLines.push(curLine);
+          }
+        }
+        return resultLines.length > 0 ? resultLines : [''];
+      };
+
+      const ensureSpace = (heightNeeded: number) => {
+        if (curY - heightNeeded < minY) {
+          currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+          curY = maxY;
+        }
+      };
+
+      const drawParagraph = (text: string, isBold = false, fontSize = 9.5, mb = 4, align: 'left' | 'center' = 'left') => {
+        const font = isBold ? boldFont : regFont;
+        const lineHeight = fontSize * 1.35;
+        const lines = wrapText(text, font, fontSize, contentWidth);
+        ensureSpace(lines.length * lineHeight + mb);
+
+        for (const l of lines) {
+          let textX = marginX;
+          if (align === 'center') {
+            try {
+              const textWidth = font.widthOfTextAtSize(l, fontSize);
+              textX = marginX + Math.max(0, (contentWidth - textWidth) / 2);
+            } catch {}
+          }
+          currentPage.drawText(l, {
+            x: textX,
+            y: curY - fontSize,
+            size: fontSize,
+            font,
+            color: rgb(0.08, 0.1, 0.14),
+          });
+          curY -= lineHeight;
+        }
+        curY -= mb;
+      };
+
+      // 1. Draw Header if extracted from DOCX header XML
+      if (options?.headerHtml) {
+        const pDom = new DOMParser();
+        const headerDoc = pDom.parseFromString(options.headerHtml, 'text/html');
+        const headerText = (headerDoc.body.textContent || '').trim();
+        if (headerText) {
+          const hLines = headerText.split('\n').map(l => l.trim()).filter(Boolean);
+          for (const hl of hLines) {
+            drawParagraph(hl, false, 8, 2, 'center');
+          }
+          curY -= 6;
+        }
+      }
+
+      // 2. Parse main content HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
+
+      const processHtmlNode = (node: Element) => {
+        const tag = node.tagName.toLowerCase();
+
+        if (tag === 'table') {
+          const rows = Array.from(node.querySelectorAll('tr'));
+          if (rows.length === 0) return;
+
+          // Parse raw cell values
+          const rawGrid: string[][] = [];
+          let maxCols = 0;
+
+          for (const tr of rows) {
+            const cells = Array.from(tr.querySelectorAll('th, td'));
+            const cellVals: string[] = [];
+            for (const cell of cells) {
+              const clone = cell.cloneNode(true) as HTMLElement;
+              clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+              const blocks = Array.from(clone.querySelectorAll('p, div, li'));
+              if (blocks.length > 0) {
+                cellVals.push(
+                  blocks
+                    .map(b => (b.textContent || '').replace(/[ \t\f\v]+/g, ' ').trim())
+                    .filter(Boolean)
+                    .join('\n')
+                );
+              } else {
+                cellVals.push(
+                  (clone.textContent || '')
+                    .split('\n')
+                    .map(l => l.replace(/[ \t\f\v]+/g, ' ').trim())
+                    .filter(Boolean)
+                    .join('\n')
+                );
+              }
+            }
+            if (cellVals.length > maxCols) maxCols = cellVals.length;
+            rawGrid.push(cellVals);
+          }
+
+          if (maxCols === 0) return;
+
+          // Pad rows to maxCols
+          for (const r of rawGrid) {
+            while (r.length < maxCols) r.push('');
+          }
+
+          // Determine column widths
+          const colWidths: number[] = new Array(maxCols).fill(0);
+          const matchingGrid = options?.tableGrids?.find(g => g.length === maxCols) || options?.tableGrids?.[0];
+
+          if (matchingGrid && matchingGrid.length === maxCols) {
+            const totalDxa = matchingGrid.reduce((sum, v) => sum + v, 0);
+            for (let c = 0; c < maxCols; c++) {
+              colWidths[c] = (matchingGrid[c] / (totalDxa || 1)) * contentWidth;
+            }
+          } else {
+            // Content-proportional calculation
+            const maxLens: number[] = new Array(maxCols).fill(0);
+            for (let c = 0; c < maxCols; c++) {
+              for (const row of rawGrid) {
+                const cellLen = (row[c] || '').length;
+                if (cellLen > maxLens[c]) maxLens[c] = cellLen;
+              }
+            }
+
+            if (maxCols > 2) {
+              colWidths[0] = Math.min(Math.max(maxLens[0] * 7, 28), 38);
+            }
+            const assignedWidth = colWidths[0] || 0;
+            const remainingWidth = contentWidth - assignedWidth;
+            const remainingCols = maxCols > 2 ? maxCols - 1 : maxCols;
+            const remainingLensSum = maxLens.slice(maxCols > 2 ? 1 : 0).reduce((sum, v) => sum + Math.max(v, 8), 0);
+
+            for (let c = (maxCols > 2 ? 1 : 0); c < maxCols; c++) {
+              const proportion = Math.max(maxLens[c], 8) / (remainingLensSum || 1);
+              colWidths[c] = proportion * remainingWidth;
+            }
+          }
+
+          const fontSize = 8.5;
+          const cellLineHeight = 11.5;
+          const padX = 4.5;
+          const padY = 4.5;
+
+          rawGrid.forEach((row, rIdx) => {
+            const isHeader = rIdx === 0 || row.some((c, cI) => cI > 0 && (c.includes('Наименование') || c.includes('Результат')));
+            const font = isHeader ? boldFont : regFont;
+
+            const wrappedCells = row.map((cellText, cIdx) =>
+              wrapText(cellText, font, fontSize, colWidths[cIdx] - padX * 2)
+            );
+
+            const maxLines = Math.max(1, ...wrappedCells.map(wc => wc.length));
+            const rowHeight = Math.max(18, maxLines * cellLineHeight + padY * 2);
+
+            ensureSpace(rowHeight);
+
+            let cellX = marginX;
+            for (let c = 0; c < maxCols; c++) {
+              const w = colWidths[c];
+
+              // Cell Background
+              if (isHeader) {
+                currentPage.drawRectangle({
+                  x: cellX,
+                  y: curY - rowHeight,
+                  width: w,
+                  height: rowHeight,
+                  color: rgb(0.94, 0.95, 0.97),
+                  borderColor: rgb(0.35, 0.4, 0.48),
+                  borderWidth: 0.5,
+                });
+              } else {
+                currentPage.drawRectangle({
+                  x: cellX,
+                  y: curY - rowHeight,
+                  width: w,
+                  height: rowHeight,
+                  color: rgb(1, 1, 1),
+                  borderColor: rgb(0.45, 0.5, 0.58),
+                  borderWidth: 0.5,
+                });
+              }
+
+              // Cell Text Lines
+              let textY = curY - padY - (fontSize * 0.85);
+              for (const line of wrappedCells[c]) {
+                if (line) {
+                  currentPage.drawText(line, {
+                    x: cellX + padX,
+                    y: textY,
+                    size: fontSize,
+                    font,
+                    color: rgb(0.08, 0.1, 0.14),
+                  });
+                }
+                textY -= cellLineHeight;
+              }
+
+              cellX += w;
+            }
+
+            curY -= rowHeight;
+          });
+
+          curY -= 10;
+        } else if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
+          if (node.closest('table')) return;
+
+          const clone = node.cloneNode(true) as HTMLElement;
+          clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+          const text = (clone.textContent || '').trim();
+          if (!text) return;
+
+          const isTitle = tag === 'h1' || tag === 'h2' || tag === 'h3' || text.startsWith('Протокол');
+          const isNote = text.startsWith('Примечание') || text.startsWith('Климатические');
+          const isSubCaption = text.startsWith('(подпись') || text.startsWith('(должность');
+
+          if (isTitle) {
+            drawParagraph(text, true, 12, 6);
+          } else if (isNote) {
+            drawParagraph(text, false, 9, 5);
+          } else if (isSubCaption) {
+            drawParagraph(text, false, 7.5, 6);
+          } else {
+            const hasStrong = !!node.querySelector('strong, b') || node.tagName === 'STRONG' || node.tagName === 'B';
+            drawParagraph(text, hasStrong, 9.5, 4);
+          }
+        } else {
+          for (const child of Array.from(node.children)) {
+            processHtmlNode(child);
+          }
+        }
+      };
+
+      for (const child of Array.from(doc.body.children)) {
+        processHtmlNode(child);
+      }
+
+      // Draw footer (if extracted from DOCX footer XML)
+      if (options?.footerHtml) {
+        const pDom = new DOMParser();
+        const footerDoc = pDom.parseFromString(options.footerHtml, 'text/html');
+        const footerText = (footerDoc.body.textContent || '').trim();
+        if (footerText) {
+          drawParagraph(footerText, false, 8, 2, 'center');
+        }
+      }
+
+      onProgress?.(90, 'Сохранение векторного PDF файла...');
+      const pdfBytes = await pdfDoc.save();
+      return new Blob([pdfBytes], { type: 'application/pdf' });
+    } catch (vectorErr) {
+      console.warn('Векторный рендеринг PDF завершился ошибкой, переключаемся на fallback:', vectorErr);
+    }
+  }
+
+  // Fallback: html2canvas
+  onProgress?.(60, 'Рендеринг разметки через Canvas...');
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '0';
   container.style.left = '0';
-  container.style.width = '794px'; // A4 width at 96 DPI
+  container.style.width = '794px';
   container.style.minHeight = '1123px';
   container.style.padding = '40px';
   container.style.background = '#ffffff';
@@ -1474,14 +1860,13 @@ async function renderHtmlToPdfBlob(htmlContent: string, baseName: string, onProg
     onProgress?.(85, 'Сборка страниц PDF...');
 
     const pdf = new jsPDF('p', 'pt', 'a4');
-    const imgWidth = 595.28; // A4 width in pt
-    const pageHeight = 841.89; // A4 height in pt
+    const imgWidth = 595.28;
+    const pageHeight = 841.89;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     let heightLeft = imgHeight;
     let position = 0;
 
     const imgData = canvas.toDataURL('image/png');
-
     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
     heightLeft -= pageHeight;
 
@@ -2187,7 +2572,15 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'PDF') {
-      const blob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress);
+      const [headerFooter, tableGrids] = await Promise.all([
+        extractDocxHeadersAndFootersHtml(file),
+        extractDocxTableGrids(file),
+      ]);
+      const blob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress, {
+        headerHtml: headerFooter.headerHtml,
+        footerHtml: headerFooter.footerHtml,
+        tableGrids,
+      });
       return { blob, fileName: `${baseName}.pdf` };
     }
 
@@ -2413,18 +2806,21 @@ async function convertDocument(
       const csvLines = aoa.map((row) =>
         row
           .map((cell) => {
-            // Normalize internal line breaks in cells to space so Excel doesn't squeeze row height vertically
-            const normalizedVal = (cell || '')
-              .toString()
-              .replace(/\r?\n+/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            const val = normalizedVal.replace(/"/g, '""');
-            // If cell contains semicolon, quotes or comma, wrap in quotes
-            if (val.includes(';') || val.includes('"') || val.includes(',')) {
-              return `"${val}"`;
+            const rawVal = (cell || '').toString();
+            // Preserve logical newlines (like separate paragraphs/GOSTs) but trim individual lines
+            const normalizedLines = rawVal
+              .split(/\r?\n/)
+              .map(line => line.replace(/[ \t\f\v]+/g, ' ').trim())
+              .filter(Boolean);
+            
+            const formattedVal = normalizedLines.join('\n');
+            const escapedVal = formattedVal.replace(/"/g, '""');
+
+            // If cell contains semicolon, newline, quotes, or comma, wrap in standard CSV quotes
+            if (escapedVal.includes(';') || escapedVal.includes('\n') || escapedVal.includes('"') || escapedVal.includes(',')) {
+              return `"${escapedVal}"`;
             }
-            return val;
+            return escapedVal;
           })
           .join(';')
       );
