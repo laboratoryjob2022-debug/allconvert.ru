@@ -1518,20 +1518,104 @@ function parseHtmlToStructuredText(html: string): string {
     return (cell.textContent || '').replace(/\s+/g, ' ').trim();
   };
 
+  // Helper to format a table as a clean ASCII text table
+  const formatTableToAscii = (tableEl: HTMLElement): string[] => {
+    const tableRows = Array.from(tableEl.querySelectorAll('tr'));
+    if (tableRows.length === 0) return [];
+
+    const rawGrid: string[][] = [];
+    let maxCols = 0;
+
+    for (const tr of tableRows) {
+      const cells = Array.from(tr.querySelectorAll('th, td')).map(c => extractCellText(c as HTMLElement));
+      if (cells.length > maxCols) maxCols = cells.length;
+      rawGrid.push(cells);
+    }
+
+    if (maxCols === 0) return [];
+
+    // Pad all rows
+    for (const row of rawGrid) {
+      while (row.length < maxCols) {
+        row.push('');
+      }
+    }
+
+    // Determine target column widths (cap maximum width to 45 chars for word wrap)
+    const colWidths: number[] = new Array(maxCols).fill(0);
+    for (let c = 0; c < maxCols; c++) {
+      let maxLen = 0;
+      for (const row of rawGrid) {
+        const len = (row[c] || '').length;
+        if (len > maxLen) maxLen = len;
+      }
+      if (c === 0 && maxCols > 2) {
+        colWidths[c] = Math.max(Math.min(maxLen, 6), 4);
+      } else {
+        colWidths[c] = Math.max(Math.min(maxLen, 45), 8);
+      }
+    }
+
+    // Word wrap helper
+    const wrapCell = (text: string, width: number): string[] => {
+      if (!text) return [''];
+      const words = text.split(/\s+/);
+      const resLines: string[] = [];
+      let cur = '';
+
+      for (const w of words) {
+        if (!cur) {
+          cur = w;
+        } else if ((cur + ' ' + w).length <= width) {
+          cur += ' ' + w;
+        } else {
+          resLines.push(cur);
+          cur = w;
+        }
+      }
+      if (cur) resLines.push(cur);
+      return resLines.length > 0 ? resLines : [''];
+    };
+
+    const separatorLine = '+' + colWidths.map(w => '-'.repeat(w + 2)).join('+') + '+';
+    const outputLines: string[] = [];
+    outputLines.push(separatorLine);
+
+    rawGrid.forEach((row, rIdx) => {
+      const wrappedCells = row.map((cell, cIdx) => wrapCell(cell, colWidths[cIdx]));
+      const rowLineCount = Math.max(...wrappedCells.map(wc => wc.length));
+
+      for (let l = 0; l < rowLineCount; l++) {
+        const lineParts: string[] = [];
+        for (let c = 0; c < maxCols; c++) {
+          const w = colWidths[c];
+          const text = wrappedCells[c][l] || '';
+          const pad = ' '.repeat(Math.max(0, w - text.length));
+          lineParts.push(` ${text}${pad} `);
+        }
+        outputLines.push('|' + lineParts.join('|') + '|');
+      }
+
+      // Add border after header row (row 0) and at the bottom of table
+      if (rIdx === 0 || rIdx === rawGrid.length - 1) {
+        outputLines.push(separatorLine);
+      }
+    });
+
+    return outputLines;
+  };
+
   const processNode = (node: Node) => {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as HTMLElement;
       const tag = el.tagName.toLowerCase();
 
       if (tag === 'table') {
-        const rows = Array.from(el.querySelectorAll('tr'));
-        for (const row of rows) {
-          const cells = Array.from(row.querySelectorAll('th, td')).map((c) => extractCellText(c as HTMLElement));
-          if (cells.length > 0) {
-            lines.push(cells.join('\t'));
-          }
+        const asciiLines = formatTableToAscii(el);
+        if (asciiLines.length > 0) {
+          lines.push(...asciiLines);
+          lines.push('');
         }
-        lines.push('');
         return;
       }
 
@@ -1782,12 +1866,104 @@ async function extractDocxTableGrids(file: File): Promise<number[][]> {
   }
 }
 
+async function extractDocxHeadersAndFootersHtml(file: File): Promise<{ headerHtml: string; footerHtml: string }> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const parser = new DOMParser();
+
+    const parseXmlPartToHtml = (xmlStr: string): string => {
+      const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
+      const parts: string[] = [];
+
+      // Check for tables in header/footer
+      const tbls = Array.from(xmlDoc.getElementsByTagName('w:tbl'));
+      if (tbls.length > 0) {
+        for (const tbl of tbls) {
+          const rows = Array.from(tbl.getElementsByTagName('w:tr'));
+          parts.push('<table>');
+          for (const row of rows) {
+            const cells = Array.from(row.getElementsByTagName('w:tc'));
+            parts.push('<tr>');
+            for (const cell of cells) {
+              const texts = Array.from(cell.getElementsByTagName('w:t'))
+                .map((t) => t.textContent || '')
+                .join(' ')
+                .trim();
+              parts.push(`<td>${escapeHtml(texts)}</td>`);
+            }
+            parts.push('</tr>');
+          }
+          parts.push('</table>');
+        }
+      }
+
+      // Check for paragraphs outside/inside
+      const ps = Array.from(xmlDoc.getElementsByTagName('w:p'));
+      for (const p of ps) {
+        if (p.closest('w:tbl') || p.closest('tbl')) continue;
+        const texts = Array.from(p.getElementsByTagName('w:t'))
+          .map((t) => t.textContent || '')
+          .join('')
+          .trim();
+        if (texts) {
+          parts.push(`<p>${escapeHtml(texts)}</p>`);
+        }
+      }
+
+      return parts.join('\n');
+    };
+
+    let headerHtml = '';
+    let footerHtml = '';
+
+    // Search header files
+    const headerFiles = Object.keys(zip.files).filter((name) => /^word\/header\d+\.xml$/i.test(name)).sort();
+    for (const hFile of headerFiles) {
+      const content = await zip.file(hFile)?.async('text');
+      if (content) {
+        const hHtml = parseXmlPartToHtml(content);
+        if (hHtml) headerHtml += (headerHtml ? '\n' : '') + hHtml;
+      }
+    }
+
+    // Search footer files
+    const footerFiles = Object.keys(zip.files).filter((name) => /^word\/footer\d+\.xml$/i.test(name)).sort();
+    for (const fFile of footerFiles) {
+      const content = await zip.file(fFile)?.async('text');
+      if (content) {
+        const fHtml = parseXmlPartToHtml(content);
+        if (fHtml) footerHtml += (footerHtml ? '\n' : '') + fHtml;
+      }
+    }
+
+    return { headerHtml, footerHtml };
+  } catch (err) {
+    console.warn('Не удалось извлечь колонтитулы DOCX:', err);
+    return { headerHtml: '', footerHtml: '' };
+  }
+}
+
 async function extractHtmlFromDocx(file: File, onProgress: (p: number, t: string) => void): Promise<string> {
   onProgress(30, 'Converting DOCX to HTML with Mammoth...');
   const mammoth = await import('mammoth');
   const arrayBuffer = await file.arrayBuffer();
-  const result = await (mammoth.default || mammoth).convertToHtml({ arrayBuffer });
-  return result.value || '';
+  
+  const [mammothResult, { headerHtml, footerHtml }] = await Promise.all([
+    (mammoth.default || mammoth).convertToHtml({ arrayBuffer }),
+    extractDocxHeadersAndFootersHtml(file),
+  ]);
+
+  let bodyHtml = mammothResult.value || '';
+  if (headerHtml) {
+    bodyHtml = headerHtml + '\n' + bodyHtml;
+  }
+  if (footerHtml) {
+    bodyHtml = bodyHtml + '\n' + footerHtml;
+  }
+
+  return bodyHtml;
 }
 
 async function createDocxFromText(text: string, baseName: string, onProgress: (p: number, t: string) => void): Promise<Blob> {
@@ -2233,7 +2409,26 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'CSV') {
-      const csvStr = convertTextToStructuredCsv(textContent);
+      const aoa = parseDocxHtmlToAoa(docxHtml);
+      const csvLines = aoa.map((row) =>
+        row
+          .map((cell) => {
+            // Normalize internal line breaks in cells to space so Excel doesn't squeeze row height vertically
+            const normalizedVal = (cell || '')
+              .toString()
+              .replace(/\r?\n+/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            const val = normalizedVal.replace(/"/g, '""');
+            // If cell contains semicolon, quotes or comma, wrap in quotes
+            if (val.includes(';') || val.includes('"') || val.includes(',')) {
+              return `"${val}"`;
+            }
+            return val;
+          })
+          .join(';')
+      );
+      const csvStr = csvLines.join('\r\n');
       const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
       return { blob, fileName: `${baseName}.csv` };
     }
