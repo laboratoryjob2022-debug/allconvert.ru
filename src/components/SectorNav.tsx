@@ -94,6 +94,8 @@ export const SectorNav: React.FC = () => {
       { slug: 'json-to-csv', from: 'JSON', to: 'CSV' },
       { slug: 'pdf-to-txt', from: 'PDF', to: 'TXT' },
     ],
+    archive: [],
+    '3d': [],
   };
 
   const currentDirections = popularRoutesByCategory[activeSector] || popularRoutesByCategory.all;

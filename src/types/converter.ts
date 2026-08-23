@@ -1,4 +1,4 @@
-export type ConversionCategory = 'all' | 'audio' | 'video' | 'image' | 'document';
+export type ConversionCategory = 'all' | 'audio' | 'video' | 'image' | 'document' | 'archive' | '3d';
 
 export type FileStatus = 'idle' | 'detecting' | 'converting' | 'completed' | 'error';
 

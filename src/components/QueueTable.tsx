@@ -1,7 +1,7 @@
 import React from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { getTranslation } from '../lib/i18n';
-import { getAvailableTargets } from '../lib/formatSpecs';
+import { getAvailableTargets, getGroupedAvailableTargets } from '../lib/formatSpecs';
 import { FileItem } from '../types/converter';
 import {
   FileText,
@@ -189,7 +189,7 @@ export const QueueTable: React.FC = () => {
           <div className="md:hidden space-y-3">
             {processedQueue.map((item: FileItem) => {
               const isSelected = selectedIds.includes(item.id);
-              const availableTargets = getAvailableTargets(item.category, item.detectedFormat);
+              const groupedTargets = getGroupedAvailableTargets(item.category, item.detectedFormat, item.category, language || 'ru');
 
               return (
                 <div
@@ -253,10 +253,14 @@ export const QueueTable: React.FC = () => {
                           disabled={item.status === 'converting'}
                           className="bg-slate-900 text-cyan-400 text-xs font-bold font-mono px-2 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-cyan-400 transition-all disabled:opacity-50 min-w-0 flex-1 truncate max-w-[140px] xs:max-w-[170px]"
                         >
-                          {availableTargets.map((t) => (
-                            <option key={t.id} value={t.id} className="bg-slate-900 text-slate-100">
-                              {t.name} (.{t.extension})
-                            </option>
+                          {groupedTargets.map((group) => (
+                            <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                              {group.options.map((t) => (
+                                <option key={t.id} value={t.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                                  {t.name} (.{t.extension})
+                                </option>
+                              ))}
+                            </optgroup>
                           ))}
                         </select>
                       </div>
@@ -408,7 +412,7 @@ export const QueueTable: React.FC = () => {
                 <tbody className="divide-y divide-slate-800/60 text-sm">
                   {processedQueue.map((item: FileItem) => {
                     const isSelected = selectedIds.includes(item.id);
-                    const availableTargets = getAvailableTargets(item.category, item.detectedFormat);
+                    const groupedTargets = getGroupedAvailableTargets(item.category, item.detectedFormat, item.category, language || 'ru');
 
                     return (
                       <tr
@@ -471,10 +475,14 @@ export const QueueTable: React.FC = () => {
                             disabled={item.status === 'converting'}
                             className="w-full max-w-[170px] bg-slate-950 text-cyan-400 text-xs font-bold font-mono px-3 py-1.5 rounded-xl border border-slate-800 hover:border-cyan-500/50 focus:outline-none focus:border-cyan-400 transition-all disabled:opacity-50 truncate"
                           >
-                            {availableTargets.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name} (.{t.extension})
-                              </option>
+                            {groupedTargets.map((group) => (
+                              <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                                {group.options.map((t) => (
+                                  <option key={t.id} value={t.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                                    {t.name} (.{t.extension})
+                                  </option>
+                                ))}
+                              </optgroup>
                             ))}
                           </select>
                         </td>

@@ -46,11 +46,102 @@ export const SUPPORTED_FORMATS: FormatOption[] = [
 ];
 
 export const TARGET_FORMATS_BY_CATEGORY: Record<string, string[]> = {
-  image: ['PNG', 'JPG', 'WEBP', 'GIF', 'BMP', 'ICO', 'AVIF', 'PDF'],
-  audio: ['MP3', 'WAV', 'OGG', 'FLAC', 'AAC', 'M4A', 'OPUS'],
+  image: ['PNG', 'JPG', 'WEBP', 'GIF', 'BMP', 'ICO', 'TIFF', 'AVIF', 'PDF'],
+  audio: ['MP3', 'WAV', 'OGG', 'FLAC', 'AAC', 'M4A', 'OPUS', 'AIFF'],
   video: ['MP4', 'WEBM', 'MOV', 'AVI', 'MKV', 'GIF_VID', 'MP3', 'WAV', 'AAC', 'M4A', 'OGG', 'FLAC'],
   document: ['PDF', 'TXT', 'MD', 'HTML', 'DOCX', 'JSON', 'CSV', 'XLSX', 'XML', 'JPG', 'PNG'],
 };
+
+export interface GroupedFormatOptions {
+  category: ConversionCategory;
+  label: string;
+  options: FormatOption[];
+}
+
+export const CATEGORY_LABELS: Record<string, Record<string, string>> = {
+  ru: {
+    image: '📷 Изображения',
+    audio: '🎵 Аудио форматы',
+    video: '🎬 Видео форматы',
+    document: '📄 Документы и таблицы',
+    archive: '📦 Архивы',
+    '3d': '🧊 3D Модели',
+  },
+  en: {
+    image: '📷 Images',
+    audio: '🎵 Audio formats',
+    video: '🎬 Video formats',
+    document: '📄 Documents & Spreadsheets',
+    archive: '📦 Archives',
+    '3d': '🧊 3D Models',
+  },
+  zh: {
+    image: '📷 图片格式',
+    audio: '🎵 音频格式',
+    video: '🎬 视频格式',
+    document: '📄 文档与表格',
+    archive: '📦 压缩包',
+    '3d': '🧊 3D 模型',
+  },
+  es: {
+    image: '📷 Imágenes',
+    audio: '🎵 Formatos de audio',
+    video: '🎬 Formatos de video',
+    document: '📄 Documentos y tablas',
+    archive: '📦 Archivos',
+    '3d': '🧊 Modelos 3D',
+  },
+  de: {
+    image: '📷 Bilder',
+    audio: '🎵 Audioformate',
+    video: '🎬 Videoformate',
+    document: '📄 Dokumente & Tabellen',
+    archive: '📦 Archive',
+    '3d': '🧊 3D-Modelle',
+  },
+};
+
+export function getGroupedAvailableTargets(
+  category: ConversionCategory,
+  currentFormat?: string,
+  priorityCategory?: ConversionCategory,
+  lang: string = 'ru'
+): GroupedFormatOptions[] {
+  const available = getAvailableTargets(category, currentFormat);
+  const labels = CATEGORY_LABELS[lang] || CATEGORY_LABELS['ru'];
+
+  // Определяем приоритетный порядок категорий
+  let categoryOrder: ConversionCategory[] = ['image', 'document', 'audio', 'video', 'archive', '3d'];
+
+  if (priorityCategory && priorityCategory !== 'all') {
+    if (priorityCategory === 'video') {
+      categoryOrder = ['video', 'audio', 'image', 'document', 'archive', '3d'];
+    } else if (priorityCategory === 'audio') {
+      categoryOrder = ['audio', 'video', 'document', 'image', 'archive', '3d'];
+    } else if (priorityCategory === 'image') {
+      categoryOrder = ['image', 'document', 'video', 'audio', 'archive', '3d'];
+    } else if (priorityCategory === 'document') {
+      categoryOrder = ['document', 'image', 'audio', 'video', 'archive', '3d'];
+    } else {
+      categoryOrder = [priorityCategory, ...categoryOrder.filter((c) => c !== priorityCategory)];
+    }
+  }
+
+  const grouped: GroupedFormatOptions[] = [];
+
+  for (const cat of categoryOrder) {
+    const options = available.filter((f) => f.category === cat);
+    if (options.length > 0) {
+      grouped.push({
+        category: cat,
+        label: labels[cat] || cat,
+        options,
+      });
+    }
+  }
+
+  return grouped;
+}
 
 export function getAvailableTargets(
   category: ConversionCategory,

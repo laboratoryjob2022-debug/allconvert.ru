@@ -299,7 +299,7 @@ export async function convertFileClientSide(
    ==================================================================== */
 
 function isImageTarget(fmt: string): boolean {
-  return ['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF', 'BMP', 'ICO', 'SVG', 'AVIF'].includes(fmt.toUpperCase());
+  return ['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF', 'BMP', 'ICO', 'SVG', 'AVIF', 'TIFF', 'TIF'].includes(fmt.toUpperCase());
 }
 
 async function convertImage(
@@ -336,6 +336,80 @@ async function convertImage(
       console.error('HEIC decoding failed:', err);
       throw new Error('Не удалось декодировать HEIC файл. Проверьте цельность изображения.');
     }
+  }
+
+  const isTiff =
+    sourceFormat === 'TIFF' ||
+    sourceFormat === 'TIF' ||
+    file.name.toLowerCase().endsWith('.tiff') ||
+    file.name.toLowerCase().endsWith('.tif') ||
+    file.type.includes('tiff');
+
+  if (isTiff) {
+    onProgress(25, 'Декодирование TIFF изображения через UTIF...');
+    try {
+      const utifModule = await import('utif');
+      const UTIF = (utifModule.default || utifModule) as any;
+      const buffer = await file.arrayBuffer();
+      const ifds = UTIF.decode(buffer);
+      if (ifds && ifds.length > 0) {
+        UTIF.decodeImage(buffer, ifds[0]);
+        const rgba = UTIF.toRGBA8(ifds[0]);
+        const width = ifds[0].width;
+        const height = ifds[0].height;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const imgData = ctx.createImageData(width, height);
+          imgData.data.set(rgba);
+          ctx.putImageData(imgData, 0, 0);
+          const pngBlob: Blob = await new Promise((res, rej) => {
+            canvas.toBlob((b) => (b ? res(b) : rej(new Error('Failed canvas blob'))), 'image/png');
+          });
+          sourceFile = new File([pngBlob], `${baseName}.png`, { type: 'image/png' });
+        }
+      }
+    } catch (err: any) {
+      console.error('TIFF decoding failed:', err);
+    }
+  }
+
+  // Target: TIFF
+  const isTargetTiff = targetFormat.toUpperCase() === 'TIFF' || targetFormat.toUpperCase() === 'TIF';
+  if (isTargetTiff) {
+    onProgress(60, 'Кодирование TIFF изображения через UTIF...');
+    const canvas = document.createElement('canvas');
+    const img = new Image();
+    const url = URL.createObjectURL(sourceFile);
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image into canvas for TIFF export'));
+      img.src = url;
+    });
+    URL.revokeObjectURL(url);
+
+    let targetWidth = settings.imageWidth || img.width;
+    let targetHeight = settings.imageHeight || img.height;
+    if (settings.preserveAspectRatio && settings.imageWidth && !settings.imageHeight) {
+      targetHeight = Math.round((img.height / img.width) * settings.imageWidth);
+    } else if (settings.preserveAspectRatio && settings.imageHeight && !settings.imageWidth) {
+      targetWidth = Math.round((img.width / img.height) * settings.imageHeight);
+    }
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context not available');
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+    const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+    const utifModule = await import('utif');
+    const UTIF = (utifModule.default || utifModule) as any;
+    const tiffBuffer = UTIF.encodeImage(new Uint8Array(imgData.data.buffer), targetWidth, targetHeight);
+    const blob = new Blob([tiffBuffer], { type: 'image/tiff' });
+    onProgress(100, 'Image conversion complete!');
+    return { blob, fileName: `${baseName}.tiff` };
   }
 
   // Target: PDF

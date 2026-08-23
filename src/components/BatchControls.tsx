@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { getTranslation } from '../lib/i18n';
-import { getAvailableTargets } from '../lib/formatSpecs';
+import { getAvailableTargets, getGroupedAvailableTargets } from '../lib/formatSpecs';
 import {
   Play,
   Download,
@@ -66,7 +66,9 @@ export const BatchControls: React.FC = () => {
   ).length;
   const totalIdleCount = filteredQueue.filter((q) => q.status === 'idle' || q.status === 'error').length;
 
-  const availableFormats = getAvailableTargets(activeSector);
+  const firstFileCategory = queue[0]?.category;
+  const priorityCategory = activeSector !== 'all' ? activeSector : firstFileCategory;
+  const groupedFormats = getGroupedAvailableTargets(activeSector, undefined, priorityCategory, language || 'ru');
 
   // Overall Batch Conversion Progress Calculations
   const activeConvertingItem = queue.find((q) => q.status === 'converting');
@@ -207,10 +209,14 @@ export const BatchControls: React.FC = () => {
                 }}
                 className="w-full bg-slate-900 text-cyan-300 text-xs font-bold font-mono px-3 py-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-cyan-400"
               >
-                {availableFormats.map((fmt) => (
-                  <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100">
-                    {fmt.name} (.{fmt.extension})
-                  </option>
+                {groupedFormats.map((group) => (
+                  <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                    {group.options.map((fmt) => (
+                      <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                        {fmt.name} (.{fmt.extension})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -284,10 +290,14 @@ export const BatchControls: React.FC = () => {
                   }}
                   className="bg-slate-900 text-cyan-300 text-xs font-bold font-mono px-2.5 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-cyan-500 cursor-pointer"
                 >
-                  {availableFormats.map((fmt) => (
-                    <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100">
-                      {fmt.name} (.{fmt.extension})
-                    </option>
+                  {groupedFormats.map((group) => (
+                    <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                      {group.options.map((fmt) => (
+                        <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                          {fmt.name} (.{fmt.extension})
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
@@ -343,10 +353,14 @@ export const BatchControls: React.FC = () => {
                 onChange={(e) => setGlobalTargetFormat(e.target.value)}
                 className="w-full bg-slate-900 text-cyan-400 text-xs font-bold font-mono px-3 py-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-cyan-500"
               >
-                {availableFormats.map((fmt) => (
-                  <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100">
-                    {fmt.name} (.{fmt.extension})
-                  </option>
+                {groupedFormats.map((group) => (
+                  <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                    {group.options.map((fmt) => (
+                      <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                        {fmt.name} (.{fmt.extension})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -414,10 +428,14 @@ export const BatchControls: React.FC = () => {
                   onChange={(e) => setGlobalTargetFormat(e.target.value)}
                   className="bg-slate-900 text-cyan-400 text-xs font-bold font-mono px-2 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-cyan-500 cursor-pointer"
                 >
-                  {availableFormats.map((fmt) => (
-                    <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100">
-                      {fmt.name} (.{fmt.extension})
-                    </option>
+                  {groupedFormats.map((group) => (
+                    <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                      {group.options.map((fmt) => (
+                        <option key={fmt.id} value={fmt.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                          {fmt.name} (.{fmt.extension})
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
