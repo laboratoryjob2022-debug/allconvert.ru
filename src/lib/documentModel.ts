@@ -162,110 +162,118 @@ export function parsePdfPageToBlocks(items: RawPdfItem[], pageNum: number, pageW
 function parseTableFromSpatialItems(tableItems: RawPdfItem[]): TableBlock | null {
   if (tableItems.length === 0) return null;
 
-  // 1. Discover dynamic column boundaries by clustering X coordinates
-  const xStarts = tableItems.map(it => it.x).sort((a, b) => a - b);
-  const colCenters: { x: number; count: number }[] = [];
-
-  for (const x of xStarts) {
-    const cluster = colCenters.find(c => Math.abs(c.x - x) <= 24);
-    if (!cluster) {
-      colCenters.push({ x, count: 1 });
-    } else {
-      cluster.x = (cluster.x * cluster.count + x) / (cluster.count + 1);
-      cluster.count++;
-    }
-  }
-  colCenters.sort((a, b) => a.x - b.x);
-
-  if (colCenters.length === 0) return null;
-
-  // 2. Group table items into logical row bands (vertical tolerance 16pt)
-  const rowBands: { anchorY: number; items: RawPdfItem[] }[] = [];
+  // Group items by visual line (tolerance 3.5pt)
+  const lineMap: { y: number; items: RawPdfItem[] }[] = [];
   for (const it of tableItems) {
-    let matchedBand = rowBands.find(rb => Math.abs(rb.anchorY - it.y) <= 16);
-    if (!matchedBand) {
-      matchedBand = { anchorY: it.y, items: [it] };
-      rowBands.push(matchedBand);
+    let matched = lineMap.find(l => Math.abs(l.y - it.y) <= 3.5);
+    if (!matched) {
+      matched = { y: it.y, items: [it] };
+      lineMap.push(matched);
     } else {
-      matchedBand.items.push(it);
+      matched.items.push(it);
+    }
+  }
+  lineMap.sort((a, b) => b.y - a.y);
+  for (const l of lineMap) {
+    l.items.sort((a, b) => a.x - b.x);
+  }
+
+  // 1. Identify header line (topmost line with >= 2 items)
+  const headerLine = lineMap.find(l => l.items.length >= 2);
+  if (!headerLine) return null;
+
+  // Deduplicate and extract column positions
+  const headerCols: { name: string; startX: number }[] = [];
+  for (const it of headerLine.items) {
+    const trimmed = it.str.trim();
+    if (trimmed) {
+      headerCols.push({ name: trimmed, startX: it.x });
+    }
+  }
+  headerCols.sort((a, b) => a.startX - b.startX);
+
+  if (headerCols.length === 0) return null;
+
+  // Define column boundaries
+  const colBounds = headerCols.map((col, idx) => {
+    const minX = idx === 0 ? 0 : (headerCols[idx - 1].startX + col.startX) / 2;
+    const maxX = idx === headerCols.length - 1 ? 99999 : (col.startX + headerCols[idx + 1].startX) / 2;
+    return { name: col.name, startX: col.startX, minX, maxX };
+  });
+
+  // 2. Identify and parse data rows below the header
+  const nonHeaderLines = lineMap.filter(l => l.y < headerLine.y - 4);
+  const matrix: (string | number)[][] = [];
+  matrix.push(colBounds.map(c => c.name));
+
+  const rows: TableCellModel[][] = [];
+  let currentMatrixRow: (string | number)[] | null = null;
+  let lastAnchorY = headerLine.y;
+
+  for (const line of nonHeaderLines) {
+    // Check if this line starts a new row:
+    // - Has an item in Column 0 (like "1.", "2.", "3.")
+    // - Has >= 3 items in distinct columns
+    // - Gap from previous row anchor is >= 18pt
+    // - First data row
+    const hasCol0 = line.items.some(it => it.x < colBounds[0].maxX);
+    const populatedColsCount = new Set(line.items.map(it => {
+      let cIdx = colBounds.findIndex(cb => it.x >= cb.minX && it.x < cb.maxX);
+      return cIdx === -1 ? 0 : cIdx;
+    })).size;
+
+    const isNewRow = hasCol0 || (populatedColsCount >= 3) || (lastAnchorY - line.y >= 18) || (currentMatrixRow === null);
+
+    if (isNewRow) {
+      currentMatrixRow = new Array(colBounds.length).fill('');
+      matrix.push(currentMatrixRow);
+      lastAnchorY = line.y;
+    }
+
+    if (currentMatrixRow) {
+      for (const it of line.items) {
+        let colIdx = colBounds.findIndex(cb => it.x >= cb.minX && it.x < cb.maxX);
+        if (colIdx === -1) {
+          colIdx = it.x < colBounds[0].minX ? 0 : colBounds.length - 1;
+        }
+        const prev = String(currentMatrixRow[colIdx] || '');
+        currentMatrixRow[colIdx] = prev ? prev + '\n' + it.str.trim() : it.str.trim();
+      }
     }
   }
 
-  // Sort rows top-to-bottom
-  rowBands.sort((a, b) => b.anchorY - a.anchorY);
-
-  // 3. Build matrix & cell models
-  const matrix: (string | number)[][] = [];
-  const rows: TableCellModel[][] = [];
-
-  for (let rIdx = 0; rIdx < rowBands.length; rIdx++) {
-    const rb = rowBands[rIdx];
-    rb.items.sort((a, b) => {
-      const colA = getClosestColumnIndex(a.x, colCenters);
-      const colB = getClosestColumnIndex(b.x, colCenters);
-      if (colA !== colB) return colA - colB;
-      if (Math.abs(b.y - a.y) > 3) return b.y - a.y;
-      return a.x - b.x;
-    });
-
-    const colStrings: string[] = new Array(colCenters.length).fill('');
-
-    for (const it of rb.items) {
-      const colIdx = getClosestColumnIndex(it.x, colCenters);
-      const prev = colStrings[colIdx];
-      colStrings[colIdx] = prev ? prev + ' ' + it.str.trim() : it.str.trim();
-    }
-
+  // 3. Convert data rows into TableCellModels with numerical casting where appropriate
+  for (let rIdx = 1; rIdx < matrix.length; rIdx++) {
     const rowCells: TableCellModel[] = [];
-    const matrixRow: (string | number)[] = [];
-
-    for (let c = 0; c < colCenters.length; c++) {
-      const rawStr = (colStrings[c] || '').trim();
+    for (let c = 0; c < colBounds.length; c++) {
+      const rawStr = String(matrix[rIdx][c] || '').trim();
       let parsedVal: string | number = rawStr;
 
-      // Numerical parsing if purely numeric (excluding row 0 headers)
-      if (rIdx > 0 && /^-?\d+(?:\.\d+)?$/.test(rawStr.replace(/\s+/g, ''))) {
+      if (/^-?\d+(?:\.\d+)?$/.test(rawStr.replace(/\s+/g, ''))) {
         const num = parseFloat(rawStr.replace(/\s+/g, ''));
         if (!isNaN(num)) parsedVal = num;
       }
+      matrix[rIdx][c] = parsedVal;
 
-      matrixRow.push(parsedVal);
       rowCells.push({
         text: rawStr,
         rawValue: parsedVal,
-        isHeader: rIdx === 0,
+        isHeader: false,
       });
     }
-
-    matrix.push(matrixRow);
-    if (rIdx > 0) {
-      rows.push(rowCells);
-    }
+    rows.push(rowCells);
   }
 
   const topY = tableItems.reduce((max, it) => Math.max(max, it.y), 0);
-  const headerTexts = matrix.length > 0 ? matrix[0].map(v => String(v ?? '')) : [];
+  const headerTexts = colBounds.map(c => c.name);
 
   return {
     type: 'table',
     y: topY,
     headers: headerTexts,
-    rows: rows.length > 0 ? rows : [matrix[0]?.map(v => ({ text: String(v), rawValue: v, isHeader: true })) || []],
+    rows: rows.length > 0 ? rows : [headerTexts.map(h => ({ text: h, rawValue: h, isHeader: true }))],
     matrix,
   };
-}
-
-function getClosestColumnIndex(x: number, colCenters: { x: number }[]): number {
-  let bestIdx = 0;
-  let minDiff = Infinity;
-  for (let i = 0; i < colCenters.length; i++) {
-    const diff = Math.abs(colCenters[i].x - x);
-    if (diff < minDiff) {
-      minDiff = diff;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
 }
 
 function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
@@ -703,7 +711,8 @@ export async function exportToDocxBuffer(doc: StructuredDocument): Promise<Uint8
   });
 
   const { Packer } = await import('docx');
-  const buffer = await Packer.toBuffer(wordDoc);
+  const blob = await Packer.toBlob(wordDoc);
+  const buffer = await blob.arrayBuffer();
   return new Uint8Array(buffer);
 }
 
