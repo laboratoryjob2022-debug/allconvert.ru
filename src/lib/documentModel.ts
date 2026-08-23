@@ -96,194 +96,136 @@ export function parsePdfPageToBlocks(items: RawPdfItem[], pageNum: number, pageW
   const cleanItems = items.filter(it => it.str && (it.str.trim() !== '' || it.str.includes(' ')));
   if (cleanItems.length === 0) return [];
 
-  // Sort top-to-bottom (PDF coordinate system: higher Y is closer to top of the page)
-  cleanItems.sort((a, b) => b.y - a.y);
+  // Group items into visual lines (Y tolerance 4.0pt)
+  const lineMap: { y: number; height: number; items: RawPdfItem[] }[] = [];
+  for (const it of cleanItems) {
+    let matched = lineMap.find(l => Math.abs(l.y - it.y) <= 4.0);
+    if (!matched) {
+      matched = { y: it.y, height: it.height, items: [it] };
+      lineMap.push(matched);
+    } else {
+      matched.height = Math.max(matched.height, it.height);
+      matched.items.push(it);
+    }
+  }
 
-  // 1. Detect if there is a Table Zone on the page
-  // Look for canonical column patterns or multi-item rows with aligned numerical/categorical columns
-  const tableCheck = detectTableZone(cleanItems);
+  // Sort lines top-to-bottom
+  lineMap.sort((a, b) => b.y - a.y);
+  for (const l of lineMap) {
+    l.items.sort((a, b) => a.x - b.x);
+  }
+
+  // Detect multi-column lines (lines having >= 2 distinct items separated by >= 15pt horizontal gap)
+  const multiColLines = lineMap.filter(l => {
+    if (l.items.length < 2) return false;
+    let gaps = 0;
+    for (let i = 0; i < l.items.length - 1; i++) {
+      const rightX = l.items[i].x + (l.items[i].width || 10);
+      if (l.items[i + 1].x - rightX >= 15) {
+        gaps++;
+      }
+    }
+    return gaps >= 1;
+  });
 
   const blocks: DocumentBlock[] = [];
-  const nonTableItems: RawPdfItem[] = [];
-  const tableItems: RawPdfItem[] = [];
 
-  if (tableCheck.found && tableCheck.topY !== undefined && tableCheck.bottomY !== undefined) {
-    for (const it of cleanItems) {
-      if (it.y <= tableCheck.topY && it.y >= tableCheck.bottomY) {
-        // Double check if item is intro text right above table
-        if (it.str.includes('При конвертации в') || it.str.includes('разложиться по отдельным') || it.str.includes('столбцами и заголовками')) {
-          nonTableItems.push(it);
-        } else {
-          tableItems.push(it);
-        }
-      } else {
-        nonTableItems.push(it);
+  if (multiColLines.length >= 2) {
+    // We have a table zone on this page
+    const topY = multiColLines[0].y + 8;
+    const bottomY = multiColLines[multiColLines.length - 1].y - 20;
+
+    const tableItems = cleanItems.filter(it => it.y <= topY && it.y >= bottomY);
+    const nonTableItems = cleanItems.filter(it => it.y > topY || it.y < bottomY);
+
+    if (nonTableItems.length > 0) {
+      const nonTableBlocks = parseNonTableItems(nonTableItems);
+      blocks.push(...nonTableBlocks);
+    }
+
+    if (tableItems.length > 0) {
+      const tableBlock = parseTableFromSpatialItems(tableItems);
+      if (tableBlock) {
+        blocks.push(tableBlock);
       }
     }
   } else {
-    nonTableItems.push(...cleanItems);
-  }
-
-  // 2. Parse non-table items into Headings, Paragraphs, Lists, Code
-  const nonTableBlocks = parseNonTableItems(nonTableItems);
-  blocks.push(...nonTableBlocks);
-
-  // 3. Parse table items into a TableBlock
-  if (tableItems.length > 0) {
-    const tableBlock = parseTableItems(tableItems, tableCheck.columns);
-    if (tableBlock) {
-      blocks.push(tableBlock);
-    }
+    const nonTableBlocks = parseNonTableItems(cleanItems);
+    blocks.push(...nonTableBlocks);
   }
 
   // Sort all page blocks by top-to-bottom Y position
   blocks.sort((a, b) => b.y - a.y);
-
   return blocks;
 }
 
-interface TableDetectionResult {
-  found: boolean;
-  topY?: number;
-  bottomY?: number;
-  columns?: { name: string; minX: number; maxX: number }[];
-}
-
-function detectTableZone(items: RawPdfItem[]): TableDetectionResult {
-  // Check for presence of header keywords or row identifiers (e.g. 1001, 1002, ID, НАИМЕНОВАНИЕ, КАТЕГОРИЯ, ЦЕНА, СУММА, STATUS)
-  let tableHeaderY: number | null = null;
-  let tableEndAfterRowsY: number | null = null;
-
-  for (const it of items) {
-    const s = it.str.toUpperCase();
-    if (
-      s.includes('НАИМЕНОВАНИЕ') || s.includes('КАТЕГОРИЯ') ||
-      (s.includes('ID') && it.x < 100) || s.includes('КОЛ-ВО') ||
-      s.includes('ЦЕНА') || s.includes('СУММА') || s.includes('СТАТУС')
-    ) {
-      if (tableHeaderY === null || it.y > tableHeaderY) {
-        tableHeaderY = it.y;
-      }
-    }
-
-    if (/^\d{4}$/.test(it.str.trim()) || it.str.includes('1001') || it.str.includes('1006')) {
-      if (tableEndAfterRowsY === null || it.y < tableEndAfterRowsY) {
-        tableEndAfterRowsY = it.y;
-      }
-    }
-  }
-
-  if (tableHeaderY !== null) {
-    // Top boundary is just above the highest header element
-    const topY = tableHeaderY + 12;
-    // Bottom boundary is around the lowest table row minus bottom margin
-    const bottomY = (tableEndAfterRowsY !== null ? tableEndAfterRowsY : tableHeaderY - 200) - 20;
-
-    const columns = [
-      { name: 'ID', minX: 0, maxX: 65 },
-      { name: 'NAME', minX: 65, maxX: 200 },
-      { name: 'CATEGORY', minX: 200, maxX: 300 },
-      { name: 'QTY', minX: 300, maxX: 375 },
-      { name: 'PRICE', minX: 375, maxX: 450 },
-      { name: 'TOTAL', minX: 450, maxX: 535 },
-      { name: 'STATUS', minX: 535, maxX: 750 },
-    ];
-
-    return { found: true, topY, bottomY, columns };
-  }
-
-  return { found: false };
-}
-
-function parseTableItems(tableItems: RawPdfItem[], predefinedColumns?: { name: string; minX: number; maxX: number }[]): TableBlock | null {
+function parseTableFromSpatialItems(tableItems: RawPdfItem[]): TableBlock | null {
   if (tableItems.length === 0) return null;
 
-  const cols = predefinedColumns || [
-    { name: 'ID', minX: 0, maxX: 65 },
-    { name: 'NAME', minX: 65, maxX: 200 },
-    { name: 'CATEGORY', minX: 200, maxX: 300 },
-    { name: 'QTY', minX: 300, maxX: 375 },
-    { name: 'PRICE', minX: 375, maxX: 450 },
-    { name: 'TOTAL', minX: 450, maxX: 535 },
-    { name: 'STATUS', minX: 535, maxX: 750 },
-  ];
+  // 1. Discover dynamic column boundaries by clustering X coordinates
+  const xStarts = tableItems.map(it => it.x).sort((a, b) => a - b);
+  const colCenters: { x: number; count: number }[] = [];
 
-  // 1. Form canonical headers
-  const headerTexts = ['ID', 'НАИМЕНОВАНИЕ ТОВАРА', 'КАТЕГОРИЯ', 'КОЛ-ВО', 'ЦЕНА ($)', 'СУММА ($)', 'СТАТУС'];
-
-  // 2. Classify rows by ID or spatial row grouping
-  const headerItems = tableItems.filter(it =>
-    it.str.includes('НАИМЕНОВАНИЕ') || it.str.includes('ТОВАРА') || it.str.trim() === 'ID' ||
-    it.str.includes('КАТЕГОРИЯ') || it.str.includes('КОЛ-ВО') || it.str.includes('ЦЕНА') ||
-    it.str.includes('СУММА') || it.str.includes('СТАТУС')
-  );
-  const dataItems = tableItems.filter(it => !headerItems.includes(it));
-
-  const rowIds = ['1001', '1002', '1003', '1004', '1005', '1006'];
-  const rowBands: { id: string; y: number; items: RawPdfItem[] }[] = [];
-
-  for (const rid of rowIds) {
-    const idItem = dataItems.find(it => it.str.trim() === rid);
-    if (idItem) {
-      rowBands.push({ id: rid, y: idItem.y, items: [idItem] });
+  for (const x of xStarts) {
+    const cluster = colCenters.find(c => Math.abs(c.x - x) <= 24);
+    if (!cluster) {
+      colCenters.push({ x, count: 1 });
+    } else {
+      cluster.x = (cluster.x * cluster.count + x) / (cluster.count + 1);
+      cluster.count++;
     }
   }
+  colCenters.sort((a, b) => a.x - b.x);
 
-  // Assign each non-ID item to the closest row band
-  for (const it of dataItems) {
-    if (rowIds.includes(it.str.trim())) continue;
-    let closestBand = rowBands[0];
-    let minDistance = 99999;
-    for (const rb of rowBands) {
-      const dist = Math.abs(rb.y - it.y);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestBand = rb;
-      }
-    }
-    if (closestBand && minDistance <= 24) {
-      closestBand.items.push(it);
+  if (colCenters.length === 0) return null;
+
+  // 2. Group table items into logical row bands (vertical tolerance 16pt)
+  const rowBands: { anchorY: number; items: RawPdfItem[] }[] = [];
+  for (const it of tableItems) {
+    let matchedBand = rowBands.find(rb => Math.abs(rb.anchorY - it.y) <= 16);
+    if (!matchedBand) {
+      matchedBand = { anchorY: it.y, items: [it] };
+      rowBands.push(matchedBand);
+    } else {
+      matchedBand.items.push(it);
     }
   }
 
   // Sort rows top-to-bottom
-  rowBands.sort((a, b) => b.y - a.y);
+  rowBands.sort((a, b) => b.anchorY - a.anchorY);
 
+  // 3. Build matrix & cell models
   const matrix: (string | number)[][] = [];
-  matrix.push(headerTexts);
-
   const rows: TableCellModel[][] = [];
 
-  for (const band of rowBands) {
-    const colStrings: string[] = ['', '', '', '', '', '', ''];
-    colStrings[0] = band.id;
+  for (let rIdx = 0; rIdx < rowBands.length; rIdx++) {
+    const rb = rowBands[rIdx];
+    rb.items.sort((a, b) => {
+      const colA = getClosestColumnIndex(a.x, colCenters);
+      const colB = getClosestColumnIndex(b.x, colCenters);
+      if (colA !== colB) return colA - colB;
+      if (Math.abs(b.y - a.y) > 3) return b.y - a.y;
+      return a.x - b.x;
+    });
 
-    for (const it of band.items) {
-      if (it.str.trim() === band.id) continue;
-      let assignedCol = cols.findIndex(c => it.x >= c.minX && it.x < c.maxX);
-      if (assignedCol === -1) {
-        assignedCol = it.x < cols[0].minX ? 0 : cols.length - 1;
-      }
-      if (assignedCol === 0) assignedCol = 1; // Put non-ID content into Name
+    const colStrings: string[] = new Array(colCenters.length).fill('');
 
-      colStrings[assignedCol] = (colStrings[assignedCol] ? colStrings[assignedCol] + ' ' : '') + it.str.trim();
+    for (const it of rb.items) {
+      const colIdx = getClosestColumnIndex(it.x, colCenters);
+      const prev = colStrings[colIdx];
+      colStrings[colIdx] = prev ? prev + ' ' + it.str.trim() : it.str.trim();
     }
 
     const rowCells: TableCellModel[] = [];
     const matrixRow: (string | number)[] = [];
 
-    for (let c = 0; c < 7; c++) {
-      let rawStr = colStrings[c] ? colStrings[c].trim() : '';
+    for (let c = 0; c < colCenters.length; c++) {
+      const rawStr = (colStrings[c] || '').trim();
       let parsedVal: string | number = rawStr;
 
-      // Type cast numbers for Excel (e.g. "1001", "15", "1 299.99", "19 499.85", "0.00")
-      if (c === 0 && /^\d+$/.test(rawStr)) {
-        parsedVal = parseInt(rawStr, 10);
-      } else if (c === 3 && /^\d+$/.test(rawStr)) {
-        parsedVal = parseInt(rawStr, 10);
-      } else if ((c === 4 || c === 5) && /^[\d\s]+(?:\.\d+)?$/.test(rawStr)) {
-        const cleanNumStr = rawStr.replace(/\s+/g, '');
-        const num = parseFloat(cleanNumStr);
+      // Numerical parsing if purely numeric (excluding row 0 headers)
+      if (rIdx > 0 && /^-?\d+(?:\.\d+)?$/.test(rawStr.replace(/\s+/g, ''))) {
+        const num = parseFloat(rawStr.replace(/\s+/g, ''));
         if (!isNaN(num)) parsedVal = num;
       }
 
@@ -291,23 +233,39 @@ function parseTableItems(tableItems: RawPdfItem[], predefinedColumns?: { name: s
       rowCells.push({
         text: rawStr,
         rawValue: parsedVal,
-        isHeader: false
+        isHeader: rIdx === 0,
       });
     }
 
     matrix.push(matrixRow);
-    rows.push(rowCells);
+    if (rIdx > 0) {
+      rows.push(rowCells);
+    }
   }
 
   const topY = tableItems.reduce((max, it) => Math.max(max, it.y), 0);
+  const headerTexts = matrix.length > 0 ? matrix[0].map(v => String(v ?? '')) : [];
 
   return {
     type: 'table',
     y: topY,
     headers: headerTexts,
-    rows,
-    matrix
+    rows: rows.length > 0 ? rows : [matrix[0]?.map(v => ({ text: String(v), rawValue: v, isHeader: true })) || []],
+    matrix,
   };
+}
+
+function getClosestColumnIndex(x: number, colCenters: { x: number }[]): number {
+  let bestIdx = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < colCenters.length; i++) {
+    const diff = Math.abs(colCenters[i].x - x);
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
 }
 
 function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
@@ -374,9 +332,9 @@ function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
     const lineObj = rawTextLines[i];
     const text = lineObj.text;
 
-    // 1. Heading check (e.g. "1. Проверка текстовых блоков...", "2. Специальные символы...", "3. Тестовая таблица...")
+    // 1. Heading check
     const headingMatch = text.match(/^((?:\d+\.|\d+\))\s+([A-ZА-ЯЁ][^.]+))$/) ||
-      (text.length < 80 && /^(Раздел|Секция|Глава|Section|Chapter|Часть)\s+\d+/i.test(text));
+      (text.length < 80 && /^(Раздел|Секция|Глава|Section|Chapter|Часть|Протокол)\s+\d+/i.test(text));
 
     if (headingMatch) {
       flushList();
@@ -389,7 +347,7 @@ function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
       continue;
     }
 
-    // 2. Bullet or numbered list item (e.g. "• Сохранение структуры...", "1. В Excel:...")
+    // 2. Bullet or numbered list item
     const bulletMatch = text.match(/^([-*•–]|(?:\d+\.\d+|\w\)))\s*(.+)$/);
     if (bulletMatch) {
       const itemText = bulletMatch[2].trim();
@@ -400,28 +358,7 @@ function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
       continue;
     }
 
-    // 3. Checklist continuation (e.g. "1. В Excel: Попали ли данные..." followed by "или апострофов)?")
-    if (text.startsWith('1. В Excel:') || text.startsWith('2. В TXT:') || text.startsWith('3. В Word/DOCX:') || text.startsWith('Чек-лист')) {
-      flushList();
-      let fullText = text;
-      // Lookahead: if next line is short continuation wrap like "или апострофов)?"
-      if (i + 1 < rawTextLines.length) {
-        const next = rawTextLines[i + 1];
-        if (next.text.startsWith('или') || next.text.startsWith('апострофов') || (next.text.length < 30 && !next.text.match(/^(\d+\.|\d+\)|[-*•–])/))) {
-          fullText += ' ' + next.text;
-          i++; // consume wrapped line
-        }
-      }
-      blocks.push({
-        type: 'paragraph',
-        y: lineObj.y,
-        text: fullText,
-        isBold: text.startsWith('1.') || text.startsWith('2.') || text.startsWith('3.')
-      });
-      continue;
-    }
-
-    // 4. Regular paragraph
+    // 3. Regular paragraph
     flushList();
 
     // Check if line wraps from previous regular paragraph
@@ -433,10 +370,7 @@ function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
       if (
         gapY <= 16 && gapY > 0 &&
         !next.text.match(/^(\d+\.|\d+\)|[-*•–])/) &&
-        !next.text.includes('Спецсимволы:') &&
-        !next.text.includes('Математические') &&
-        !next.text.includes('Синтаксис') &&
-        !next.text.includes('Ключевые аспекты')
+        !next.text.match(/^(Раздел|Секция|Глава|Section|Chapter|Часть|Протокол)\s+\d+/i)
       ) {
         paraText += ' ' + next.text;
         i++;
