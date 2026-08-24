@@ -275,6 +275,11 @@ export async function convertFileClientSide(
     return await convertVideo(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
+  // If source is a document format or document category, always route to convertDocument
+  if (category === 'document' || isDocumentFormat(detectedFormat)) {
+    return await convertDocument(file, detectedFormat, targetFormat, settings, baseName, onProgress);
+  }
+
   if (category === 'image' || isImageTarget(targetFormat)) {
     return await convertImage(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
@@ -283,7 +288,7 @@ export async function convertFileClientSide(
     return await convertAudio(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
-  if (category === 'document' || isDocumentTarget(targetFormat)) {
+  if (isDocumentTarget(targetFormat)) {
     return await convertDocument(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
@@ -292,6 +297,10 @@ export async function convertFileClientSide(
   const text = await file.text();
   const blob = new Blob([text], { type: 'text/plain' });
   return { blob, fileName: `${baseName}.${targetFormat.toLowerCase()}` };
+}
+
+function isDocumentFormat(fmt: string): boolean {
+  return ['PDF', 'DOCX', 'DOC', 'XLSX', 'XLS', 'TXT', 'MD', 'HTML', 'HTM', 'JSON', 'CSV', 'XML', 'EPUB', 'ZIP'].includes(fmt.toUpperCase());
 }
 
 /* ====================================================================
@@ -412,34 +421,10 @@ async function convertImage(
     return { blob, fileName: `${baseName}.tiff` };
   }
 
-  // Target: PDF
+  // Target: PDF (Searchable with invisible text layer via OCR)
   if (targetFormat === 'PDF') {
-    onProgress(40, 'Generating PDF document from image...');
-    const pdfDoc = await PDFDocument.create();
-    const imageBytes = new Uint8Array(await sourceFile.arrayBuffer());
-    
-    let embedImage;
-    if ((sourceFormat === 'JPG' || sourceFormat === 'JPEG') && !isHeic) {
-      embedImage = await pdfDoc.embedJpg(imageBytes);
-    } else {
-      // Convert to PNG first
-      const pngBlob = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
-      const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
-      embedImage = await pdfDoc.embedPng(pngBytes);
-    }
-
-    const page = pdfDoc.addPage([embedImage.width, embedImage.height]);
-    page.drawImage(embedImage, {
-      x: 0,
-      y: 0,
-      width: embedImage.width,
-      height: embedImage.height,
-    });
-
-    onProgress(90, 'Finalizing PDF output...');
-    const pdfBytes = await pdfDoc.save();
-    const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-    return { blob: pdfBlob, fileName: `${baseName}.pdf` };
+    const blob = await convertImageToSearchablePdf(sourceFile, sourceFormat, settings, isHeic, onProgress);
+    return { blob, fileName: `${baseName}.pdf` };
   }
 
   // Target: Standard image formats (PNG, JPG, WEBP, BMP, ICO)
@@ -1431,7 +1416,11 @@ async function extractTextFromPdf(file: File, onProgress: (p: number, t: string)
   return exportToTxtString(doc) || 'No readable text layer found in PDF (scanned or image-only document).';
 }
 
-async function renderPdfFirstPageToImage(file: File, mimeType: 'image/png' | 'image/jpeg', onProgress: (p: number, t: string) => void): Promise<Blob> {
+async function renderPdfFirstPageToImage(
+  file: File,
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
+  onProgress: (p: number, t: string) => void
+): Promise<Blob> {
   onProgress(30, 'Rendering PDF page into image canvas...');
   const pdfjs = await getPdfJsLib();
   const arrayBuffer = await file.arrayBuffer();
@@ -1447,6 +1436,12 @@ async function renderPdfFirstPageToImage(file: File, mimeType: 'image/png' | 'im
 
   if (!ctx) throw new Error('Could not create Canvas context for PDF rendering');
 
+  // Fill white background for non-alpha formats (JPEG)
+  if (mimeType === 'image/jpeg') {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
   const renderContext = {
     canvasContext: ctx,
     viewport: viewport,
@@ -1456,11 +1451,111 @@ async function renderPdfFirstPageToImage(file: File, mimeType: 'image/png' | 'im
   await page.render(renderContext).promise;
 
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error('Canvas export to blob failed'));
-    }, mimeType, 0.95);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas export to blob failed'));
+      },
+      mimeType,
+      0.95
+    );
   });
+}
+
+async function convertImageToSearchablePdf(
+  sourceFile: File,
+  sourceFormat: string,
+  settings: ConversionSettings,
+  isHeic: boolean,
+  onProgress: (percent: number, text: string) => void
+): Promise<Blob> {
+  onProgress(20, 'Подготовка изображения к созданию PDF...');
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+
+  const imageBytes = new Uint8Array(await sourceFile.arrayBuffer());
+  let embedImage;
+  let imgBlobForOcr: Blob = sourceFile;
+
+  if ((sourceFormat === 'JPG' || sourceFormat === 'JPEG') && !isHeic) {
+    embedImage = await pdfDoc.embedJpg(imageBytes);
+  } else {
+    // Convert to PNG first
+    const pngBlob = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
+    const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+    embedImage = await pdfDoc.embedPng(pngBytes);
+    imgBlobForOcr = pngBlob;
+  }
+
+  const imgWidth = embedImage.width;
+  const imgHeight = embedImage.height;
+  const page = pdfDoc.addPage([imgWidth, imgHeight]);
+
+  // 1. Draw base image
+  page.drawImage(embedImage, {
+    x: 0,
+    y: 0,
+    width: imgWidth,
+    height: imgHeight,
+  });
+
+  // 2. Perform OCR recognition to build transparent searchable text layer
+  try {
+    onProgress(45, 'Распознавание текста на изображении (OCR)...');
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('rus+eng');
+    
+    onProgress(60, 'Анализ координат слов и структуры текста...');
+    const ocrResult = await worker.recognize(imgBlobForOcr);
+    await worker.terminate();
+
+    const words = (ocrResult.data as any)?.words || [];
+    if (words.length > 0) {
+      onProgress(75, 'Наложение невидимого текстового слоя (Searchable PDF)...');
+      const fonts = await fetchCyrillicFonts();
+      let ocrFont: any = null;
+      if (fonts.regular) {
+        try {
+          ocrFont = await pdfDoc.embedFont(fonts.regular);
+        } catch (e) {
+          console.warn('Failed to embed custom font for OCR layer, using fallback:', e);
+        }
+      }
+
+      for (const w of words) {
+        const text = (w.text || '').trim();
+        if (!text) continue;
+        const bbox = w.bbox;
+        if (!bbox) continue;
+
+        // Image coordinates: (0,0) top-left
+        // PDF coordinates: (0,0) bottom-left
+        const boxX = bbox.x0;
+        const boxY = imgHeight - bbox.y1; // bottom of bounding box in PDF coords
+        const boxWidth = Math.max(1, bbox.x1 - bbox.x0);
+        const boxHeight = Math.max(1, bbox.y1 - bbox.y0);
+
+        const fontSize = Math.max(6, Math.round(boxHeight * 0.85));
+
+        if (ocrFont) {
+          page.drawText(text, {
+            x: boxX,
+            y: boxY + 1,
+            size: fontSize,
+            font: ocrFont,
+            color: rgb(0, 0, 0),
+            opacity: 0, // Fully invisible text for native selection & search
+          });
+        }
+      }
+    }
+  } catch (ocrErr) {
+    console.warn('OCR recognition skipped or failed, falling back to clean image PDF:', ocrErr);
+  }
+
+  onProgress(95, 'Сохранение Searchable PDF документа...');
+  const pdfBytes = await pdfDoc.save();
+  return new Blob([pdfBytes], { type: 'application/pdf' });
 }
 
 interface VectorPdfOptions {
@@ -2404,7 +2499,7 @@ async function convertDocument(
   const srcFmt = sourceFormat.toUpperCase();
   const tgtFmt = targetFormat.toUpperCase();
 
-  // 1. PDF SOURCE SPECIAL CASES: PDF -> JPG / PNG
+  // 1. PDF SOURCE SPECIAL CASES: PDF -> JPG / PNG / WEBP / BMP / ICO
   if (srcFmt === 'PDF' && (tgtFmt === 'JPG' || tgtFmt === 'JPEG')) {
     const blob = await renderPdfFirstPageToImage(file, 'image/jpeg', onProgress);
     return { blob, fileName: `${baseName}.jpg` };
@@ -2412,6 +2507,14 @@ async function convertDocument(
   if (srcFmt === 'PDF' && tgtFmt === 'PNG') {
     const blob = await renderPdfFirstPageToImage(file, 'image/png', onProgress);
     return { blob, fileName: `${baseName}.png` };
+  }
+  if (srcFmt === 'PDF' && tgtFmt === 'WEBP') {
+    const blob = await renderPdfFirstPageToImage(file, 'image/webp', onProgress);
+    return { blob, fileName: `${baseName}.webp` };
+  }
+  if (srcFmt === 'PDF' && (tgtFmt === 'BMP' || tgtFmt === 'ICO')) {
+    const blob = await renderPdfFirstPageToImage(file, 'image/png', onProgress);
+    return { blob, fileName: `${baseName}.${tgtFmt.toLowerCase()}` };
   }
 
   // 2. Excel (XLSX / XLS) Source Format Processing
@@ -2569,6 +2672,23 @@ async function convertDocument(
 </html>`;
       const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
       return { blob, fileName: `${baseName}.html` };
+    }
+
+    if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP') {
+      const [headerFooter, tableGrids] = await Promise.all([
+        extractDocxHeadersAndFootersHtml(file),
+        extractDocxTableGrids(file),
+      ]);
+      const pdfBlob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress, {
+        headerHtml: headerFooter.headerHtml,
+        footerHtml: headerFooter.footerHtml,
+        tableGrids,
+      });
+      const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
+      const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
+      const ext = (tgtFmt === 'JPEG') ? 'jpg' : tgtFmt.toLowerCase();
+      const imgBlob = await renderPdfFirstPageToImage(pdfFile, imageMime as any, onProgress);
+      return { blob: imgBlob, fileName: `${baseName}.${ext}` };
     }
 
     if (tgtFmt === 'PDF') {
@@ -2963,6 +3083,16 @@ async function convertDocument(
     const xml = convertTextToStructuredXml(textContent, baseName);
     const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
     return { blob, fileName: `${baseName}.xml` };
+  }
+
+  // 13. TARGET: Image from text/html document (PNG / JPG / WEBP)
+  if (isImageTarget(tgtFmt)) {
+    const pdfBlob = await renderTextToPdf(textContent, baseName, onProgress);
+    const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
+    const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
+    const ext = (tgtFmt === 'JPEG') ? 'jpg' : tgtFmt.toLowerCase();
+    const imgBlob = await renderPdfFirstPageToImage(pdfFile, imageMime as any, onProgress);
+    return { blob: imgBlob, fileName: `${baseName}.${ext}` };
   }
 
   // Default fallback text
