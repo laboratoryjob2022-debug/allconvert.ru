@@ -35,6 +35,19 @@ export const SeoConversionPage: React.FC<SeoConversionPageProps> = ({ seoData, o
     ]
   };
 
+  const faqLdJson = localizedSeo.faqs && localizedSeo.faqs.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': localizedSeo.faqs.map((faq) => ({
+      '@type': 'Question',
+      'name': faq.q,
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': faq.a
+      }
+    }))
+  } : null;
+
   return (
     <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 transition-colors">
       {/* Schema.org BreadcrumbList Microdata */}
@@ -42,6 +55,13 @@ export const SeoConversionPage: React.FC<SeoConversionPageProps> = ({ seoData, o
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLdJson) }}
       />
+      {/* Schema.org FAQPage Microdata */}
+      {faqLdJson && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLdJson) }}
+        />
+      )}
 
       {/* Description Section */}
       <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 mb-10 shadow-sm">

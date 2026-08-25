@@ -189,7 +189,7 @@ function getLocPath(rawPath, lang) {
   return `/${lang}${normalized}`;
 }
 
-function injectMetadata(html, { lang, title, description, keywords, canonicalUrl, bodyContent }) {
+function injectMetadata(html, { lang, title, description, keywords, canonicalUrl, bodyContent, additionalJsonLd }) {
   let output = html;
 
   // Replace or inject <html lang="...">
@@ -249,6 +249,9 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
   };
 
   const jsonLdScript = `<script type="application/ld+json">\n${JSON.stringify(jsonLdData, null, 2)}\n</script>`;
+  const additionalJsonLdScripts = (additionalJsonLd || []).map(
+    (item) => `<script type="application/ld+json">\n${JSON.stringify(item, null, 2)}\n</script>`
+  ).join('\n  ');
 
   const metaTags = [
     `<meta name="description" content="${escapeHtml(description)}">`,
@@ -264,7 +267,8 @@ function injectMetadata(html, { lang, title, description, keywords, canonicalUrl
     `<meta name="twitter:description" content="${escapeHtml(description)}">`,
     `<link rel="canonical" href="${escapeHtml(canonicalUrl)}">`,
     hreflangTags,
-    jsonLdScript
+    jsonLdScript,
+    additionalJsonLdScripts
   ].filter(Boolean).join('\n  ');
 
   output = output.replace('</head>', `  ${metaTags}\n</head>`);
@@ -518,7 +522,44 @@ function renderRouteContent(routePath, lang = 'ru') {
         <p>© ${new Date().getFullYear()} AllConvert.ru. ${escapeHtml(t.footerCopyright)}</p>
       </footer>
     `;
-    return { lang, title, description, keywords, canonicalUrl, bodyContent };
+
+    const additionalJsonLd = [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        'itemListElement': [
+          {
+            '@type': 'ListItem',
+            'position': 1,
+            'name': t.homeBreadcrumb || 'Главная',
+            'item': `https://allconvert.ru${getLocPath('/', lang)}`
+          },
+          {
+            '@type': 'ListItem',
+            'position': 2,
+            'name': `${seoData.fromFormat} → ${seoData.toFormat}`,
+            'item': canonicalUrl
+          }
+        ]
+      }
+    ];
+
+    if (seoData.faqs && seoData.faqs.length > 0) {
+      additionalJsonLd.push({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        'mainEntity': seoData.faqs.map(faq => ({
+          '@type': 'Question',
+          'name': faq.q,
+          'acceptedAnswer': {
+            '@type': 'Answer',
+            'text': faq.a
+          }
+        }))
+      });
+    }
+
+    return { lang, title, description, keywords, canonicalUrl, bodyContent, additionalJsonLd };
   }
 
   return {
