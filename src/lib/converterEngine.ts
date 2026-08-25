@@ -1469,91 +1469,87 @@ async function convertImageToSearchablePdf(
   isHeic: boolean,
   onProgress: (percent: number, text: string) => void
 ): Promise<Blob> {
-  onProgress(20, 'Подготовка изображения к созданию PDF...');
+  onProgress(15, 'Подготовка изображения к распознаванию...');
+
+  let imgBlobForOcr: Blob = sourceFile;
+
+  // Prepare standard PNG / JPG Blob if source is special format or HEIC
+  if (isHeic || !['PNG', 'JPG', 'JPEG', 'WEBP', 'BMP'].includes(sourceFormat.toUpperCase())) {
+    try {
+      imgBlobForOcr = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
+    } catch (e) {
+      console.warn('Canvas conversion failed, using source file directly:', e);
+      imgBlobForOcr = sourceFile;
+    }
+  }
+
+  // 1. Primary path: Native Tesseract Searchable PDF Renderer (Mode 3 Invisible text)
+  try {
+    onProgress(25, 'Инициализация OCR-движка распознавания текста...');
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('rus+eng', 1, {
+      logger: (m) => {
+        if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+          const pct = Math.min(92, Math.max(30, Math.round(30 + m.progress * 60)));
+          onProgress(pct, `Распознавание текста (OCR): ${Math.round(m.progress * 100)}%`);
+        } else if (m.status === 'loading language traineddata') {
+          onProgress(28, 'Загрузка языковых моделей (русский + английский)...');
+        }
+      },
+    });
+
+    onProgress(35, 'Распознавание текста и генерация Searchable PDF...');
+    const result = await worker.recognize(
+      imgBlobForOcr,
+      {
+        pdfTitle: sourceFile.name ? sourceFile.name.replace(/\.[^/.]+$/, '') : 'Document',
+      },
+      { pdf: true }
+    );
+
+    await worker.terminate();
+
+    if (result.data?.pdf && result.data.pdf.length > 0) {
+      onProgress(95, 'Сохранение Searchable PDF документа...');
+      const pdfArray = result.data.pdf instanceof Uint8Array ? result.data.pdf : new Uint8Array(result.data.pdf);
+      return new Blob([pdfArray], { type: 'application/pdf' });
+    }
+  } catch (ocrErr) {
+    console.warn('Tesseract native PDF generation failed, falling back to standard PDF wrapper:', ocrErr);
+  }
+
+  // 2. Fallback path: Embed image directly into standard PDFDocument
+  onProgress(85, 'Генерация PDF документа...');
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 
-  const imageBytes = new Uint8Array(await sourceFile.arrayBuffer());
   let embedImage;
-  let imgBlobForOcr: Blob = sourceFile;
-
-  if ((sourceFormat === 'JPG' || sourceFormat === 'JPEG') && !isHeic) {
-    embedImage = await pdfDoc.embedJpg(imageBytes);
+  const rawBytes = new Uint8Array(await imgBlobForOcr.arrayBuffer());
+  if (sourceFormat === 'JPG' || sourceFormat === 'JPEG') {
+    try {
+      embedImage = await pdfDoc.embedJpg(rawBytes);
+    } catch {
+      const pngBlob = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
+      embedImage = await pdfDoc.embedPng(new Uint8Array(await pngBlob.arrayBuffer()));
+    }
   } else {
-    // Convert to PNG first
-    const pngBlob = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
-    const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
-    embedImage = await pdfDoc.embedPng(pngBytes);
-    imgBlobForOcr = pngBlob;
+    try {
+      embedImage = await pdfDoc.embedPng(rawBytes);
+    } catch {
+      const pngBlob = await convertImageToCanvasBlob(sourceFile, 'image/png', 1.0, settings);
+      embedImage = await pdfDoc.embedPng(new Uint8Array(await pngBlob.arrayBuffer()));
+    }
   }
 
-  const imgWidth = embedImage.width;
-  const imgHeight = embedImage.height;
-  const page = pdfDoc.addPage([imgWidth, imgHeight]);
-
-  // 1. Draw base image
+  const page = pdfDoc.addPage([embedImage.width, embedImage.height]);
   page.drawImage(embedImage, {
     x: 0,
     y: 0,
-    width: imgWidth,
-    height: imgHeight,
+    width: embedImage.width,
+    height: embedImage.height,
   });
 
-  // 2. Perform OCR recognition to build transparent searchable text layer
-  try {
-    onProgress(45, 'Распознавание текста на изображении (OCR)...');
-    const { createWorker } = await import('tesseract.js');
-    const worker = await createWorker('rus+eng');
-    
-    onProgress(60, 'Анализ координат слов и структуры текста...');
-    const ocrResult = await worker.recognize(imgBlobForOcr);
-    await worker.terminate();
-
-    const words = (ocrResult.data as any)?.words || [];
-    if (words.length > 0) {
-      onProgress(75, 'Наложение невидимого текстового слоя (Searchable PDF)...');
-      const fonts = await fetchCyrillicFonts();
-      let ocrFont: any = null;
-      if (fonts.regular) {
-        try {
-          ocrFont = await pdfDoc.embedFont(fonts.regular);
-        } catch (e) {
-          console.warn('Failed to embed custom font for OCR layer, using fallback:', e);
-        }
-      }
-
-      for (const w of words) {
-        const text = (w.text || '').trim();
-        if (!text) continue;
-        const bbox = w.bbox;
-        if (!bbox) continue;
-
-        // Image coordinates: (0,0) top-left
-        // PDF coordinates: (0,0) bottom-left
-        const boxX = bbox.x0;
-        const boxY = imgHeight - bbox.y1; // bottom of bounding box in PDF coords
-        const boxWidth = Math.max(1, bbox.x1 - bbox.x0);
-        const boxHeight = Math.max(1, bbox.y1 - bbox.y0);
-
-        const fontSize = Math.max(6, Math.round(boxHeight * 0.85));
-
-        if (ocrFont) {
-          page.drawText(text, {
-            x: boxX,
-            y: boxY + 1,
-            size: fontSize,
-            font: ocrFont,
-            color: rgb(0, 0, 0),
-            opacity: 0, // Fully invisible text for native selection & search
-          });
-        }
-      }
-    }
-  } catch (ocrErr) {
-    console.warn('OCR recognition skipped or failed, falling back to clean image PDF:', ocrErr);
-  }
-
-  onProgress(95, 'Сохранение Searchable PDF документа...');
+  onProgress(95, 'Сохранение PDF документа...');
   const pdfBytes = await pdfDoc.save();
   return new Blob([pdfBytes], { type: 'application/pdf' });
 }
