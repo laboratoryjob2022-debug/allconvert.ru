@@ -13,6 +13,7 @@ export interface SeoConversionRoute {
   steps: { step: number; title: string; text: string }[];
   features: { title: string; text: string }[];
   faqs: { q: string; a: string }[];
+  translations?: Record<string, Partial<Omit<SeoConversionRoute, 'slug' | 'fromFormat' | 'toFormat' | 'category' | 'translations'>>>;
 }
 
 export const POPULAR_SEO_ROUTES: Record<string, SeoConversionRoute> = {
@@ -437,7 +438,199 @@ export const POPULAR_SEO_ROUTES: Record<string, SeoConversionRoute> = {
         q: 'Безопасно ли конвертировать личные и служебные изображения?',
         a: 'Да, полностью безопасно. AllConvert работает на базе клиентских технологий WebAssembly — обработка каждого пикселя происходит исключительно в ОЗУ вашего устройства. Мы не передаем, не просматриваем и не сохраняем ваши файлы на серверах.'
       }
-    ]
+    ],
+    translations: {
+      en: {
+        title: 'Free Online AVIF to JPG Converter without Quality Loss | AllConvert',
+        metaDescription: 'Convert AVIF to JPG online in your browser. Fast, 100% private, and loss-free AVIF image conversion without uploading files to external servers.',
+        h1: 'Free Online AVIF to JPG Converter',
+        subtitle: 'Instantly convert modern AVIF images into universally supported JPG format directly in your browser. Zero quality loss, no server uploads, and complete privacy for your photos.',
+        descriptionParagraphs: [
+          'The AVIF (AV1 Image File Format) provides superior compression efficiency for websites, but creates compatibility issues outside modern browsers. Legacy Windows and macOS systems, office suites, popular image editors (including Photoshop, Figma, CorelDRAW), and marketplace upload forms often fail to open .avif files.',
+          'Converting AVIF to JPG solves compatibility permanently. AllConvert decodes your images locally on your device via WebAssembly, preserving original sharpness, color fidelity, and contrast without uploading raw files to external servers.'
+        ],
+        steps: [
+          { step: 1, title: 'Select or drop AVIF files', text: 'Add one or multiple AVIF images into the upload area.' },
+          { step: 2, title: 'Configure compression quality (optional)', text: 'By default, images convert at 100% maximum quality. Adjust the JPEG quality slider (50% to 100%) in settings if you need smaller file size.' },
+          { step: 3, title: 'Instantly download JPG', text: 'Save converted images individually or download all photos in a single ZIP archive.' }
+        ],
+        features: [
+          { title: '🔒 100% In-Browser Privacy', text: 'Processing is executed locally inside your browser memory. Your files never leave your device.' },
+          { title: '⚡ Fast Batch Processing', text: 'Convert dozens of files at once without limits and download them in a single ZIP archive.' },
+          { title: '🎯 High Quality Output', text: 'Preserves maximum detail, sharpness, and sRGB color profiles without compression artifacts.' }
+        ],
+        faqs: [
+          {
+            q: 'Why can\'t Photoshop or standard photo viewers open AVIF files?',
+            a: 'AVIF is built on the modern AV1 video codec. Most desktop software and image editors released prior to 2022 do not include a native decoder for this format. Converting to JPG ensures universal compatibility across all operating systems, apps, and devices.'
+          },
+          {
+            q: 'Why is the resulting JPG file larger than the original AVIF?',
+            a: 'AVIF uses highly advanced next-gen compression, making it 40–60% smaller than legacy JPEG at identical visual quality. When converting to standard JPG, the image is re-encoded into traditional JPEG blocks, which naturally requires more bytes to preserve clarity.'
+          },
+          {
+            q: 'What happens to transparency (alpha channel) during AVIF to JPG conversion?',
+            a: 'The JPG format specification does not support alpha-channel transparency. Any transparent or translucent pixels are automatically filled with a clean white background. To preserve transparency, convert your AVIF to PNG or WebP instead.'
+          },
+          {
+            q: 'Is it safe to convert private and sensitive images on AllConvert?',
+            a: 'Yes, 100% secure. AllConvert operates entirely in your device\'s local memory (RAM) via WebAssembly. Your photos and graphics are never sent across the network or stored on any server.'
+          }
+        ]
+      },
+      zh: {
+        title: '免费在线 AVIF 转 JPG 转换器 — 无损画质 | AllConvert',
+        metaDescription: '在浏览器中直接将 AVIF 转换为 JPG 图像。无需上传服务器，100% 本地隐私保护，保留高清细节与鲜艳色彩。',
+        h1: '免费在线 AVIF 转 JPG 转换器',
+        subtitle: '在浏览器中直接将现代 AVIF 图像瞬间转换为通用的 JPG 格式。无质量损失，无需上传到云端服务器，全面保护照片隐私。',
+        descriptionParagraphs: [
+          'AVIF（AV1 图像文件格式）为网页提供了极佳的压缩效率，但在现代浏览器之外却存在较多兼容性障碍。较旧的 Windows 和 macOS 系统、办公套件、主流图像处理软件（如旧版 Photoshop、Figma、CorelDRAW）以及各类电商平台与社交媒体往往无法打开或识别 .avif 格式。',
+          '将 AVIF 转换为 JPG 可彻底解决兼容性问题。AllConvert 借助 WebAssembly 技术直接在您的本地设备上解码图片，在无需将原图上传至任何外部服务器的前提下，完美保留原始清晰度、对比度和细节。'
+        ],
+        steps: [
+          { step: 1, title: '选择或拖放 AVIF 文件', text: '将单个或多个 AVIF 图像添加到上传区域。' },
+          { step: 2, title: '调整压缩质量（可选）', text: '默认采用 100% 最高画质转换。如需缩减文件大小，可在设置面板中自由调节 50%–100% 的 JPEG 质量滑块。' },
+          { step: 3, title: '瞬间下载 JPG 图像', text: '单独保存转换后的 JPG 图片，或一键打包下载包含全部文件的 ZIP 压缩包。' }
+        ],
+        features: [
+          { title: '🔒 100% 本地极速隐私', text: '所有转换均在浏览器内存中本地执行，文件绝不会上传或离开您的设备。' },
+          { title: '⚡ 批量高效转换', text: '一键同时转换数十张 AVIF 图片，无数量限制，并支持直接打包为 ZIP。' },
+          { title: '🎯 高清品质输出', text: '精确保留 sRGB 色彩配置文件与细腻半色调，避免压缩伪影。' }
+        ],
+        faqs: [
+          {
+            q: '为什么 Photoshop 和系统默认看图工具打不开 AVIF 文件？',
+            a: 'AVIF 格式基于下一代 AV1 视频编码标准构建。多数 2022 年以前发布的桌面软件和看图工具未内置该标准的解码器。转换为标准 JPG 格式后，可确保其在任何操作系统、应用程序和移动设备上无缝打开。'
+          },
+          {
+            q: '为什么转换出来的 JPG 文件体积可能比原始 AVIF 更大？',
+            a: 'AVIF 采用了领先的压缩算法，在同等视觉质量下比传统 JPEG 体积小 40%–60%。当转换为标准 JPG 时，图像会还原为经典 JPEG 编码结构，因此需要占用更多字节以维持画质清晰度。'
+          },
+          {
+            q: '将 AVIF 转换为 JPG 时透明背景会发生什么变化？',
+            a: 'JPG 格式规范本身不支持透明通道（Alpha 通道）。在转换过程中，透明与半透明区域会自动填充为纯白背景。如果您需要保留透明背景，请选择转换为 PNG 或 WebP 格式。'
+          },
+          {
+            q: '在 AllConvert 上转换私人照片安全吗？',
+            a: '是的，绝对安全。AllConvert 完全基于 WebAssembly 本地技术运行，所有像素处理均在您设备的本地内存中完成，绝不会向任何服务器传输或存储您的数据。'
+          }
+        ]
+      },
+      es: {
+        title: 'Convertidor de AVIF a JPG en línea gratis y sin pérdida de calidad | AllConvert',
+        metaDescription: 'Convierta AVIF a JPG gratis directamente en su navegador. Conversión rápida, 100% privada y sin enviar archivos a servidores externos.',
+        h1: 'Convertidor en línea gratuito de AVIF a JPG',
+        subtitle: 'Transforme instantáneamente imágenes AVIF en formato JPG universal en su navegador. Sin pérdida de calidad, sin esperas y con total privacidad de sus fotografías.',
+        descriptionParagraphs: [
+          'El formato AVIF ofrece una excelente compresión para la web, pero genera problemas de compatibilidad en sistemas operativos antiguos, suites de oficina y editores como Photoshop o CorelDRAW.',
+          'Convertir AVIF a JPG soluciona la incompatibilidad por completo. AllConvert procesa las imágenes localmente mediante WebAssembly conservando nitidez, colores y detalles originales sin enviar archivos a servidores.'
+        ],
+        steps: [
+          { step: 1, title: 'Seleccione o arrastre archivos AVIF', text: 'Añada una o varias imágenes AVIF a la zona de carga.' },
+          { step: 2, title: 'Ajuste la calidad de compresión (opcional)', text: 'Por defecto la calidad es del 100%. Puede ajustar el control de calidad JPEG (50% a 100%) en la configuración si necesita un archivo más ligero.' },
+          { step: 3, title: 'Descargue sus imágenes JPG', text: 'Guarde las fotos individualmente o descargue todas juntas en un archivo ZIP con un solo clic.' }
+        ],
+        features: [
+          { title: '🔒 100% Privacidad en navegador', text: 'El procesamiento se ejecuta localmente en la memoria de su navegador sin salir de su dispositivo.' },
+          { title: '⚡ Procesamiento en lote rápido', text: 'Convierta decenas de archivos a la vez sin límites y descárguelos en un archivo ZIP.' },
+          { title: '🎯 Calidad de salida superior', text: 'Conserva el máximo detalle, nitidez y perfiles de color sRGB sin artefactos.' }
+        ],
+        faqs: [
+          {
+            q: '¿Por qué Photoshop y los visores estándar no abren archivos AVIF?',
+            a: 'AVIF se basa en el códec de vídeo AV1. La mayoría de los programas anteriores a 2022 carecen de decodificador para este estándar. La conversión a JPG garantiza total compatibilidad en cualquier dispositivo o app.'
+          },
+          {
+            q: '¿Por qué el archivo JPG resultante puede pesar más que el AVIF original?',
+            a: 'AVIF utiliza algoritmos de compresión modernos hasta un 60% más eficientes que JPEG. Al guardar en JPG clásico, el archivo recupera la estructura tradicional requiriendo más bytes para mantener la nitidez.'
+          },
+          {
+            q: '¿Qué ocurre con la transparencia al convertir AVIF a JPG?',
+            a: 'El formato JPG no admite canal alfa (transparencia). Las áreas transparentes se sustituyen automáticamente por un fondo blanco. Si necesita conservar la transparencia, elija PNG o WebP.'
+          },
+          {
+            q: '¿Es seguro convertir fotos personales en AllConvert?',
+            a: 'Sí, totalmente seguro. La conversión se procesa exclusivamente en la memoria RAM de su equipo mediante WebAssembly, sin enviar sus imágenes a ningún servidor externo.'
+          }
+        ]
+      },
+      de: {
+        title: 'Kostenloser Online AVIF zu JPG Konverter ohne Qualitätsverlust | AllConvert',
+        metaDescription: 'Konvertieren Sie AVIF in JPG direkt im Browser. Schnell, 100% privat und ohne Datei-Upload auf externe Server.',
+        h1: 'Kostenloser Online AVIF zu JPG Konverter',
+        subtitle: 'Wandeln Sie moderne AVIF-Bilder blitzschnell im Browser in das universelle JPG-Format um. Ohne Qualitätsverlust und mit maximalem Datenschutz.',
+        descriptionParagraphs: [
+          'Das AVIF-Format bietet herausragende Kompression für das Web, verursacht jedoch Kompatibilitätsprobleme in älteren Betriebssystemen und Grafikprogrammen wie Photoshop oder CorelDRAW.',
+          'Die Konvertierung von AVIF in JPG löst dieses Problem dauerhaft. AllConvert verarbeitet Bilder lokal im Browser via WebAssembly unter Erhalt von Schärfe, Kontrast und Farbtreue.'
+        ],
+        steps: [
+          { step: 1, title: 'AVIF-Dateien auswählen oder ablegen', text: 'Fügen Sie einzelne oder mehrere AVIF-Dateien zum Upload-Bereich hinzu.' },
+          { step: 2, title: 'Kompressionsqualität anpassen (optional)', text: 'Standardmäßig ist 100% Qualität eingestellt. Über die Einstellungen können Sie den Schieberegler (50%–100%) anpassen.' },
+          { step: 3, title: 'JPG-Bilder herunterladen', text: 'Speichern Sie fertige JPG-Dateien einzeln oder laden Sie alle Bilder gesammelt in einer ZIP-Datei herunter.' }
+        ],
+        features: [
+          { title: '🔒 100% Browser-Datenschutz', text: 'Die Verarbeitung erfolgt lokal in Ihrem Browser. Ihre Dateien verlassen niemals Ihr Gerät.' },
+          { title: '⚡ Schnelle Stapelverarbeitung', text: 'Konvertieren Sie Dutzende von Dateien gleichzeitig ohne Einschränkungen und laden Sie diese als ZIP herunter.' },
+          { title: '🎯 Höchste Ausgabequalität', text: 'Bewahrt maximale Details, Schärfe und sRGB-Farbprofile ohne Kompressionsartefakte.' }
+        ],
+        faqs: [
+          {
+            q: 'Warum können Photoshop und Standard-Bildbetrachter keine AVIF-Dateien öffnen?',
+            a: 'AVIF basiert auf dem AV1-Videocodec. Die meisten vor 2022 veröffentlichten Programme enthalten keinen Decoder dafür. Die Umwandlung in JPG stellt universelle Kompatibilität sicher.'
+          },
+          {
+            q: 'Warum ist die resultierende JPG-Datei oft größer als die AVIF-Originaldatei?',
+            a: 'AVIF komprimiert bis zu 60% effizienter als klassisches JPEG. Beim Speichern als JPG werden traditionelle JPEG-Blöcke erzeugt, was mehr Bytes für dieselbe Bildschärfe erfordert.'
+          },
+          {
+            q: 'Was passiert mit transparenten Bereichen bei der AVIF zu JPG Konvertierung?',
+            a: 'Das JPG-Format unterstützt keine Transparenz (Alpha-Kanal). Transparente Bereiche werden automatisch mit weißem Hintergrund gefüllt. Wählen Sie PNG oder WebP, um Transparenz zu erhalten.'
+          },
+          {
+            q: 'Ist die Konvertierung persönlicher Bilder auf AllConvert sicher?',
+            a: 'Ja, absolut sicher. AllConvert arbeitet vollständig lokal im Arbeitsspeicher Ihres Geräts über WebAssembly. Es werden keinerlei Dateien an externe Server übertragen.'
+          }
+        ]
+      },
+      fr: {
+        title: 'Convertisseur AVIF en JPG en ligne gratuit sans perte de qualité | AllConvert',
+        metaDescription: 'Convertissez AVIF en JPG en ligne dans votre navigateur. Rapide, 100% privé et sans téléchargement sur des serveurs externes.',
+        h1: 'Convertisseur AVIF en JPG en ligne gratuit',
+        subtitle: 'Convertissez instantanément vos images AVIF au format universel JPG dans votre navigateur. Sans perte de qualité et avec une confidentialité totale.',
+        descriptionParagraphs: [
+          'Le format AVIF offre une excellente compression pour le web, mais pose des problèmes de compatibilité avec les anciens systèmes et logiciels tels que Photoshop ou CorelDRAW.',
+          'La conversion vers JPG résout définitivement ce problème. AllConvert traite vos images localement via WebAssembly en préservant netteté et couleurs sans envoyer de fichiers sur un serveur.'
+        ],
+        steps: [
+          { step: 1, title: 'Sélectionnez ou déposez des fichiers AVIF', text: 'Ajoutez une ou plusieurs images AVIF dans la zone de dépôt.' },
+          { step: 2, title: 'Ajustez la qualité de compression (optionnel)', text: 'La qualité par défaut est de 100%. Ajustez le curseur (50% à 100%) dans les paramètres si vous souhaitez réduire le poids du fichier.' },
+          { step: 3, title: 'Téléchargez vos images JPG', text: 'Enregistrez les photos individuellement ou téléchargez tout en une archive ZIP.' }
+        ],
+        features: [
+          { title: '🔒 100% Confidentialité locale', text: 'Le traitement est exécuté localement dans votre navigateur. Vos fichiers ne quittent jamais votre appareil.' },
+          { title: '⚡ Traitement en lot rapide', text: 'Convertissez des dizaines de fichiers à la fois sans limite et téléchargez-les dans une archive ZIP.' },
+          { title: '🎯 Qualité de sortie supérieure', text: 'Conserve le maximum de détails, de netteté et de profils de couleurs sans artefacts.' }
+        ],
+        faqs: [
+          {
+            q: 'Pourquoi Photoshop et les visionneuses standard n\'ouvrent-ils pas les fichiers AVIF ?',
+            a: 'AVIF est basé sur le codec vidéo moderne AV1. Les logiciels antérieurs à 2022 n\'intègrent pas ce décodeur. La conversion en JPG assure une compatibilité universelle.'
+          },
+          {
+            q: 'Pourquoi le fichier JPG obtenu est-il parfois plus lourd que l\'AVIF d\'origine ?',
+            a: 'AVIF offre une compression jusqu\'à 60% plus efficace que JPEG. La conversion vers le format classique JPG recrée des blocs JPEG traditionnels nécessitant plus d\'octets.'
+          },
+          {
+            q: 'Que devient la transparence lors de la conversion AVIF vers JPG ?',
+            a: 'Le format JPG ne supporte pas la transparence (canal alpha). Les zones transparentes sont automatiquement remplacées par un fond blanc. Pour conserver la transparence, choisissez PNG ou WebP.'
+          },
+          {
+            q: 'Est-il sécurisé de convertir des images personnelles sur AllConvert ?',
+            a: 'Oui, totalement sûr. AllConvert fonctionne exclusivement dans la mémoire vive de votre appareil via WebAssembly. Aucun fichier n\'est transmis sur un serveur.'
+          }
+        ]
+      }
+    }
   },
   'png-to-ico': {
     slug: 'png-to-ico',
@@ -848,17 +1041,18 @@ export function getLocalizedSeoRoute(route: SeoConversionRoute, langCode: string
   };
 
   const localized = templates[lang] || templates.en;
+  const custom = route.translations?.[lang];
 
   return {
     ...route,
-    title: localized.title,
-    metaDescription: localized.metaDescription,
-    h1: localized.h1,
-    subtitle: localized.subtitle,
-    descriptionParagraphs: localized.descriptionParagraphs,
-    steps: localized.steps,
-    features: localized.features,
-    faqs: localized.faqs
+    title: custom?.title ?? localized.title,
+    metaDescription: custom?.metaDescription ?? localized.metaDescription,
+    h1: custom?.h1 ?? localized.h1,
+    subtitle: custom?.subtitle ?? localized.subtitle,
+    descriptionParagraphs: custom?.descriptionParagraphs ?? localized.descriptionParagraphs,
+    steps: custom?.steps ?? localized.steps,
+    features: custom?.features ?? localized.features,
+    faqs: custom?.faqs ?? localized.faqs
   };
 }
 
