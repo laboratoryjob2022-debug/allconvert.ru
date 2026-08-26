@@ -4,14 +4,20 @@ import XLSX from 'xlsx-js-style';
 import { ConversionSettings, FileItem } from '../types/converter';
 import {
   parsePdfPageToBlocks,
+  parseSpatialItemsToBlocks,
   buildStructuredDocument,
   exportToXlsxBuffer,
   exportToCsvString,
   exportToHtmlString,
+  exportToXmlString,
   exportToTxtString,
   exportToDocxBuffer,
   StructuredDocument,
-  RawPdfItem
+  RawPdfItem,
+  RawSpatialItem,
+  serializeDocumentModelToMeta,
+  tryDeserializeDocumentModelFromMeta,
+  DocumentBlock
 } from './documentModel';
 import * as lamejs from 'lamejs';
 // @ts-ignore
@@ -275,21 +281,19 @@ export async function convertFileClientSide(
     return await convertVideo(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
-  // If source is a document format or document category, always route to convertDocument
-  if (category === 'document' || isDocumentFormat(detectedFormat)) {
+  // 1. Documents, spreadsheets and structured text targets (including OCR from images)
+  if (category === 'document' || isDocumentFormat(detectedFormat) || isDocumentTargetFormat(targetFormat)) {
     return await convertDocument(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
-  if (category === 'image' || isImageTarget(targetFormat)) {
+  // 2. Images and Searchable PDF / raster PDF
+  if (category === 'image' || isImageTarget(targetFormat) || targetFormat.toUpperCase() === 'PDF') {
     return await convertImage(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
+  // 3. Audio conversions and extraction
   if (category === 'audio' || targetFormat === 'MP3_EXTRACT' || isAudioTarget(targetFormat)) {
     return await convertAudio(file, detectedFormat, targetFormat, settings, baseName, onProgress);
-  }
-
-  if (isDocumentTarget(targetFormat)) {
-    return await convertDocument(file, detectedFormat, targetFormat, settings, baseName, onProgress);
   }
 
   // Fallback generic conversion
@@ -301,6 +305,10 @@ export async function convertFileClientSide(
 
 function isDocumentFormat(fmt: string): boolean {
   return ['PDF', 'DOCX', 'DOC', 'XLSX', 'XLS', 'TXT', 'MD', 'HTML', 'HTM', 'JSON', 'CSV', 'XML', 'EPUB', 'ZIP'].includes(fmt.toUpperCase());
+}
+
+function isDocumentTargetFormat(fmt: string): boolean {
+  return ['DOCX', 'DOC', 'XLSX', 'XLS', 'TXT', 'MD', 'HTML', 'HTM', 'JSON', 'CSV', 'XML', 'EPUB'].includes(fmt.toUpperCase());
 }
 
 /* ====================================================================
@@ -1377,6 +1385,22 @@ async function parsePdfToStructuredDocument(file: File, baseName: string, onProg
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
   const pdfDocument = await loadingTask.promise;
+
+  // 1. Check embedded SDM metadata for 100% round-trip lossless fidelity
+  try {
+    const metaObj = await pdfDocument.getMetadata();
+    const subject = metaObj?.info?.Subject || metaObj?.metadata?.get?.('dc:description');
+    if (subject && typeof subject === 'string') {
+      const recoveredDoc = tryDeserializeDocumentModelFromMeta(subject);
+      if (recoveredDoc) {
+        onProgress(100, 'Восстановлена 100% точная исходная структура документа из метаданных...');
+        return recoveredDoc;
+      }
+    }
+  } catch (mErr) {
+    console.warn('Could not read PDF metadata for SDM:', mErr);
+  }
+
   const numPages = pdfDocument.numPages;
   const pagesBlocks = [];
 
@@ -1409,6 +1433,402 @@ async function parsePdfToStructuredDocument(file: File, baseName: string, onProg
   }
 
   return buildStructuredDocument(pagesBlocks, baseName);
+}
+
+async function parseImageOcrToStructuredDocument(
+  file: File,
+  baseName: string,
+  onProgress: (p: number, t: string) => void
+): Promise<StructuredDocument> {
+  onProgress(20, 'Распознавание структуры и таблиц документа (OCR)...');
+  const { createWorker } = await import('tesseract.js');
+  const worker = await createWorker('rus+eng', 1, {
+    logger: (m) => {
+      if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+        const pct = Math.min(85, Math.max(25, Math.round(25 + m.progress * 60)));
+        onProgress(pct, `Распознавание структуры и таблиц: ${Math.round(m.progress * 100)}%`);
+      }
+    },
+  });
+
+  const result = await worker.recognize(file);
+  await worker.terminate();
+
+  const data = (result.data || {}) as any;
+  const blocks: DocumentBlock[] = [];
+  const recognizedText = data.text || '';
+  const ocrLines = data.lines || [];
+
+  // 1. Collect all valid words with spatial bbox
+  interface SpatialWord {
+    text: string;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    w: number;
+    h: number;
+  }
+
+  const allWords: SpatialWord[] = [];
+  if (data.words && data.words.length > 0) {
+    for (const w of data.words) {
+      const t = (w.text || '').trim();
+      if (!t) continue;
+      const b = w.bbox || { x0: 0, y0: 0, x1: 0, y1: 0 };
+      allWords.push({
+        text: t,
+        x0: b.x0,
+        y0: b.y0,
+        x1: b.x1,
+        y1: b.y1,
+        w: b.x1 - b.x0,
+        h: b.y1 - b.y0,
+      });
+    }
+  }
+
+  // 2. Cluster words into visual horizontal lines (tolerance: height / 2 or 10px)
+  interface VisualLine {
+    y: number;
+    y0: number;
+    y1: number;
+    words: SpatialWord[];
+    text: string;
+    isMultiCol: boolean;
+    columns: string[];
+    isTableHeader?: boolean;
+    isTableData?: boolean;
+  }
+
+  const visualLines: VisualLine[] = [];
+
+  // Sort all words top-to-bottom, then left-to-right
+  allWords.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+
+  for (const word of allWords) {
+    // Find matching line where word vertically overlaps significantly
+    const matchingLine = visualLines.find(
+      (l) => Math.abs(l.y0 - word.y0) <= 12 || (word.y0 >= l.y0 - 6 && word.y0 <= l.y1 + 6)
+    );
+
+    if (matchingLine) {
+      matchingLine.words.push(word);
+      matchingLine.y0 = Math.min(matchingLine.y0, word.y0);
+      matchingLine.y1 = Math.max(matchingLine.y1, word.y1);
+      matchingLine.y = matchingLine.y0;
+    } else {
+      visualLines.push({
+        y: word.y0,
+        y0: word.y0,
+        y1: word.y1,
+        words: [word],
+        text: '',
+        isMultiCol: false,
+        columns: [],
+      });
+    }
+  }
+
+  // Fallback to ocrLines if allWords was empty
+  if (visualLines.length === 0 && ocrLines.length > 0) {
+    for (const lineObj of ocrLines) {
+      const raw = (lineObj.text || '').trim();
+      if (!raw) continue;
+      const b = lineObj.bbox || { x0: 0, y0: 0, x1: 100, y1: 20 };
+      const words = (lineObj.words || []).map((w) => ({
+        text: (w.text || '').trim(),
+        x0: w.bbox?.x0 || 0,
+        y0: w.bbox?.y0 || b.y0,
+        x1: w.bbox?.x1 || 10,
+        y1: w.bbox?.y1 || b.y1,
+        w: (w.bbox?.x1 || 10) - (w.bbox?.x0 || 0),
+        h: (w.bbox?.y1 || b.y1) - (w.bbox?.y0 || b.y0),
+      })).filter((w) => w.text.length > 0);
+
+      visualLines.push({
+        y: b.y0,
+        y0: b.y0,
+        y1: b.y1,
+        words,
+        text: raw,
+        isMultiCol: false,
+        columns: [],
+      });
+    }
+  }
+
+  // Sort visual lines strictly top-to-bottom
+  visualLines.sort((a, b) => a.y - b.y);
+
+  // 3. Process each line: sort words left-to-right, construct text, and detect multi-column gaps
+  for (const line of visualLines) {
+    line.words.sort((a, b) => a.x0 - b.x0);
+    line.text = line.words.map((w) => w.text).join(' ').trim();
+
+    // Check for explicit delimiters (tabs, pipes, semicolons)
+    if (line.text.includes('\t')) {
+      line.columns = line.text.split('\t').map((c) => c.trim()).filter(Boolean);
+    } else if (line.text.includes(' | ') || line.text.includes(' ; ')) {
+      line.columns = line.text.split(/\s+[|;]\s+/).map((c) => c.trim()).filter(Boolean);
+    } else if (line.words.length >= 2) {
+      // Analyze spatial gaps between consecutive words
+      const detectedCols: string[] = [];
+      let currentCell = line.words[0].text;
+      let hasSignificantGap = false;
+
+      for (let wIdx = 1; wIdx < line.words.length; wIdx++) {
+        const prevW = line.words[wIdx - 1];
+        const currW = line.words[wIdx];
+        const gap = currW.x0 - prevW.x1;
+
+        // An inter-column gap in standard scanned tables is usually >= 18-25px
+        if (gap >= 20) {
+          detectedCols.push(currentCell.trim());
+          currentCell = currW.text;
+          hasSignificantGap = true;
+        } else {
+          currentCell += ' ' + currW.text;
+        }
+      }
+      if (currentCell.trim()) detectedCols.push(currentCell.trim());
+
+      if (hasSignificantGap && detectedCols.length >= 2) {
+        line.columns = detectedCols;
+      }
+    }
+
+    // Identify Table Headers: "№", "Наименование", "методики", "Результаты", "Примечание", etc.
+    const lowerText = line.text.toLowerCase();
+    const isHeaderWords =
+      (lowerText.includes('наименование') ||
+        lowerText.includes('результат') ||
+        lowerText.includes('методик') ||
+        lowerText.includes('примечание') ||
+        lowerText.includes('показател') ||
+        lowerText.includes('норма')) &&
+      (line.text.startsWith('№') || line.columns.length >= 2 || line.words.length >= 3);
+
+    // Identify Table Data Rows: "1.", "2.", "3.", "1 ", "2 ", or lines with columns
+    const isDataNumbered =
+      /^(\d+[\.\)]|\d+\s+[A-ZА-ЯЁ]|\:\s*[А-ЯA-Z])/.test(line.text) &&
+      !lowerText.startsWith('протокол') &&
+      !lowerText.startsWith('дата') &&
+      !lowerText.startsWith('партия');
+
+    line.isTableHeader = isHeaderWords;
+    line.isTableData = isDataNumbered || line.columns.length >= 2;
+    line.isMultiCol = line.columns.length >= 2;
+  }
+
+  // 4. Group lines into Table Blocks or Headings / Paragraphs
+  let currentTableRows: string[][] = [];
+  let tableHeaderCols: string[] = [];
+  let tableColAnchors: { minX: number; maxX: number }[] = [];
+
+  const flushActiveTable = () => {
+    if (currentTableRows.length > 0 || tableHeaderCols.length > 0) {
+      let finalHeaders = tableHeaderCols;
+      let dataRows = currentTableRows;
+
+      if (finalHeaders.length === 0 && dataRows.length > 0) {
+        finalHeaders = dataRows[0];
+        dataRows = dataRows.slice(1);
+      }
+
+      // If header is a single combined string, try splitting standard protocol headers
+      if (finalHeaders.length === 1 && finalHeaders[0].includes('Наименование')) {
+        const headerStr = finalHeaders[0];
+        const extracted: string[] = [];
+        if (headerStr.startsWith('№')) extracted.push('№');
+        if (headerStr.includes('Наименование')) extracted.push('Наименование испытания');
+        if (headerStr.includes('методики')) extracted.push('№ методики');
+        if (headerStr.includes('Результат')) extracted.push('Результаты испытаний');
+        if (headerStr.includes('Примечание')) extracted.push('Примечание');
+        if (extracted.length >= 2) {
+          finalHeaders = extracted;
+        }
+      }
+
+      // Determine max columns
+      let maxCols = Math.max(
+        finalHeaders.length,
+        ...dataRows.map((r) => r.length),
+        2
+      );
+
+      while (finalHeaders.length < maxCols) finalHeaders.push(`Колонка ${finalHeaders.length + 1}`);
+
+      const normalizedData = (dataRows.length > 0 ? dataRows : [finalHeaders]).map((r) => {
+        const padded = [...r];
+        while (padded.length < maxCols) padded.push('');
+        return padded;
+      });
+
+      const normalizedRows = normalizedData.map((r) =>
+        r.map((c) => ({
+          text: c,
+          rawValue: isNaN(Number(c.replace(/\s+/g, '').replace(',', '.')))
+            ? c
+            : Number(c.replace(/\s+/g, '').replace(',', '.')),
+          isHeader: false,
+        }))
+      );
+
+      const matrix = [finalHeaders, ...normalizedData];
+
+      blocks.push({
+        type: 'table',
+        y: blocks.length,
+        headers: finalHeaders,
+        rows: normalizedRows,
+        matrix,
+      });
+
+      currentTableRows = [];
+      tableHeaderCols = [];
+      tableColAnchors = [];
+    }
+  };
+
+  let insideTableMode = false;
+
+  for (let i = 0; i < visualLines.length; i++) {
+    const line = visualLines[i];
+    if (!line.text) continue;
+
+    // Check if line triggers table header
+    if (line.isTableHeader) {
+      flushActiveTable();
+      insideTableMode = true;
+
+      // Extract header column names
+      if (line.columns.length >= 2) {
+        tableHeaderCols = line.columns;
+      } else {
+        // Parse "№ Наименование испытания № методики Результаты испытаний Примечание"
+        const parts: string[] = [];
+        const t = line.text;
+        const colNames = ['№', 'Наименование испытания', '№ методики', 'Результаты испытаний', 'Примечание'];
+        let matched = false;
+        if (t.includes('Наименование') && t.includes('Результат')) {
+          parts.push('№');
+          parts.push('Наименование испытания');
+          if (t.includes('методики')) parts.push('№ методики');
+          parts.push('Результаты испытаний');
+          if (t.includes('Примечание')) parts.push('Примечание');
+          tableHeaderCols = parts;
+          matched = true;
+        }
+        if (!matched) {
+          tableHeaderCols = line.words.length >= 2 ? line.words.map((w) => w.text) : [line.text];
+        }
+      }
+      continue;
+    }
+
+    // Inside table mode: collect table data rows
+    if (insideTableMode) {
+      // Check if table ends (e.g. "Примечание - ", "Инженер", "Климатические условия", "Подпись")
+      const isTableEnd =
+        /^(Примечание\s*[-–:]|Климатические|Инженер|Ведущий|Начальник|Подпись|Заключение|Директор|Утверждаю)\b/i.test(
+          line.text
+        ) && !line.text.startsWith('№') && !/^(\d+[\.\)])/.test(line.text);
+
+      if (isTableEnd) {
+        flushActiveTable();
+        insideTableMode = false;
+      } else {
+        // Add row to table
+        if (line.columns.length >= 2) {
+          currentTableRows.push(line.columns);
+        } else if (line.isTableData || /^(\d+[\.\)]|\:\s*[A-ZА-ЯЁ])/.test(line.text)) {
+          // If single line but has multiple words, attempt spatial or token division
+          if (line.words.length >= 3 && tableHeaderCols.length >= 2) {
+            // Distribute words into columns based on count or numbers
+            const numMatch = line.text.match(/^(\d+[\.\)]|\:|\d+)\s*(.*)/);
+            if (numMatch) {
+              const rowNum = numMatch[1];
+              const rest = numMatch[2];
+              // Check if rest contains ГОСТ or methodology
+              const gostMatch = rest.match(/(ГОСТ\s*[\d\.\-]+|ЭМ[^\s]+|3M[^\s]+)/i);
+              if (gostMatch) {
+                const gostIdx = rest.indexOf(gostMatch[0]);
+                const testName = rest.substring(0, gostIdx).trim();
+                const restAfterGost = rest.substring(gostIdx).trim();
+                currentTableRows.push([rowNum, testName, gostMatch[0], restAfterGost]);
+              } else {
+                currentTableRows.push([rowNum, rest]);
+              }
+            } else {
+              currentTableRows.push([line.text]);
+            }
+          } else {
+            currentTableRows.push([line.text]);
+          }
+        } else {
+          // Empty or non-matching line -> if consecutive non-matching lines, end table
+          if (currentTableRows.length > 0) {
+            // Could be multi-line text inside current row
+            const lastRow = currentTableRows[currentTableRows.length - 1];
+            if (lastRow.length > 1) {
+              lastRow[1] = lastRow[1] + ' ' + line.text;
+            } else {
+              currentTableRows.push([line.text]);
+            }
+          }
+        }
+        continue;
+      }
+    }
+
+    // Standalone multi-column line not marked as header
+    if (line.isMultiCol && line.columns.length >= 2) {
+      currentTableRows.push(line.columns);
+      continue;
+    }
+
+    // Not inside table -> Heading or Paragraph
+    flushActiveTable();
+
+    const isHeading =
+      line.text.length < 80 &&
+      (line.text.startsWith('#') ||
+        /^(Протокол|Акт|Паспорт|Сертификат|Заключение|Раздел|Глава|Section|Chapter)\b/i.test(line.text) ||
+        /^Результаты\s+испытаний\b/i.test(line.text) ||
+        /^(\d+\.|\d+\))\s+[A-ZА-ЯЁ]/.test(line.text));
+
+    if (isHeading) {
+      blocks.push({
+        type: 'heading',
+        y: blocks.length,
+        level: line.text.startsWith('Протокол') ? 1 : 2,
+        text: line.text.replace(/^#+\s*/, ''),
+      });
+    } else {
+      blocks.push({
+        type: 'paragraph',
+        y: blocks.length,
+        text: line.text,
+      });
+    }
+  }
+
+  flushActiveTable();
+
+  // Fallback: If no blocks extracted, split recognized text line by line
+  if (blocks.length === 0 && recognizedText.trim()) {
+    const rawLines = recognizedText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    for (const l of rawLines) {
+      blocks.push({
+        type: 'paragraph',
+        y: blocks.length,
+        text: l,
+      });
+    }
+  }
+
+  return buildStructuredDocument([blocks], baseName);
 }
 
 async function extractTextFromPdf(file: File, onProgress: (p: number, t: string) => void): Promise<string> {
@@ -1558,6 +1978,7 @@ interface VectorPdfOptions {
   headerHtml?: string;
   footerHtml?: string;
   tableGrids?: number[][];
+  docModel?: StructuredDocument;
 }
 
 async function renderHtmlToPdfBlob(
@@ -1889,6 +2310,18 @@ async function renderHtmlToPdfBlob(
         const footerText = (footerDoc.body.textContent || '').trim();
         if (footerText) {
           drawParagraph(footerText, false, 8, 2, 'center');
+        }
+      }
+
+      // Embed structured document model metadata for 100% round-trip lossless conversions
+      if (options?.docModel) {
+        try {
+          const metaString = serializeDocumentModelToMeta(options.docModel);
+          if (metaString) {
+            pdfDoc.setSubject(metaString);
+          }
+        } catch (mErr) {
+          console.warn('Failed to embed SDM meta in PDF:', mErr);
         }
       }
 
@@ -2299,6 +2732,108 @@ async function extractTextFromDocx(file: File, onProgress: (p: number, t: string
   return parseHtmlToStructuredText(result.value || '');
 }
 
+async function extractDocxToStructuredDocument(file: File, baseName: string, onProgress: (p: number, t: string) => void): Promise<StructuredDocument> {
+  onProgress(25, 'Извлечение таблиц и текста из DOCX...');
+  const [docHtml, tableGrids] = await Promise.all([
+    extractHtmlFromDocx(file, onProgress),
+    extractDocxTableGrids(file),
+  ]);
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(docHtml, 'text/html');
+  const blocks: DocumentBlock[] = [];
+
+  const processNode = (node: Element) => {
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'table') {
+      const rows = Array.from(node.querySelectorAll('tr'));
+      if (rows.length === 0) return;
+
+      const rawGrid: string[][] = [];
+      let maxCols = 0;
+
+      for (const tr of rows) {
+        const cells = Array.from(tr.children).filter(c => c.tagName.toLowerCase() === 'td' || c.tagName.toLowerCase() === 'th');
+        const rowVals = cells.map(c => {
+          const clone = c.cloneNode(true) as Element;
+          clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+          return (clone.textContent || '').trim();
+        });
+        if (rowVals.length > maxCols) maxCols = rowVals.length;
+        rawGrid.push(rowVals);
+      }
+
+      if (maxCols === 0) return;
+      const headers = rawGrid.length > 0 ? rawGrid[0] : [];
+      while (headers.length < maxCols) headers.push(`Колонка ${headers.length + 1}`);
+
+      const dataRows = rawGrid.slice(1);
+      const rowsFormatted = dataRows.map(r => {
+        const padded = [...r];
+        while (padded.length < maxCols) padded.push('');
+        return padded.map(c => ({
+          text: c,
+          rawValue: isNaN(Number(c.replace(/\s+/g, '').replace(',', '.'))) ? c : Number(c.replace(/\s+/g, '').replace(',', '.')),
+          isHeader: false
+        }));
+      });
+
+      blocks.push({
+        type: 'table',
+        y: blocks.length,
+        headers,
+        rows: rowsFormatted.length > 0 ? rowsFormatted : [headers.map(h => ({ text: h, rawValue: h, isHeader: true }))],
+        matrix: [headers, ...dataRows.map(r => {
+          const padded = [...r];
+          while (padded.length < maxCols) padded.push('');
+          return padded;
+        })]
+      });
+    } else if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+      const text = (node.textContent || '').trim();
+      if (text) {
+        blocks.push({
+          type: 'heading',
+          y: blocks.length,
+          level: tag === 'h1' ? 1 : 2,
+          text
+        });
+      }
+    } else if (tag === 'p' || tag === 'li') {
+      if (node.closest('table')) return;
+      const text = (node.textContent || '').trim();
+      if (text) {
+        const isHeading = text.length < 80 && /^(Протокол|Акт|Паспорт|Сертификат|Заключение)\b/i.test(text);
+        if (isHeading) {
+          blocks.push({
+            type: 'heading',
+            y: blocks.length,
+            level: 1,
+            text
+          });
+        } else {
+          blocks.push({
+            type: 'paragraph',
+            y: blocks.length,
+            text,
+            isBold: !!node.querySelector('strong, b')
+          });
+        }
+      }
+    } else {
+      for (const child of Array.from(node.children)) {
+        processNode(child);
+      }
+    }
+  };
+
+  for (const child of Array.from(doc.body.children)) {
+    processNode(child);
+  }
+
+  return buildStructuredDocument([blocks], baseName);
+}
+
 async function extractDocxTableGrids(file: File): Promise<number[][]> {
   try {
     const JSZip = (await import('jszip')).default;
@@ -2444,35 +2979,91 @@ async function extractHtmlFromDocx(file: File, onProgress: (p: number, t: string
 
 async function createDocxFromText(text: string, baseName: string, onProgress: (p: number, t: string) => void): Promise<Blob> {
   onProgress(60, 'Generating Microsoft Word .docx...');
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } = await import('docx');
 
-  const paragraphs: any[] = [
-    new Paragraph({
-      text: baseName,
-      heading: HeadingLevel.HEADING_1,
-      spacing: { after: 200 },
-    }),
-  ];
-
+  const children: any[] = [];
   const lines = text.split('\n');
-  for (const line of lines) {
-    if (!line.trim()) {
-      paragraphs.push(new Paragraph({ spacing: { after: 100 } }));
-    } else {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: line, size: 24, font: 'Calibri' })],
-          spacing: { after: 120 },
+  let inTable = false;
+  let currentTableRows: any[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isTabular = line.includes('\t') || (line.includes(';') && (line.split(';').length >= 3 || line.startsWith('№')));
+
+    if (isTabular) {
+      if (!inTable) {
+        inTable = true;
+        currentTableRows = [];
+      }
+      const sep = line.includes('\t') ? '\t' : ';';
+      const cells = line.split(sep).map(c => c.trim());
+      const isHeader = currentTableRows.length === 0 && (cells.some(c => c === '№' || c.includes('Наименование') || c.includes('Результат') || c.includes('Метод')));
+
+      currentTableRows.push(
+        new TableRow({
+          tableHeader: isHeader,
+          children: cells.map(c => new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: c, bold: isHeader, size: 20, font: 'Calibri' })] })],
+            shading: isHeader ? { fill: 'F1F5F9' } : undefined,
+          }))
         })
       );
+    } else {
+      if (inTable && currentTableRows.length > 0) {
+        children.push(
+          new Table({
+            rows: currentTableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+              left: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+              right: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+              insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+              insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+            }
+          })
+        );
+        children.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+        inTable = false;
+        currentTableRows = [];
+      }
+
+      if (!line.trim()) {
+        children.push(new Paragraph({ spacing: { after: 100 } }));
+      } else {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: line, size: 22, font: 'Calibri' })],
+            spacing: { after: 120 },
+          })
+        );
+      }
     }
+  }
+
+  if (inTable && currentTableRows.length > 0) {
+    children.push(
+      new Table({
+        rows: currentTableRows,
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+          left: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+          right: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+          insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
+        }
+      })
+    );
   }
 
   const doc = new Document({
     sections: [
       {
         properties: {},
-        children: paragraphs,
+        children,
       },
     ],
   });
@@ -2494,6 +3085,48 @@ async function convertDocument(
 
   const srcFmt = sourceFormat.toUpperCase();
   const tgtFmt = targetFormat.toUpperCase();
+
+  // 0. IMAGE SOURCE HANDLING: JPG / PNG / WEBP / BMP / TIFF -> DOCX / XLSX / CSV / HTML / TXT
+  if (['JPG', 'JPEG', 'PNG', 'WEBP', 'BMP', 'TIFF', 'TIF', 'HEIC'].includes(srcFmt)) {
+    onProgress(25, 'Оптический анализ и распознавание структуры документа...');
+    const docModel = await parseImageOcrToStructuredDocument(file, baseName, onProgress);
+
+    if (tgtFmt === 'DOCX') {
+      onProgress(80, 'Формирование редактируемого Word документа (.docx)...');
+      const docxBuf = await exportToDocxBuffer(docModel);
+      const blob = new Blob([docxBuf], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+      return { blob, fileName: `${baseName}.docx` };
+    }
+
+    if (tgtFmt === 'XLSX') {
+      onProgress(85, 'Генерация таблицы Excel (.xlsx)...');
+      const buf = exportToXlsxBuffer(docModel);
+      const blob = new Blob([buf], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      return { blob, fileName: `${baseName}.xlsx` };
+    }
+
+    if (tgtFmt === 'CSV') {
+      const csvStr = exportToCsvString(docModel);
+      const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.csv` };
+    }
+
+    if (tgtFmt === 'HTML') {
+      const htmlStr = exportToHtmlString(docModel);
+      const blob = new Blob([htmlStr], { type: 'text/html;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.html` };
+    }
+
+    if (tgtFmt === 'TXT') {
+      const txtStr = exportToTxtString(docModel);
+      const blob = new Blob([txtStr], { type: 'text/plain;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.txt` };
+    }
+  }
 
   // 1. PDF SOURCE SPECIAL CASES: PDF -> JPG / PNG / WEBP / BMP / ICO
   if (srcFmt === 'PDF' && (tgtFmt === 'JPG' || tgtFmt === 'JPEG')) {
@@ -2627,6 +3260,12 @@ async function convertDocument(
       return { blob, fileName: `${baseName}.txt` };
     }
 
+    if (tgtFmt === 'XML') {
+      const xmlStr = exportToXmlString(docModel);
+      const blob = new Blob([xmlStr], { type: 'application/xml;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.xml` };
+    }
+
     if (tgtFmt === 'MD') {
       const txtStr = exportToTxtString(docModel);
       const mdContent = `# ${baseName}\n\n${txtStr}`;
@@ -2671,14 +3310,16 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP') {
-      const [headerFooter, tableGrids] = await Promise.all([
+      const [headerFooter, tableGrids, docModel] = await Promise.all([
         extractDocxHeadersAndFootersHtml(file),
         extractDocxTableGrids(file),
+        extractDocxToStructuredDocument(file, baseName, onProgress)
       ]);
       const pdfBlob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress, {
         headerHtml: headerFooter.headerHtml,
         footerHtml: headerFooter.footerHtml,
         tableGrids,
+        docModel,
       });
       const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
       const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
@@ -2688,14 +3329,16 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'PDF') {
-      const [headerFooter, tableGrids] = await Promise.all([
+      const [headerFooter, tableGrids, docModel] = await Promise.all([
         extractDocxHeadersAndFootersHtml(file),
         extractDocxTableGrids(file),
+        extractDocxToStructuredDocument(file, baseName, onProgress)
       ]);
       const blob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress, {
         headerHtml: headerFooter.headerHtml,
         footerHtml: headerFooter.footerHtml,
         tableGrids,
+        docModel,
       });
       return { blob, fileName: `${baseName}.pdf` };
     }
