@@ -265,8 +265,65 @@ export function parseSpatialItemsToBlocks(items: RawSpatialItem[], pageWidth = 5
 export function parsePdfPageToBlocks(items: RawPdfItem[], pageNum: number, pageWidth: number, pageHeight: number): DocumentBlock[] {
   if (!items || items.length === 0) return [];
 
+  // Pre-process items: split any item containing multi-column gaps, tabs, or parameter-value pairs
+  const expandedItems: RawPdfItem[] = [];
+  for (const it of items) {
+    if (!it.str || (it.str.trim() === '' && !it.str.includes(' '))) continue;
+
+    // Check if string contains multiple consecutive spaces (>= 2) or tab
+    if (it.str.includes('\t') || /\s{2,}/.test(it.str)) {
+      const parts = it.str.split(/\t|\s{2,}/).map(s => s.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        let curX = it.x;
+        const totalChars = parts.reduce((acc, p) => acc + p.length, 0);
+        const charWidth = it.width > 0 && totalChars > 0 ? it.width / totalChars : 6;
+        for (const p of parts) {
+          const pWidth = p.length * charWidth;
+          expandedItems.push({
+            str: p,
+            x: curX,
+            y: it.y,
+            width: pWidth,
+            height: it.height
+          });
+          curX += pWidth + 16;
+        }
+        continue;
+      }
+    }
+
+    // Check if string starts with a capitalized parameter word followed by value text
+    // (e.g. "Типографика Поддержка шрифтов...", "Верстка Выравнивание...", "Элементы Корректный...")
+    const paramMatch = it.str.match(/^([A-ZА-ЯЁ][a-zа-яё0-9\-_]{2,20}|№|Параметр|Характеристика|Показатель)\s+([A-ZА-ЯЁ0-9].+)$/);
+    if (paramMatch) {
+      const key = paramMatch[1];
+      const val = paramMatch[2];
+      const totalLen = it.str.length || 1;
+      const keyWidth = (key.length / totalLen) * it.width;
+      const valWidth = Math.max(10, it.width - keyWidth - 16);
+
+      expandedItems.push({
+        str: key,
+        x: it.x,
+        y: it.y,
+        width: keyWidth,
+        height: it.height
+      });
+      expandedItems.push({
+        str: val,
+        x: it.x + keyWidth + 16,
+        y: it.y,
+        width: valWidth,
+        height: it.height
+      });
+      continue;
+    }
+
+    expandedItems.push(it);
+  }
+
   // Filter out empty items
-  const cleanItems = items.filter(it => it.str && (it.str.trim() !== '' || it.str.includes(' ')));
+  const cleanItems = expandedItems.filter(it => it.str && (it.str.trim() !== '' || it.str.includes(' ')));
   if (cleanItems.length === 0) return [];
 
   // Group items into visual lines (Y tolerance 4.0pt)
@@ -587,15 +644,72 @@ function parseNonTableItems(items: RawPdfItem[]): DocumentBlock[] {
       continue;
     }
 
-    // 2. Bullet or numbered list item
-    const bulletMatch = text.match(/^([-*•–]|(?:\d+\.\d+|\w\)))\s*(.+)$/);
-    if (bulletMatch) {
-      const itemText = bulletMatch[2].trim();
-      if (!currentList) {
-        currentList = { y: lineObj.y, ordered: false, items: [] };
+    // 2.5 Key-Value parameter table check (e.g. "Типографика Поддержка...", "Верстка Выравнивание...", "Элементы Корректный...")
+    const kvMatch = text.match(/^([A-ZА-ЯЁ][a-zа-яё0-9\-_]{2,20}|№|Параметр|Характеристика|Показатель)\s+([A-ZА-ЯЁ0-9].+)$/) ||
+                    text.match(/^([^:–—\t]{2,25})\s*[:–—\t]\s*(.+)$/);
+
+    if (kvMatch) {
+      // Check if subsequent lines contain further key-value items within next 1-2 lines
+      let hasSubsequentKv = false;
+      for (let lookahead = 1; lookahead <= 3 && i + lookahead < rawTextLines.length; lookahead++) {
+        const nextText = rawTextLines[i + lookahead].text;
+        if (
+          nextText.match(/^([A-ZА-ЯЁ][a-zа-яё0-9\-_]{2,20}|№|Параметр|Характеристика|Показатель)\s+([A-ZА-ЯЁ0-9].+)$/) ||
+          nextText.match(/^([^:–—\t]{2,25})\s*[:–—\t]\s*(.+)$/)
+        ) {
+          hasSubsequentKv = true;
+          break;
+        }
       }
-      currentList.items.push(itemText);
-      continue;
+
+      if (hasSubsequentKv) {
+        flushList();
+        const kvRows: TableCellModel[][] = [];
+        const matrix: (string | number)[][] = [];
+
+        while (i < rawTextLines.length) {
+          const curLine = rawTextLines[i];
+          const m = curLine.text.match(/^([A-ZА-ЯЁ][a-zа-яё0-9\-_]{2,20}|№|Параметр|Характеристика|Показатель)\s+([A-ZА-ЯЁ0-9].+)$/) ||
+                    curLine.text.match(/^([^:–—\t]{2,25})\s*[:–—\t]\s*(.+)$/);
+          if (!m) break;
+
+          const key = m[1].trim();
+          let val = m[2].trim();
+
+          // If next line is a continuation line (not a heading, not a new key-value parameter, not a list item)
+          while (i + 1 < rawTextLines.length) {
+            const nextLine = rawTextLines[i + 1];
+            const isHeading = !!nextLine.text.match(/^(\d+\.|\d+\)|[-*•–])/) || !!nextLine.text.match(/^(Раздел|Секция|Глава|Section|Chapter|Часть|Протокол)\s+\d+/i);
+            const isNextKv = !!nextLine.text.match(/^([A-ZА-ЯЁ][a-zа-яё0-9\-_]{2,20}|№|Параметр|Характеристика|Показатель)\s+([A-ZА-ЯЁ0-9].+)$/) ||
+                             !!nextLine.text.match(/^([^:–—\t]{2,25})\s*[:–—\t]\s*(.+)$/);
+            const gapY = curLine.y - nextLine.y;
+
+            if (!isHeading && !isNextKv && gapY > 0 && gapY <= 24) {
+              val += ' ' + nextLine.text.trim();
+              i++;
+            } else {
+              break;
+            }
+          }
+
+          kvRows.push([
+            { text: key, rawValue: key, isHeader: false },
+            { text: val, rawValue: isNaN(Number(val.replace(',', '.'))) ? val : Number(val.replace(',', '.')), isHeader: false }
+          ]);
+          matrix.push([key, val]);
+          i++;
+        }
+        i--; // Adjust loop counter
+
+        blocks.push({
+          type: 'table',
+          y: lineObj.y,
+          headers: [],
+          rows: kvRows,
+          matrix
+        });
+        continue;
+      }
     }
 
     // 3. Regular paragraph
@@ -667,6 +781,125 @@ export function buildStructuredDocument(pagesBlocks: DocumentBlock[][], title: s
     hasTables,
     firstTableMatrix
   };
+}
+
+/**
+ * Parses an HTML string into a StructuredDocument model.
+ * Ignores <style>, <script>, <head>, etc., and extracts semantic headings, paragraphs, lists, and tables.
+ */
+export function parseHtmlToStructuredDocument(html: string, baseName: string = 'Document'): StructuredDocument {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const blocks: DocumentBlock[] = [];
+
+  const processNode = (node: Element) => {
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'style' || tag === 'script' || tag === 'noscript' || tag === 'head') {
+      return;
+    }
+
+    if (tag === 'table') {
+      const rows = Array.from(node.querySelectorAll('tr'));
+      if (rows.length === 0) return;
+
+      const rawGrid: string[][] = [];
+      let maxCols = 0;
+
+      for (const tr of rows) {
+        const cells = Array.from(tr.children).filter(c => c.tagName.toLowerCase() === 'td' || c.tagName.toLowerCase() === 'th');
+        const rowVals = cells.map(c => {
+          const clone = c.cloneNode(true) as Element;
+          clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+          return (clone.textContent || '').trim();
+        });
+        if (rowVals.length > maxCols) maxCols = rowVals.length;
+        rawGrid.push(rowVals);
+      }
+
+      if (maxCols === 0) return;
+      const headers = rawGrid.length > 0 ? rawGrid[0] : [];
+      while (headers.length < maxCols) headers.push(`Колонка ${headers.length + 1}`);
+
+      const dataRows = rawGrid.slice(1);
+      const rowsFormatted = dataRows.map(r => {
+        const padded = [...r];
+        while (padded.length < maxCols) padded.push('');
+        return padded.map(c => ({
+          text: c,
+          rawValue: isNaN(Number(c.replace(/\s+/g, '').replace(',', '.'))) ? c : Number(c.replace(/\s+/g, '').replace(',', '.')),
+          isHeader: false
+        }));
+      });
+
+      blocks.push({
+        type: 'table',
+        y: blocks.length,
+        headers,
+        rows: rowsFormatted.length > 0 ? rowsFormatted : [headers.map(h => ({ text: h, rawValue: h, isHeader: true }))],
+        matrix: [headers, ...dataRows.map(r => {
+          const padded = [...r];
+          while (padded.length < maxCols) padded.push('');
+          return padded;
+        })]
+      });
+    } else if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5' || tag === 'h6') {
+      const text = (node.textContent || '').trim();
+      if (text) {
+        const level = tag === 'h1' ? 1 : tag === 'h2' ? 2 : 3;
+        blocks.push({
+          type: 'heading',
+          y: blocks.length,
+          level,
+          text
+        });
+      }
+    } else if (tag === 'ul' || tag === 'ol') {
+      if (node.closest('table')) return;
+      const listItems = Array.from(node.querySelectorAll(':scope > li'))
+        .map(li => (li.textContent || '').trim())
+        .filter(Boolean);
+      if (listItems.length > 0) {
+        blocks.push({
+          type: 'list',
+          y: blocks.length,
+          ordered: tag === 'ol',
+          items: listItems
+        });
+      }
+    } else if (tag === 'p' || tag === 'li') {
+      if (node.closest('table') || node.closest('ul') || node.closest('ol')) return;
+      const text = (node.textContent || '').trim();
+      if (text) {
+        const isHeading = text.length < 80 && /^(Протокол|Акт|Паспорт|Сертификат|Заключение)\b/i.test(text);
+        if (isHeading) {
+          blocks.push({
+            type: 'heading',
+            y: blocks.length,
+            level: 1,
+            text
+          });
+        } else {
+          blocks.push({
+            type: 'paragraph',
+            y: blocks.length,
+            text,
+            isBold: !!node.querySelector('strong, b')
+          });
+        }
+      }
+    } else {
+      for (const child of Array.from(node.children)) {
+        processNode(child);
+      }
+    }
+  };
+
+  const root = doc.body || doc.documentElement;
+  for (const child of Array.from(root.children)) {
+    processNode(child);
+  }
+
+  return buildStructuredDocument([blocks], baseName);
 }
 
 // --- EXPORTERS ---
@@ -749,21 +982,40 @@ export function exportToXlsxBuffer(doc: StructuredDocument): Uint8Array {
  * Exports pure matrix data or text lines as formatted CSV.
  */
 export function exportToCsvString(doc: StructuredDocument): string {
-  if (doc.firstTableMatrix && doc.firstTableMatrix.length > 0) {
+  const rows: string[][] = [];
+
+  for (const b of doc.allBlocks) {
+    if (b.type === 'heading' || b.type === 'paragraph') {
+      if (b.text.includes('\t')) {
+        rows.push(b.text.split('\t').map(c => c.trim()));
+      } else if (b.text.includes(' | ')) {
+        rows.push(b.text.split(' | ').map(c => c.trim()));
+      } else {
+        rows.push([b.text]);
+      }
+    } else if (b.type === 'list') {
+      for (const it of b.items) {
+        rows.push([`• ${it}`]);
+      }
+    } else if (b.type === 'table') {
+      if (b.headers && b.headers.length > 0) {
+        rows.push(b.headers);
+      }
+      for (const r of b.rows) {
+        rows.push(r.map(c => c.text));
+      }
+    }
+  }
+
+  if (rows.length === 0 && doc.firstTableMatrix && doc.firstTableMatrix.length > 0) {
     return doc.firstTableMatrix
       .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n');
   }
 
-  const lines: string[] = [];
-  for (const b of doc.allBlocks) {
-    if (b.type === 'heading' || b.type === 'paragraph') {
-      lines.push(`"${b.text.replace(/"/g, '""')}"`);
-    } else if (b.type === 'list') {
-      b.items.forEach(it => lines.push(`"• ${it.replace(/"/g, '""')}"`));
-    }
-  }
-  return lines.join('\n');
+  return rows
+    .map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n');
 }
 
 /**
@@ -1009,9 +1261,15 @@ export async function exportToDocxBuffer(doc: StructuredDocument): Promise<Uint8
       for (const r of b.rows) {
         tableRows.push(
           new TableRow({
-            children: r.map(c => new TableCell({
+            children: r.map((c, cIdx) => new TableCell({
+              width: r.length === 2 ? { size: cIdx === 0 ? 25 : 75, type: WidthType.PERCENTAGE } : undefined,
               children: (c.text || '').split('\n').map((line, lIdx, arr) => new Paragraph({
-                children: [new TextRun({ text: line, size: 20, font: 'Calibri' })],
+                children: [new TextRun({
+                  text: line,
+                  bold: (r.length === 2 && cIdx === 0) || c.isHeader || false,
+                  size: 20,
+                  font: 'Calibri'
+                })],
                 spacing: { before: 20, after: lIdx === arr.length - 1 ? 20 : 10 }
               }))
             }))

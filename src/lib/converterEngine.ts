@@ -5,6 +5,7 @@ import { ConversionSettings, FileItem } from '../types/converter';
 import {
   parsePdfPageToBlocks,
   parseSpatialItemsToBlocks,
+  parseHtmlToStructuredDocument,
   buildStructuredDocument,
   exportToXlsxBuffer,
   exportToCsvString,
@@ -3646,13 +3647,29 @@ async function convertDocument(
 
   // 5. TARGET: DOCX (Word Document)
   if (tgtFmt === 'DOCX') {
-    const blob = await createDocxFromText(textContent, baseName, onProgress);
+    let blob: Blob;
+    if (srcFmt === 'HTML' || textContent.trim().startsWith('<!DOCTYPE html') || textContent.trim().startsWith('<html') || (textContent.includes('<body') && textContent.includes('</'))) {
+      onProgress(40, 'Парсинг HTML структуры...');
+      const docModel = parseHtmlToStructuredDocument(textContent, baseName);
+      onProgress(70, 'Генерация файла Microsoft Word .docx...');
+      const docxBuffer = await exportToDocxBuffer(docModel);
+      blob = new Blob([docxBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+    } else {
+      blob = await createDocxFromText(textContent, baseName, onProgress);
+    }
     return { blob, fileName: `${baseName}.docx` };
   }
 
   // 6. TARGET: PDF
   if (tgtFmt === 'PDF') {
-    const blob = await renderTextToPdf(textContent, baseName, onProgress);
+    let blob: Blob;
+    if (srcFmt === 'HTML' || textContent.trim().startsWith('<!DOCTYPE html') || textContent.trim().startsWith('<html') || (textContent.includes('<body') && textContent.includes('</'))) {
+      blob = await renderHtmlToPdfBlob(textContent, baseName, onProgress);
+    } else {
+      blob = await renderTextToPdf(textContent, baseName, onProgress);
+    }
     return { blob, fileName: `${baseName}.pdf` };
   }
 
