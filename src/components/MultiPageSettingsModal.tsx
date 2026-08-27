@@ -74,7 +74,7 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
   if (!item) return null;
 
   const handleSave = () => {
-    const chosenSelection = isExcel ? selectedSheet : selectedPageNum;
+    const chosenSelection = isExcel ? (selectedSheet || detectedSheets[0] || 'Sheet1') : selectedPageNum;
     updateSettings(item.id, {
       multiPageExportMode: mode,
       selectedPageOrSheet: mode === 'selected_page' ? chosenSelection : undefined,

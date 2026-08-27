@@ -1034,6 +1034,34 @@ export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName
     const range = XLSX.utils.decode_range(worksheet['!ref']);
     const blocks: DocumentBlock[] = [];
 
+    // Find actual bounds with real content to strip empty trailing rows and columns
+    let minR = range.e.r;
+    let maxR = range.s.r;
+    let minC = range.e.c;
+    let maxC = range.s.c;
+    let hasAnyData = false;
+
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cellAddress = XLSX.utils.encode_cell({ r, c });
+        const cell = worksheet[cellAddress];
+        if (cell && cell.v !== undefined && cell.v !== null && String(cell.v).trim() !== '') {
+          if (r < minR) minR = r;
+          if (r > maxR) maxR = r;
+          if (c < minC) minC = c;
+          if (c > maxC) maxC = c;
+          hasAnyData = true;
+        }
+      }
+    }
+
+    if (!hasAnyData) continue;
+
+    const startR = Math.min(range.s.r, minR);
+    const endR = maxR;
+    const startC = Math.min(range.s.c, minC);
+    const endC = maxC;
+
     // Add sheet heading if multiple sheets exist and not single filtered
     if (sheetsToProcess.length > 1 || (!targetSheetName && workbook.SheetNames.length > 1)) {
       blocks.push({
@@ -1047,12 +1075,12 @@ export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName
     const tableRows: TableCellModel[][] = [];
     const matrix: (string | number)[][] = [];
 
-    for (let r = range.s.r; r <= range.e.r; r++) {
+    for (let r = startR; r <= endR; r++) {
       const rowCells: TableCellModel[] = [];
       const matrixRow: (string | number)[] = [];
       let hasRowContent = false;
 
-      for (let c = range.s.c; c <= range.e.c; c++) {
+      for (let c = startC; c <= endC; c++) {
         const cellAddress = XLSX.utils.encode_cell({ r, c });
         const cell = worksheet[cellAddress];
         const extracted = extractExcelCellValue(cell);
@@ -1064,7 +1092,7 @@ export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName
         rowCells.push({
           text: extracted.text,
           rawValue: extracted.rawValue,
-          isHeader: r === range.s.r
+          isHeader: r === startR
         });
         matrixRow.push(extracted.text);
       }
@@ -1161,15 +1189,44 @@ export function convertXlsxToStyledHtml(arrayBuffer: ArrayBuffer, baseName: stri
     }
 
     const range = XLSX.utils.decode_range(worksheet['!ref']);
-    html += `  <div class="excel-table-wrap">\n    <table class="excel-table">\n`;
+
+    // Find actual bounds with real content to strip empty trailing rows and columns
+    let minR = range.e.r;
+    let maxR = range.s.r;
+    let minC = range.e.c;
+    let maxC = range.s.c;
+    let hasAnyData = false;
 
     for (let r = range.s.r; r <= range.e.r; r++) {
-      const isHeader = r === range.s.r;
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cellAddress = XLSX.utils.encode_cell({ r, c });
+        const cell = worksheet[cellAddress];
+        if (cell && cell.v !== undefined && cell.v !== null && String(cell.v).trim() !== '') {
+          if (r < minR) minR = r;
+          if (r > maxR) maxR = r;
+          if (c < minC) minC = c;
+          if (c > maxC) maxC = c;
+          hasAnyData = true;
+        }
+      }
+    }
+
+    if (!hasAnyData) continue;
+
+    const startR = Math.min(range.s.r, minR);
+    const endR = maxR;
+    const startC = Math.min(range.s.c, minC);
+    const endC = maxC;
+
+    html += `  <div class="excel-table-wrap">\n    <table class="excel-table">\n`;
+
+    for (let r = startR; r <= endR; r++) {
+      const isHeader = r === startR;
       const tag = isHeader ? 'th' : 'td';
       let rowHtml = `      <tr>\n`;
       let hasRowContent = false;
 
-      for (let c = range.s.c; c <= range.e.c; c++) {
+      for (let c = startC; c <= endC; c++) {
         const cellAddress = XLSX.utils.encode_cell({ r, c });
         const cell = worksheet[cellAddress];
         const extracted = extractExcelCellValue(cell);

@@ -2237,6 +2237,7 @@ interface VectorPdfOptions {
   footerHtml?: string;
   tableGrids?: number[][];
   docModel?: StructuredDocument;
+  landscape?: boolean;
 }
 
 async function renderHtmlToPdfBlob(
@@ -2257,8 +2258,21 @@ async function renderHtmlToPdfBlob(
       const regFont = await pdfDoc.embedFont(fonts.regular);
       const boldFont = fonts.bold ? await pdfDoc.embedFont(fonts.bold) : regFont;
 
-      const pageWidth = 595.28; // A4 width pt
-      const pageHeight = 841.89; // A4 height pt
+      // Pre-check for wide tables to determine orientation
+      const pDomCheck = new DOMParser();
+      const testDoc = pDomCheck.parseFromString(htmlContent, 'text/html');
+      let highestColCount = 0;
+      testDoc.querySelectorAll('table').forEach((tbl) => {
+        const firstTr = tbl.querySelector('tr');
+        if (firstTr) {
+          const count = firstTr.querySelectorAll('th, td').length;
+          if (count > highestColCount) highestColCount = count;
+        }
+      });
+
+      const isLandscape = options?.landscape || highestColCount >= 7;
+      const pageWidth = isLandscape ? 841.89 : 595.28; // A4 pt
+      const pageHeight = isLandscape ? 595.28 : 841.89; // A4 pt
       const marginX = 36; // 0.5 in / 12.7 mm
       const marginY = 36;
       const contentWidth = pageWidth - marginX * 2;
@@ -2423,64 +2437,100 @@ async function renderHtmlToPdfBlob(
 
           if (maxCols === 0) return;
 
-          // Pad rows to maxCols
-          for (const r of rawGrid) {
-            while (r.length < maxCols) r.push('');
+          // Check if any column is completely empty across all rows
+          const activeColIndices: number[] = [];
+          for (let c = 0; c < maxCols; c++) {
+            const hasData = rawGrid.some((row) => (row[c] || '').trim() !== '');
+            if (hasData) {
+              activeColIndices.push(c);
+            }
+          }
+
+          let effectiveGrid = rawGrid;
+          let effectiveCols = maxCols;
+
+          if (activeColIndices.length > 0 && activeColIndices.length < maxCols) {
+            effectiveGrid = rawGrid.map((row) => activeColIndices.map((cIdx) => row[cIdx] || ''));
+            effectiveCols = activeColIndices.length;
+          }
+
+          // Pad rows to effectiveCols
+          for (const r of effectiveGrid) {
+            while (r.length < effectiveCols) r.push('');
           }
 
           // Determine column widths
-          const colWidths: number[] = new Array(maxCols).fill(0);
-          const matchingGrid = options?.tableGrids?.find(g => g.length === maxCols) || options?.tableGrids?.[0];
+          const colWidths: number[] = new Array(effectiveCols).fill(0);
+          const matchingGrid = options?.tableGrids?.find((g) => g.length === effectiveCols) || options?.tableGrids?.[0];
 
-          if (matchingGrid && matchingGrid.length === maxCols) {
+          if (matchingGrid && matchingGrid.length === effectiveCols) {
             const totalDxa = matchingGrid.reduce((sum, v) => sum + v, 0);
-            for (let c = 0; c < maxCols; c++) {
+            for (let c = 0; c < effectiveCols; c++) {
               colWidths[c] = (matchingGrid[c] / (totalDxa || 1)) * contentWidth;
             }
           } else {
-            // Content-proportional calculation
-            const maxLens: number[] = new Array(maxCols).fill(0);
-            for (let c = 0; c < maxCols; c++) {
-              for (const row of rawGrid) {
-                const cellLen = (row[c] || '').length;
+            // Dynamic content-proportional calculation
+            const maxLens: number[] = new Array(effectiveCols).fill(0);
+            for (let c = 0; c < effectiveCols; c++) {
+              for (const row of effectiveGrid) {
+                const cellLen = (row[c] || '').trim().length;
                 if (cellLen > maxLens[c]) maxLens[c] = cellLen;
               }
             }
 
-            if (maxCols > 2) {
-              colWidths[0] = Math.min(Math.max(maxLens[0] * 7, 28), 38);
-            }
-            const assignedWidth = colWidths[0] || 0;
-            const remainingWidth = contentWidth - assignedWidth;
-            const remainingCols = maxCols > 2 ? maxCols - 1 : maxCols;
-            const remainingLensSum = maxLens.slice(maxCols > 2 ? 1 : 0).reduce((sum, v) => sum + Math.max(v, 8), 0);
+            // If the first column is a short numeric/index column (e.g. №, #, 1..99)
+            const firstHeader = (effectiveGrid[0]?.[0] || '').trim().toLowerCase();
+            const isFirstColIndex =
+              effectiveCols > 2 &&
+              maxLens[0] <= 4 &&
+              (firstHeader === '№' || firstHeader === '#' || firstHeader === 'id' || firstHeader === 'no' || /^\d+$/.test(effectiveGrid[1]?.[0] || ''));
 
-            for (let c = (maxCols > 2 ? 1 : 0); c < maxCols; c++) {
-              const proportion = Math.max(maxLens[c], 8) / (remainingLensSum || 1);
-              colWidths[c] = proportion * remainingWidth;
+            let assignedWidth = 0;
+            let startCol = 0;
+
+            if (isFirstColIndex) {
+              colWidths[0] = Math.min(Math.max(maxLens[0] * 8, 26), 34);
+              assignedWidth = colWidths[0];
+              startCol = 1;
+            }
+
+            const remainingWidth = contentWidth - assignedWidth;
+            const remainingLensSum = maxLens.slice(startCol).reduce((sum, v) => sum + Math.max(v, 6), 0);
+
+            for (let c = startCol; c < effectiveCols; c++) {
+              const proportion = Math.max(maxLens[c], 6) / (remainingLensSum || 1);
+              colWidths[c] = Math.max(28, proportion * remainingWidth);
+            }
+
+            // Normalize column widths to exact contentWidth
+            const totalAssigned = colWidths.reduce((sum, v) => sum + v, 0);
+            if (totalAssigned > 0) {
+              for (let c = 0; c < effectiveCols; c++) {
+                colWidths[c] = (colWidths[c] / totalAssigned) * contentWidth;
+              }
             }
           }
 
           const fontSize = 8.5;
           const cellLineHeight = 11.5;
-          const padX = 4.5;
-          const padY = 4.5;
+          const padX = 4;
+          const padY = 3.5;
 
-          rawGrid.forEach((row, rIdx) => {
+          effectiveGrid.forEach((row, rIdx) => {
             const isHeader = rIdx === 0 || row.some((c, cI) => cI > 0 && (c.includes('Наименование') || c.includes('Результат')));
             const font = isHeader ? boldFont : regFont;
 
             const wrappedCells = row.map((cellText, cIdx) =>
-              wrapText(cellText, font, fontSize, colWidths[cIdx] - padX * 2)
+              wrapText(cellText, font, fontSize, Math.max(10, colWidths[cIdx] - padX * 2))
             );
 
-            const maxLines = Math.max(1, ...wrappedCells.map(wc => wc.length));
-            const rowHeight = Math.max(18, maxLines * cellLineHeight + padY * 2);
+            const maxLines = Math.max(1, ...wrappedCells.map((wc) => wc.length));
+            const rowHeight = Math.max(16, maxLines * cellLineHeight + padY * 2);
 
             ensureSpace(rowHeight);
 
             let cellX = marginX;
-            for (let c = 0; c < maxCols; c++) {
+            for (let c = 0; c < effectiveCols; c++) {
               const w = colWidths[c];
 
               // Cell Background
@@ -2507,7 +2557,7 @@ async function renderHtmlToPdfBlob(
               }
 
               // Cell Text Lines
-              let textY = curY - padY - (fontSize * 0.85);
+              let textY = curY - padY - fontSize * 0.85;
               for (const line of wrappedCells[c]) {
                 if (line) {
                   currentPage.drawText(line, {
