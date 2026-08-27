@@ -6,6 +6,9 @@ import {
   parsePdfPageToBlocks,
   parseSpatialItemsToBlocks,
   parseHtmlToStructuredDocument,
+  parseXlsxToStructuredDocument,
+  convertXlsxToStyledHtml,
+  extractExcelCellValue,
   buildStructuredDocument,
   exportToXlsxBuffer,
   exportToCsvString,
@@ -3149,74 +3152,71 @@ async function convertDocument(
 
   // 2. Excel (XLSX / XLS) Source Format Processing
   if (srcFmt === 'XLSX' || srcFmt === 'XLS') {
-    onProgress(30, 'Parsing Excel workbook...');
+    onProgress(25, 'Анализ структуры и формул книги Excel...');
     const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0] || 'Sheet1';
-    const worksheet = workbook.Sheets[firstSheetName];
+    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
+
+    if (tgtFmt === 'PDF') {
+      onProgress(50, 'Рендеринг таблицы Excel в векторный PDF...');
+      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+      const blob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
+      return { blob, fileName: `${baseName}.pdf` };
+    }
+
+    if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP') {
+      onProgress(45, 'Подготовка высококачественного изображения таблицы...');
+      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+      const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
+      const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
+      const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
+      const ext = (tgtFmt === 'JPEG') ? 'jpg' : tgtFmt.toLowerCase();
+      const imgBlob = await renderPdfFirstPageToImage(pdfFile, imageMime as any, onProgress);
+      return { blob: imgBlob, fileName: `${baseName}.${ext}` };
+    }
+
+    if (tgtFmt === 'HTML') {
+      onProgress(60, 'Генерация структурированного HTML документа...');
+      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+      const blob = new Blob([styledHtml], { type: 'text/html;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.html` };
+    }
+
+    if (tgtFmt === 'DOCX') {
+      onProgress(60, 'Формирование таблицы в документе Word (.docx)...');
+      const docxBuf = await exportToDocxBuffer(docModel);
+      const blob = new Blob([docxBuf], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+      return { blob, fileName: `${baseName}.docx` };
+    }
 
     if (tgtFmt === 'CSV') {
-      const csv = XLSX.utils.sheet_to_csv(worksheet);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      onProgress(60, 'Экспорт данных в CSV с точным форматированием...');
+      const csvStr = exportToCsvString(docModel);
+      const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
       return { blob, fileName: `${baseName}.csv` };
     }
 
+    if (tgtFmt === 'XML') {
+      onProgress(60, 'Формирование XML структуры...');
+      const xmlStr = exportToXmlString(docModel);
+      const blob = new Blob([xmlStr], { type: 'application/xml;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.xml` };
+    }
+
     if (tgtFmt === 'JSON') {
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      onProgress(60, 'Форматирование в JSON структуру...');
+      const jsonData = docModel.firstTableMatrix || [];
       const jsonStr = JSON.stringify(jsonData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       return { blob, fileName: `${baseName}.json` };
     }
 
-    if (tgtFmt === 'HTML') {
-      const htmlTable = XLSX.utils.sheet_to_html(worksheet);
-      const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${baseName}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; padding: 24px; background: #f8fafc; color: #1e293b; }
-    table { border-collapse: collapse; width: 100%; margin-top: 12px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
-    th { background: #f1f5f9; font-weight: 600; }
-  </style>
-</head>
-<body>
-  <h2>${baseName}</h2>
-  ${htmlTable}
-</body>
-</html>`;
-      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
-      return { blob, fileName: `${baseName}.html` };
-    }
-
-    if (tgtFmt === 'XML') {
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
-      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<spreadsheet name="${escapeXml(baseName)}">\n  <sheet name="${escapeXml(firstSheetName)}">\n`;
-      for (const row of jsonData) {
-        xml += `    <row>\n`;
-        for (const [key, val] of Object.entries(row)) {
-          const safeKey = key.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'field';
-          xml += `      <${safeKey}>${escapeXml(String(val ?? ''))}</${safeKey}>\n`;
-        }
-        xml += `    </row>\n`;
-      }
-      xml += `  </sheet>\n</spreadsheet>`;
-      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
-      return { blob, fileName: `${baseName}.xml` };
-    }
-
-    if (tgtFmt === 'DOCX') {
-      const txt = XLSX.utils.sheet_to_txt(worksheet);
-      const blob = await createDocxFromText(txt, baseName, onProgress);
-      return { blob, fileName: `${baseName}.docx` };
-    }
-
-    if (tgtFmt === 'PDF') {
-      const txt = XLSX.utils.sheet_to_txt(worksheet);
-      const blob = await renderTextToPdf(txt, baseName, onProgress);
-      return { blob, fileName: `${baseName}.pdf` };
+    if (tgtFmt === 'TXT' || tgtFmt === 'MD') {
+      onProgress(60, 'Экспорт таблицы в текстовый формат...');
+      const txtStr = exportToTxtString(docModel);
+      const blob = new Blob(['\uFEFF' + txtStr], { type: 'text/plain;charset=utf-8;' });
+      return { blob, fileName: `${baseName}.${tgtFmt.toLowerCase()}` };
     }
   }
 

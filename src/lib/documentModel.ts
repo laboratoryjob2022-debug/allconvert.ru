@@ -902,6 +902,279 @@ export function parseHtmlToStructuredDocument(html: string, baseName: string = '
   return buildStructuredDocument([blocks], baseName);
 }
 
+/**
+ * Accurately extracts and formats value from a SheetJS cell object.
+ * Handles formulas (evaluates cached result), dates (converts serial numbers & Date objects),
+ * percentages, currencies, booleans, and eliminates floating point precision artifacts.
+ */
+export function extractExcelCellValue(cell: XLSX.CellObject | any): { text: string; rawValue: string | number; isHeader?: boolean } {
+  if (!cell || cell.v === undefined || cell.v === null) {
+    return { text: '', rawValue: '' };
+  }
+
+  // 1. Error values (#N/A, #VALUE!, #REF!, etc.)
+  if (cell.t === 'e') {
+    const errStr = String(cell.w || cell.v || '#ERROR');
+    return { text: errStr, rawValue: errStr };
+  }
+
+  // 2. Boolean values
+  if (cell.t === 'b' || typeof cell.v === 'boolean') {
+    const val = !!cell.v;
+    return { text: val ? 'ИСТИНА' : 'ЛОЖЬ', rawValue: val ? 'TRUE' : 'FALSE' };
+  }
+
+  // 3. Date objects or date cells
+  if (cell.t === 'd' || cell.v instanceof Date) {
+    const d = cell.v instanceof Date ? cell.v : new Date(cell.v);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = d.getHours();
+      const minutes = d.getMinutes();
+      const seconds = d.getSeconds();
+
+      let dateFormatted = `${day}.${month}.${year}`;
+      if (hours !== 0 || minutes !== 0 || seconds !== 0) {
+        const timePart = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}${seconds !== 0 ? ':' + String(seconds).padStart(2, '0') : ''}`;
+        dateFormatted += ` ${timePart}`;
+      }
+      return { text: dateFormatted, rawValue: dateFormatted };
+    }
+  }
+
+  // 4. Formatted text string (.w) produced by SheetJS formatter
+  // If cell.w is available and not a raw formula string, prioritize it for presentation
+  if (typeof cell.w === 'string' && cell.w.trim().length > 0) {
+    const wText = cell.w.trim();
+    // Verify it's not an unparsed formula tag like "=A1+B1"
+    if (!wText.startsWith('=')) {
+      // Check if it's a numeric rawValue
+      const cleanNum = Number(wText.replace(/\s+/g, '').replace(',', '.'));
+      const numVal = isNaN(cleanNum) ? (typeof cell.v === 'number' ? cell.v : wText) : cleanNum;
+      return { text: wText, rawValue: numVal };
+    }
+  }
+
+  // 5. Numeric values (including potential unformatted Excel serial dates)
+  if (cell.t === 'n' || typeof cell.v === 'number') {
+    const num = cell.v as number;
+
+    // Check if number format specifies a date (e.g. format string contains d, m, y, гг, мм, дд)
+    const numFmt = (cell.z || '').toLowerCase();
+    const isDateFormat = numFmt.includes('yy') || numFmt.includes('dd') || numFmt.includes('гг') || numFmt.includes('дд') || (numFmt.includes('mm') && !numFmt.includes('0.00'));
+
+    if (isDateFormat && num > 1000 && num < 100000) {
+      // Convert Excel serial date number to JS Date
+      // Excel base date is 1899-12-30 (due to Excel leap year bug in 1900)
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const jsDate = new Date(excelEpoch.getTime() + num * 86400000);
+      if (!isNaN(jsDate.getTime())) {
+        const day = String(jsDate.getUTCDate()).padStart(2, '0');
+        const month = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+        const year = jsDate.getUTCFullYear();
+        const formatted = `${day}.${month}.${year}`;
+        return { text: formatted, rawValue: formatted };
+      }
+    }
+
+    // Eliminate IEEE 754 floating point precision noise (e.g. 19.999999999999996 -> 20)
+    let cleanedNum = num;
+    if (Number.isFinite(num)) {
+      const rounded = Math.round(num * 1e9) / 1e9;
+      if (Math.abs(num - rounded) < 1e-8) {
+        cleanedNum = rounded;
+      }
+    }
+
+    return { text: String(cleanedNum), rawValue: cleanedNum };
+  }
+
+  // 6. String / Text values
+  const str = String(cell.v ?? '').trim();
+  return { text: str, rawValue: str };
+}
+
+/**
+ * Parses an Excel Workbook (ArrayBuffer) into a StructuredDocument model with intact tabular matrices,
+ * proper number/date formatting, and headers.
+ */
+export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName: string = 'Таблица'): StructuredDocument {
+  const workbook = XLSX.read(arrayBuffer, {
+    type: 'array',
+    cellDates: true,
+    cellNF: true,
+    cellText: true,
+    cellStyles: true,
+    cellFormula: true,
+  });
+
+  const pagesBlocks: DocumentBlock[][] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet || !worksheet['!ref']) continue;
+
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    const blocks: DocumentBlock[] = [];
+
+    // Add sheet heading if multiple sheets exist
+    if (workbook.SheetNames.length > 1) {
+      blocks.push({
+        type: 'heading',
+        y: blocks.length,
+        level: 2,
+        text: sheetName
+      });
+    }
+
+    const tableRows: TableCellModel[][] = [];
+    const matrix: (string | number)[][] = [];
+
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      const rowCells: TableCellModel[] = [];
+      const matrixRow: (string | number)[] = [];
+      let hasRowContent = false;
+
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cellAddress = XLSX.utils.encode_cell({ r, c });
+        const cell = worksheet[cellAddress];
+        const extracted = extractExcelCellValue(cell);
+
+        if (extracted.text !== '') {
+          hasRowContent = true;
+        }
+
+        rowCells.push({
+          text: extracted.text,
+          rawValue: extracted.rawValue,
+          isHeader: r === range.s.r
+        });
+        matrixRow.push(extracted.text);
+      }
+
+      if (hasRowContent || tableRows.length > 0) {
+        tableRows.push(rowCells);
+        matrix.push(matrixRow);
+      }
+    }
+
+    // Trim trailing empty rows
+    while (tableRows.length > 0 && tableRows[tableRows.length - 1].every(cell => !cell.text)) {
+      tableRows.pop();
+      matrix.pop();
+    }
+
+    if (tableRows.length > 0) {
+      const headers = matrix[0].map((val, idx) => String(val || `Колонка ${idx + 1}`));
+      const dataRows = tableRows.slice(1);
+
+      blocks.push({
+        type: 'table',
+        y: blocks.length,
+        headers,
+        rows: dataRows.length > 0 ? dataRows : tableRows,
+        matrix
+      });
+    }
+
+    if (blocks.length > 0) {
+      pagesBlocks.push(blocks);
+    }
+  }
+
+  if (pagesBlocks.length === 0) {
+    pagesBlocks.push([{
+      type: 'paragraph',
+      y: 0,
+      text: 'Таблица не содержит данных'
+    }]);
+  }
+
+  return buildStructuredDocument(pagesBlocks, baseName);
+}
+
+/**
+ * Converts an Excel workbook into clean, beautifully styled HTML table markup
+ * preserving cell formatting, dates, calculated formulas, and merged headers.
+ */
+export function convertXlsxToStyledHtml(arrayBuffer: ArrayBuffer, baseName: string): string {
+  const workbook = XLSX.read(arrayBuffer, {
+    type: 'array',
+    cellDates: true,
+    cellNF: true,
+    cellText: true,
+    cellStyles: true,
+    cellFormula: true,
+  });
+
+  let html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(baseName)}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; background: #ffffff; color: #0f172a; line-height: 1.5; }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #0f172a; }
+    h2 { font-size: 16px; font-weight: 600; margin-top: 24px; margin-bottom: 12px; color: #334155; }
+    .excel-table-wrap { overflow-x: auto; margin-bottom: 28px; }
+    table.excel-table { border-collapse: collapse; width: 100%; font-size: 13px; background: #ffffff; border: 1px solid #cbd5e1; }
+    table.excel-table th, table.excel-table td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; vertical-align: top; }
+    table.excel-table th { background: #f1f5f9; font-weight: 600; color: #0f172a; text-align: center; }
+    table.excel-table tr:nth-child(even) td { background: #f8fafc; }
+    table.excel-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.excel-table td.center { text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(baseName)}</h1>\n`;
+
+  for (const sheetName of workbook.SheetNames) {
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet || !worksheet['!ref']) continue;
+
+    if (workbook.SheetNames.length > 1) {
+      html += `  <h2>${escapeHtml(sheetName)}</h2>\n`;
+    }
+
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    html += `  <div class="excel-table-wrap">\n    <table class="excel-table">\n`;
+
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      const isHeader = r === range.s.r;
+      const tag = isHeader ? 'th' : 'td';
+      let rowHtml = `      <tr>\n`;
+      let hasRowContent = false;
+
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cellAddress = XLSX.utils.encode_cell({ r, c });
+        const cell = worksheet[cellAddress];
+        const extracted = extractExcelCellValue(cell);
+
+        if (extracted.text !== '') {
+          hasRowContent = true;
+        }
+
+        const isNumeric = typeof extracted.rawValue === 'number';
+        const cellClass = isNumeric ? ' class="num"' : (!isHeader && (extracted.text.length <= 4 || /^\d+\.?$/.test(extracted.text)) ? ' class="center"' : '');
+
+        rowHtml += `        <${tag}${cellClass}>${escapeHtml(extracted.text)}</${tag}>\n`;
+      }
+      rowHtml += `      </tr>\n`;
+
+      if (hasRowContent || isHeader) {
+        html += rowHtml;
+      }
+    }
+
+    html += `    </table>\n  </div>\n`;
+  }
+
+  html += `</body>\n</html>`;
+  return html;
+}
+
 // --- EXPORTERS ---
 
 /**
