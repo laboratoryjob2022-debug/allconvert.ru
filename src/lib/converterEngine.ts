@@ -1372,7 +1372,7 @@ async function renderTextToPdf(textContent: string, baseName: string, onProgress
 // Document & PDF processing helpers
 let pdfjsLibInstance: any = null;
 
-async function getPdfJsLib(): Promise<any> {
+export async function getPdfJsLib(): Promise<any> {
   if (pdfjsLibInstance) return pdfjsLibInstance;
   const pdfjs = await import('pdfjs-dist');
   // Configure worker URL from CDN to avoid bundler worker chunk errors
@@ -1840,50 +1840,250 @@ async function extractTextFromPdf(file: File, onProgress: (p: number, t: string)
   return exportToTxtString(doc) || 'No readable text layer found in PDF (scanned or image-only document).';
 }
 
+async function renderPdfToImageOutput(
+  file: File,
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
+  ext: string,
+  settings: ConversionSettings,
+  baseName: string,
+  onProgress: (p: number, t: string) => void
+): Promise<{ blob: Blob; fileName: string }> {
+  onProgress(25, 'Загрузка PDF документа...');
+  const pdfjs = await getPdfJsLib();
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+  const pdfDocument = await loadingTask.promise;
+  const numPages = pdfDocument.numPages;
+
+  const mode = settings.multiPageExportMode || 'single_merged';
+
+  // If only 1 page in document
+  if (numPages === 1) {
+    onProgress(50, 'Рендеринг страницы документа в высоком разрешении...');
+    const page = await pdfDocument.getPage(1);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d')!;
+    if (mimeType === 'image/jpeg') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const blob: Blob = await new Promise((res, rej) =>
+      canvas.toBlob((b) => (b ? res(b) : rej(new Error('Canvas export failed'))), mimeType, 0.95)
+    );
+    return { blob, fileName: `${baseName}.${ext}` };
+  }
+
+  // Multi-page PDF:
+  // Mode 1: ZIP Archive of all pages
+  if (mode === 'zip_archive') {
+    onProgress(30, `Экспорт всех ${numPages} страниц в ZIP-архив...`);
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+
+    for (let p = 1; p <= numPages; p++) {
+      const pct = Math.min(95, Math.round(30 + (p / numPages) * 60));
+      onProgress(pct, `Рендеринг страницы ${p} из ${numPages}...`);
+      const page = await pdfDocument.getPage(p);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d')!;
+      if (mimeType === 'image/jpeg') {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const imgBlob: Blob = await new Promise((res, rej) =>
+        canvas.toBlob((b) => (b ? res(b) : rej(new Error('Canvas export failed'))), mimeType, 0.95)
+      );
+      const paddedNum = String(p).padStart(String(numPages).length > 1 ? String(numPages).length : 2, '0');
+      zip.file(`${baseName}_стр_${paddedNum}.${ext}`, imgBlob);
+    }
+
+    onProgress(95, 'Упаковка страниц в ZIP-архив...');
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    return { blob: zipBlob, fileName: `${baseName}_все_страницы.zip` };
+  }
+
+  // Mode 2: Selected single page
+  if (mode === 'selected_page') {
+    let targetPage = 1;
+    if (typeof settings.selectedPageOrSheet === 'number') {
+      targetPage = settings.selectedPageOrSheet;
+    } else if (typeof settings.selectedPageOrSheet === 'string') {
+      const parsed = parseInt(settings.selectedPageOrSheet, 10);
+      if (!isNaN(parsed)) targetPage = parsed;
+    }
+    targetPage = Math.max(1, Math.min(numPages, targetPage));
+
+    onProgress(40, `Рендеринг выбранной страницы ${targetPage}...`);
+    const page = await pdfDocument.getPage(targetPage);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d')!;
+    if (mimeType === 'image/jpeg') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const blob: Blob = await new Promise((res, rej) =>
+      canvas.toBlob((b) => (b ? res(b) : rej(new Error('Canvas export failed'))), mimeType, 0.95)
+    );
+    return { blob, fileName: `${baseName}_стр_${targetPage}.${ext}` };
+  }
+
+  // Mode 3: Single Merged Infographic (Склейка всех страниц в одно изображение)
+  onProgress(30, `Склейка всех ${numPages} страниц в единую инфографику...`);
+  const renderedCanvases: HTMLCanvasElement[] = [];
+
+  for (let p = 1; p <= numPages; p++) {
+    const pct = Math.min(85, Math.round(30 + (p / numPages) * 50));
+    onProgress(pct, `Рендеринг страницы ${p}/${numPages}...`);
+    const page = await pdfDocument.getPage(p);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d')!;
+    if (mimeType === 'image/jpeg') {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    renderedCanvases.push(canvas);
+  }
+
+  onProgress(88, 'Объединение страниц в единое полотно...');
+  const gap = 24;
+  const maxWidth = Math.max(...renderedCanvases.map((c) => c.width));
+  const totalHeight = renderedCanvases.reduce((sum, c) => sum + c.height, 0) + (renderedCanvases.length - 1) * gap;
+
+  const masterCanvas = document.createElement('canvas');
+  masterCanvas.width = maxWidth;
+  masterCanvas.height = totalHeight;
+  const masterCtx = masterCanvas.getContext('2d')!;
+
+  masterCtx.fillStyle = '#ffffff';
+  masterCtx.fillRect(0, 0, maxWidth, totalHeight);
+
+  let currentY = 0;
+  for (let i = 0; i < renderedCanvases.length; i++) {
+    const pageCanvas = renderedCanvases[i];
+    const offsetX = Math.round((maxWidth - pageCanvas.width) / 2);
+    masterCtx.drawImage(pageCanvas, offsetX, currentY);
+    currentY += pageCanvas.height + gap;
+  }
+
+  const blob: Blob = await new Promise((res, rej) =>
+    masterCanvas.toBlob((b) => (b ? res(b) : rej(new Error('Canvas export failed'))), mimeType, 0.95)
+  );
+  return { blob, fileName: `${baseName}.${ext}` };
+}
+
+async function renderXlsxToImageOutput(
+  arrayBuffer: ArrayBuffer,
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
+  ext: string,
+  settings: ConversionSettings,
+  baseName: string,
+  onProgress: (p: number, t: string) => void
+): Promise<{ blob: Blob; fileName: string }> {
+  const workbook = XLSX.read(arrayBuffer, {
+    type: 'array',
+    cellDates: true,
+    cellNF: true,
+    cellText: true,
+    cellStyles: true,
+    cellFormula: true,
+  });
+
+  const sheetNames = workbook.SheetNames || ['Sheet1'];
+  const mode = settings.multiPageExportMode || 'single_merged';
+
+  // If only 1 sheet in workbook
+  if (sheetNames.length === 1) {
+    onProgress(50, 'Рендеринг таблицы в изображение...');
+    const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
+    const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
+    const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
+    return await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, baseName, onProgress);
+  }
+
+  // Multi-sheet Excel workbook (e.g. 2020..2026):
+  // Mode 1: ZIP Archive of all sheets as individual image files
+  if (mode === 'zip_archive') {
+    onProgress(30, `Экспорт всех ${sheetNames.length} листов в ZIP-архив картинок...`);
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+
+    for (let sIdx = 0; sIdx < sheetNames.length; sIdx++) {
+      const sheetName = sheetNames[sIdx];
+      const pct = Math.min(95, Math.round(30 + ((sIdx + 1) / sheetNames.length) * 60));
+      onProgress(pct, `Рендеринг листа "${sheetName}" (${sIdx + 1}/${sheetNames.length})...`);
+
+      const sheetHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, sheetName);
+      const sheetDocModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sheetName);
+      const pdfBlob = await renderHtmlToPdfBlob(sheetHtml, `${baseName} - ${sheetName}`, () => {}, { docModel: sheetDocModel });
+      const pdfFile = new File([pdfBlob], `${sheetName}.pdf`, { type: 'application/pdf' });
+      
+      const { blob: sheetImgBlob } = await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, `${baseName} - ${sheetName}`, () => {});
+      const safeSheetName = sheetName.replace(/[/\\?%*:|"<>]/g, '_');
+      zip.file(`${baseName}_${safeSheetName}.${ext}`, sheetImgBlob);
+    }
+
+    onProgress(95, 'Создание архива со всеми листами...');
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    return { blob: zipBlob, fileName: `${baseName}_все_листы.zip` };
+  }
+
+  // Mode 2: Selected single sheet
+  if (mode === 'selected_page') {
+    let targetSheet = sheetNames[0];
+    if (typeof settings.selectedPageOrSheet === 'string' && sheetNames.includes(settings.selectedPageOrSheet)) {
+      targetSheet = settings.selectedPageOrSheet;
+    } else if (typeof settings.selectedPageOrSheet === 'number' && sheetNames[settings.selectedPageOrSheet - 1]) {
+      targetSheet = sheetNames[settings.selectedPageOrSheet - 1];
+    } else if (typeof settings.selectedPageOrSheet === 'string') {
+      const parsedIdx = parseInt(settings.selectedPageOrSheet, 10);
+      if (!isNaN(parsedIdx) && sheetNames[parsedIdx - 1]) {
+        targetSheet = sheetNames[parsedIdx - 1];
+      }
+    }
+
+    onProgress(50, `Рендеринг выбранного листа "${targetSheet}"...`);
+    const sheetHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, targetSheet);
+    const sheetDocModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+    const pdfBlob = await renderHtmlToPdfBlob(sheetHtml, `${baseName} - ${targetSheet}`, onProgress, { docModel: sheetDocModel });
+    const pdfFile = new File([pdfBlob], `${targetSheet}.pdf`, { type: 'application/pdf' });
+    const safeSheetName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+    return await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, `${baseName}_${safeSheetName}`, onProgress);
+  }
+
+  // Mode 3: Single Merged Infographic (Все листы со всеми годами на одном сплошном изображении)
+  onProgress(45, 'Сборка всех листов книги Excel в единую инфографику...');
+  const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+  const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
+  const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
+  const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
+  return await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, baseName, onProgress);
+}
+
 async function renderPdfFirstPageToImage(
   file: File,
   mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
   onProgress: (p: number, t: string) => void
 ): Promise<Blob> {
-  onProgress(30, 'Rendering PDF page into image canvas...');
-  const pdfjs = await getPdfJsLib();
-  const arrayBuffer = await file.arrayBuffer();
-  const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
-  const pdfDocument = await loadingTask.promise;
-  const page = await pdfDocument.getPage(1);
-  const viewport = page.getViewport({ scale: 2.0 }); // 2x high resolution render
-
-  const canvas = document.createElement('canvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) throw new Error('Could not create Canvas context for PDF rendering');
-
-  // Fill white background for non-alpha formats (JPEG)
-  if (mimeType === 'image/jpeg') {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  const renderContext = {
-    canvasContext: ctx,
-    viewport: viewport,
-  };
-
-  onProgress(60, 'Rasterizing PDF graphics...');
-  await page.render(renderContext).promise;
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Canvas export to blob failed'));
-      },
-      mimeType,
-      0.95
-    );
-  });
+  const ext = mimeType === 'image/jpeg' ? 'jpg' : (mimeType === 'image/webp' ? 'webp' : 'png');
+  const res = await renderPdfToImageOutput(file, mimeType, ext, { multiPageExportMode: 'single_merged' }, 'document', onProgress);
+  return res.blob;
 }
 
 async function convertImageToSearchablePdf(
@@ -3134,44 +3334,36 @@ async function convertDocument(
 
   // 1. PDF SOURCE SPECIAL CASES: PDF -> JPG / PNG / WEBP / BMP / ICO
   if (srcFmt === 'PDF' && (tgtFmt === 'JPG' || tgtFmt === 'JPEG')) {
-    const blob = await renderPdfFirstPageToImage(file, 'image/jpeg', onProgress);
-    return { blob, fileName: `${baseName}.jpg` };
+    return await renderPdfToImageOutput(file, 'image/jpeg', 'jpg', settings, baseName, onProgress);
   }
   if (srcFmt === 'PDF' && tgtFmt === 'PNG') {
-    const blob = await renderPdfFirstPageToImage(file, 'image/png', onProgress);
-    return { blob, fileName: `${baseName}.png` };
+    return await renderPdfToImageOutput(file, 'image/png', 'png', settings, baseName, onProgress);
   }
   if (srcFmt === 'PDF' && tgtFmt === 'WEBP') {
-    const blob = await renderPdfFirstPageToImage(file, 'image/webp', onProgress);
-    return { blob, fileName: `${baseName}.webp` };
+    return await renderPdfToImageOutput(file, 'image/webp', 'webp', settings, baseName, onProgress);
   }
   if (srcFmt === 'PDF' && (tgtFmt === 'BMP' || tgtFmt === 'ICO')) {
-    const blob = await renderPdfFirstPageToImage(file, 'image/png', onProgress);
-    return { blob, fileName: `${baseName}.${tgtFmt.toLowerCase()}` };
+    return await renderPdfToImageOutput(file, 'image/png', tgtFmt.toLowerCase(), settings, baseName, onProgress);
   }
 
   // 2. Excel (XLSX / XLS) Source Format Processing
   if (srcFmt === 'XLSX' || srcFmt === 'XLS') {
     onProgress(25, 'Анализ структуры и формул книги Excel...');
     const arrayBuffer = await file.arrayBuffer();
-    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
+    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, typeof settings.selectedPageOrSheet === 'string' ? settings.selectedPageOrSheet : undefined);
 
     if (tgtFmt === 'PDF') {
       onProgress(50, 'Рендеринг таблицы Excel в векторный PDF...');
-      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+      const targetSheet = typeof settings.selectedPageOrSheet === 'string' ? settings.selectedPageOrSheet : undefined;
+      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, targetSheet);
       const blob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
       return { blob, fileName: `${baseName}.pdf` };
     }
 
     if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP') {
-      onProgress(45, 'Подготовка высококачественного изображения таблицы...');
-      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
-      const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
-      const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
       const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
       const ext = (tgtFmt === 'JPEG') ? 'jpg' : tgtFmt.toLowerCase();
-      const imgBlob = await renderPdfFirstPageToImage(pdfFile, imageMime as any, onProgress);
-      return { blob: imgBlob, fileName: `${baseName}.${ext}` };
+      return await renderXlsxToImageOutput(arrayBuffer, imageMime as any, ext, settings, baseName, onProgress);
     }
 
     if (tgtFmt === 'HTML') {
@@ -3747,8 +3939,7 @@ async function convertDocument(
     const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
     const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
     const ext = (tgtFmt === 'JPEG') ? 'jpg' : tgtFmt.toLowerCase();
-    const imgBlob = await renderPdfFirstPageToImage(pdfFile, imageMime as any, onProgress);
-    return { blob: imgBlob, fileName: `${baseName}.${ext}` };
+    return await renderPdfToImageOutput(pdfFile, imageMime as any, ext, settings, baseName, onProgress);
   }
 
   // Default fallback text

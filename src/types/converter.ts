@@ -23,6 +23,8 @@ export interface ConversionSettings {
   videoFps?: 15 | 24 | 30 | 60;
   videoResolution?: 'original' | '1080p' | '720p' | '480p';
   pdfPageSize?: 'a4' | 'letter';
+  multiPageExportMode?: 'single_merged' | 'zip_archive' | 'selected_page';
+  selectedPageOrSheet?: string | number;
 }
 
 export interface FileItem {

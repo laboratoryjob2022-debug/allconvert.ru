@@ -183,6 +183,7 @@ export const useConverterStore = create<ConverterState>()(
           preserveAspectRatio: true,
           audioBitrate: get().defaultAudioBitrate || '256k',
           videoResolution: 'original',
+          multiPageExportMode: 'single_merged',
         },
         createdAt: Date.now(),
       };

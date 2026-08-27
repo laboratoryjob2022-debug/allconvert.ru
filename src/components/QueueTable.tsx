@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useConverterStore } from '../store/useConverterStore';
 import { getTranslation } from '../lib/i18n';
 import { getAvailableTargets, getGroupedAvailableTargets } from '../lib/formatSpecs';
 import { FileItem } from '../types/converter';
+import { MultiPageSettingsModal } from './MultiPageSettingsModal';
 import {
   FileText,
   Music,
@@ -23,10 +24,14 @@ import {
   Search,
   ArrowUpDown,
   X,
-  Filter
+  Filter,
+  Layers,
+  Archive
 } from 'lucide-react';
 
 export const QueueTable: React.FC = () => {
+  const [multiPageModalItem, setMultiPageModalItem] = useState<FileItem | null>(null);
+
   const {
     queue,
     activeSector,
@@ -49,6 +54,14 @@ export const QueueTable: React.FC = () => {
   } = useConverterStore();
 
   const t = getTranslation(language || 'ru');
+
+  const isMultiPageEligible = (item: FileItem) => {
+    const src = (item.detectedFormat || '').toUpperCase();
+    const tgt = (item.targetFormat || '').toUpperCase();
+    const isDocSrc = ['XLSX', 'XLS', 'PDF', 'DOCX', 'DOC', 'HTML', 'CSV', 'TXT'].includes(src);
+    const isImageTgt = ['PNG', 'JPG', 'JPEG', 'WEBP', 'BMP', 'ICO'].includes(tgt);
+    return (src === 'XLSX' || src === 'XLS' || src === 'PDF') || (isDocSrc && isImageTgt);
+  };
 
   // If no files in total queue, render nothing
   if (queue.length === 0) return null;
@@ -266,6 +279,40 @@ export const QueueTable: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Multi-page / Sheet Settings Button for Mobile */}
+                    {isMultiPageEligible(item) && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setMultiPageModalItem(item)}
+                          disabled={item.status === 'converting'}
+                          className={`w-full px-3 py-1.5 rounded-xl text-xs font-medium flex items-center justify-between border transition-all disabled:opacity-50 ${
+                            item.settings.multiPageExportMode === 'zip_archive'
+                              ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300'
+                              : item.settings.multiPageExportMode === 'selected_page'
+                              ? 'bg-amber-950/50 border-amber-500/50 text-amber-300'
+                              : 'bg-cyan-950/50 border-cyan-500/50 text-cyan-300'
+                          }`}
+                        >
+                          <span className="flex items-center space-x-2 truncate">
+                            {item.settings.multiPageExportMode === 'zip_archive' ? (
+                              <Archive className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            ) : (
+                              <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                            )}
+                            <span className="truncate">
+                              {item.settings.multiPageExportMode === 'zip_archive'
+                                ? 'Экспорт: ZIP (Все листы отдельно)'
+                                : item.settings.multiPageExportMode === 'selected_page'
+                                ? `Экспорт: Лист ${item.settings.selectedPageOrSheet || 1}`
+                                : 'Экспорт: Сплошная инфографика (Все листы)'}
+                            </span>
+                          </span>
+                          <span className="text-xs opacity-80">⚙️</span>
+                        </button>
+                      </div>
+                    )}
+
                     {/* Status Display */}
                     <div className="pt-1.5 border-t border-slate-800/80">
                       {item.status === 'idle' && (
@@ -467,24 +514,59 @@ export const QueueTable: React.FC = () => {
                           </span>
                         </td>
 
-                        {/* Target Format Dropdown */}
+                        {/* Target Format Dropdown & Multi-page Mode Button */}
                         <td className="p-4">
-                          <select
-                            value={item.targetFormat}
-                            onChange={(e) => setTargetFormat(item.id, e.target.value)}
-                            disabled={item.status === 'converting'}
-                            className="w-full max-w-[170px] bg-slate-950 text-cyan-400 text-xs font-bold font-mono px-3 py-1.5 rounded-xl border border-slate-800 hover:border-cyan-500/50 focus:outline-none focus:border-cyan-400 transition-all disabled:opacity-50 truncate"
-                          >
-                            {groupedTargets.map((group) => (
-                              <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
-                                {group.options.map((t) => (
-                                  <option key={t.id} value={t.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
-                                    {t.name} (.{t.extension})
-                                  </option>
-                                ))}
-                              </optgroup>
-                            ))}
-                          </select>
+                          <div className="space-y-1.5">
+                            <select
+                              value={item.targetFormat}
+                              onChange={(e) => setTargetFormat(item.id, e.target.value)}
+                              disabled={item.status === 'converting'}
+                              className="w-full max-w-[170px] bg-slate-950 text-cyan-400 text-xs font-bold font-mono px-3 py-1.5 rounded-xl border border-slate-800 hover:border-cyan-500/50 focus:outline-none focus:border-cyan-400 transition-all disabled:opacity-50 truncate"
+                            >
+                              {groupedTargets.map((group) => (
+                                <optgroup key={group.category} label={group.label} className="bg-slate-950 text-cyan-400 font-bold font-sans">
+                                  {group.options.map((t) => (
+                                    <option key={t.id} value={t.id} className="bg-slate-900 text-slate-100 font-normal font-mono">
+                                      {t.name} (.{t.extension})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+
+                            {/* Multi-page / Sheet Settings Button for Desktop */}
+                            {isMultiPageEligible(item) && (
+                              <button
+                                type="button"
+                                onClick={() => setMultiPageModalItem(item)}
+                                disabled={item.status === 'converting'}
+                                className={`w-full max-w-[170px] px-2.5 py-1 rounded-lg text-[10.5px] font-medium flex items-center justify-between border transition-all disabled:opacity-50 ${
+                                  item.settings.multiPageExportMode === 'zip_archive'
+                                    ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/40'
+                                    : item.settings.multiPageExportMode === 'selected_page'
+                                    ? 'bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-900/40'
+                                    : 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/40'
+                                }`}
+                                title="Настройка экспорта листов и страниц (склейка в 1 файл / ZIP / выбор листа)"
+                              >
+                                <span className="flex items-center space-x-1 truncate">
+                                  {item.settings.multiPageExportMode === 'zip_archive' ? (
+                                    <Archive className="w-3 h-3 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <Layers className="w-3 h-3 text-cyan-400 shrink-0" />
+                                  )}
+                                  <span className="truncate font-sans">
+                                    {item.settings.multiPageExportMode === 'zip_archive'
+                                      ? 'ZIP (Все листы)'
+                                      : item.settings.multiPageExportMode === 'selected_page'
+                                      ? `Лист: ${item.settings.selectedPageOrSheet || 1}`
+                                      : 'Склейка (Все)'}
+                                  </span>
+                                </span>
+                                <span className="text-[9px] opacity-70 ml-1">⚙️</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
 
                         {/* Status & Progress Bar */}
@@ -624,6 +706,14 @@ export const QueueTable: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Multi-page / Sheet Settings Modal */}
+      {multiPageModalItem && (
+        <MultiPageSettingsModal
+          item={multiPageModalItem}
+          onClose={() => setMultiPageModalItem(null)}
+        />
       )}
     </div>
   );

@@ -997,10 +997,22 @@ export function extractExcelCellValue(cell: XLSX.CellObject | any): { text: stri
 }
 
 /**
- * Parses an Excel Workbook (ArrayBuffer) into a StructuredDocument model with intact tabular matrices,
- * proper number/date formatting, and headers.
+ * Extracts sheet names list from an Excel Workbook buffer without full parsing.
  */
-export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName: string = 'Таблица'): StructuredDocument {
+export function getXlsxSheetNames(arrayBuffer: ArrayBuffer): string[] {
+  try {
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', bookSheets: true });
+    return workbook.SheetNames || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Parses an Excel Workbook (ArrayBuffer) into a StructuredDocument model with intact tabular matrices,
+ * proper number/date formatting, and headers. Optionally filters by a single sheet.
+ */
+export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName: string = 'Таблица', targetSheetName?: string): StructuredDocument {
   const workbook = XLSX.read(arrayBuffer, {
     type: 'array',
     cellDates: true,
@@ -1011,16 +1023,19 @@ export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName
   });
 
   const pagesBlocks: DocumentBlock[][] = [];
+  const sheetsToProcess = targetSheetName && workbook.SheetNames.includes(targetSheetName)
+    ? [targetSheetName]
+    : workbook.SheetNames;
 
-  for (const sheetName of workbook.SheetNames) {
+  for (const sheetName of sheetsToProcess) {
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet || !worksheet['!ref']) continue;
 
     const range = XLSX.utils.decode_range(worksheet['!ref']);
     const blocks: DocumentBlock[] = [];
 
-    // Add sheet heading if multiple sheets exist
-    if (workbook.SheetNames.length > 1) {
+    // Add sheet heading if multiple sheets exist and not single filtered
+    if (sheetsToProcess.length > 1 || (!targetSheetName && workbook.SheetNames.length > 1)) {
       blocks.push({
         type: 'heading',
         y: blocks.length,
@@ -1092,14 +1107,15 @@ export function parseXlsxToStructuredDocument(arrayBuffer: ArrayBuffer, baseName
     }]);
   }
 
-  return buildStructuredDocument(pagesBlocks, baseName);
+  return buildStructuredDocument(pagesBlocks, targetSheetName ? `${baseName} - ${targetSheetName}` : baseName);
 }
 
 /**
  * Converts an Excel workbook into clean, beautifully styled HTML table markup
  * preserving cell formatting, dates, calculated formulas, and merged headers.
+ * Optionally filters to a single target sheet.
  */
-export function convertXlsxToStyledHtml(arrayBuffer: ArrayBuffer, baseName: string): string {
+export function convertXlsxToStyledHtml(arrayBuffer: ArrayBuffer, baseName: string, targetSheetName?: string): string {
   const workbook = XLSX.read(arrayBuffer, {
     type: 'array',
     cellDates: true,
@@ -1109,11 +1125,17 @@ export function convertXlsxToStyledHtml(arrayBuffer: ArrayBuffer, baseName: stri
     cellFormula: true,
   });
 
+  const sheetsToProcess = targetSheetName && workbook.SheetNames.includes(targetSheetName)
+    ? [targetSheetName]
+    : workbook.SheetNames;
+
+  const docTitle = targetSheetName ? `${baseName} - ${targetSheetName}` : baseName;
+
   let html = `<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>${escapeHtml(baseName)}</title>
+  <title>${escapeHtml(docTitle)}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 24px; background: #ffffff; color: #0f172a; line-height: 1.5; }
     h1 { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #0f172a; }
@@ -1128,13 +1150,13 @@ export function convertXlsxToStyledHtml(arrayBuffer: ArrayBuffer, baseName: stri
   </style>
 </head>
 <body>
-  <h1>${escapeHtml(baseName)}</h1>\n`;
+  <h1>${escapeHtml(docTitle)}</h1>\n`;
 
-  for (const sheetName of workbook.SheetNames) {
+  for (const sheetName of sheetsToProcess) {
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet || !worksheet['!ref']) continue;
 
-    if (workbook.SheetNames.length > 1) {
+    if (sheetsToProcess.length > 1) {
       html += `  <h2>${escapeHtml(sheetName)}</h2>\n`;
     }
 
