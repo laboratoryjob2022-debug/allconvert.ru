@@ -83,9 +83,9 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
   };
 
   const getModeLabel = () => {
-    if (mode === 'single_merged') return 'Все листы / страницы в одно изображение';
+    if (mode === 'single_merged') return 'Все листы / страницы в 1 общий файл';
     if (mode === 'zip_archive') return 'Все листы / страницы раздельно в ZIP-архив';
-    return isExcel ? `Выбран лист: ${selectedSheet || 'Лист 1'}` : `Выбрана страница: ${selectedPageNum}`;
+    return isExcel ? `Выбран лист: ${selectedSheet || (detectedSheets[0] ?? 'Лист 1')}` : `Выбрана страница: ${selectedPageNum}`;
   };
 
   return (
@@ -99,7 +99,7 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
             </div>
             <div className="min-w-0">
               <h3 className="text-base font-bold text-slate-100 flex items-center space-x-2">
-                <span>Параметры экспорта страниц / листов</span>
+                <span>Параметры экспорта листов и страниц</span>
               </h3>
               <p className="text-xs text-slate-400 truncate max-w-sm mt-0.5" title={item.name}>
                 {item.name} ({item.detectedFormat} → {item.targetFormat})
@@ -117,11 +117,11 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
         {/* Modal Body */}
         <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           <p className="text-xs text-slate-300">
-            Выберите, как вы хотите сформировать и выгрузить многостраничный документ или таблицу с несколькими листами:
+            Выберите режим обработки многостраничного документа или книги Excel с несколькими листами:
           </p>
 
           <div className="space-y-3">
-            {/* OPTION 1: Single Merged Canvas */}
+            {/* OPTION 1: Single Merged Output */}
             <div
               onClick={() => setMode('single_merged')}
               className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start space-x-3.5 ${
@@ -142,14 +142,14 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-slate-100">
-                    Сплошная инфографика (Все листы/страницы в 1 файл)
+                    Сплошной документ (Все листы / страницы в 1 файл)
                   </h4>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                     1 файл
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Все листы (например, все года 2020–2026) или страницы аккуратно склеиваются вертикально в единое цельное изображение высокого разрешения. Удобно для быстрого просмотра всей истории.
+                  Все листы книги или страницы документа объединяются в единый непрерывный выходной файл.
                 </p>
               </div>
             </div>
@@ -175,14 +175,14 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-slate-100">
-                    ZIP-архив (Каждый лист/страница отдельным файлом)
+                    ZIP-архив (Каждый лист / страница отдельным файлом)
                   </h4>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     .ZIP архив
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Каждый лист книги Excel или каждая страница документа сохраняется в отдельный файл максимального качества (например, <code className="text-cyan-400 font-mono">отчет_2020.png</code>, <code className="text-cyan-400 font-mono">отчет_2021.png</code>...) и скачивается в удобном архиве.
+                  Каждый лист таблицы или каждая страница документа сохраняется отдельным независимым файлом в ZIP-архиве.
                 </p>
               </div>
             </div>
@@ -212,11 +212,11 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
                       Точечный экспорт (Выбрать конкретный лист или страницу)
                     </h4>
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      1 лист / стр.
+                      1 элемент
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    Экспортировать строго нужный год (например, только 2026 год) или конкретную страницу документа.
+                    Конвертировать строго выбранный лист книги Excel или конкретную страницу документа.
                   </p>
                 </div>
               </div>
@@ -229,11 +229,16 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
                 >
                   {isExcel ? (
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Выберите лист книги Excel:
-                      </label>
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
+                        <span>Выберите лист книги Excel:</span>
+                        {detectedSheets.length > 0 && (
+                          <span className="text-slate-400 font-mono text-[11px]">
+                            Листов: {detectedSheets.length}
+                          </span>
+                        )}
+                      </div>
                       {detectedSheets.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-1 bg-slate-950/40 rounded-xl border border-slate-800/80 custom-scrollbar">
                           {detectedSheets.map((sheet) => (
                             <button
                               key={sheet}
@@ -254,7 +259,7 @@ export const MultiPageSettingsModal: React.FC<MultiPageSettingsModalProps> = ({ 
                           type="text"
                           value={selectedSheet}
                           onChange={(e) => setSelectedSheet(e.target.value)}
-                          placeholder="Например: 2026 или Sheet1"
+                          placeholder="Название листа (например: Лист 1 или Sheet1)"
                           className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-cyan-400 font-mono focus:outline-none focus:border-cyan-400"
                         />
                       )}

@@ -557,10 +557,10 @@ export const QueueTable: React.FC = () => {
                                   )}
                                   <span className="truncate font-sans">
                                     {item.settings.multiPageExportMode === 'zip_archive'
-                                      ? 'ZIP (Все листы)'
+                                      ? 'ZIP (Все листы/стр.)'
                                       : item.settings.multiPageExportMode === 'selected_page'
-                                      ? `Лист: ${item.settings.selectedPageOrSheet || 1}`
-                                      : 'Склейка (Все)'}
+                                      ? `${(item.detectedFormat === 'XLSX' || item.detectedFormat === 'XLS') ? 'Лист' : 'Стр.'}: ${item.settings.selectedPageOrSheet || 1}`
+                                      : 'Сплошной (Все)'}
                                   </span>
                                 </span>
                                 <span className="text-[9px] opacity-70 ml-1">⚙️</span>

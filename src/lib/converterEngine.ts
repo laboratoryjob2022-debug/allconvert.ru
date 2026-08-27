@@ -9,6 +9,7 @@ import {
   parseXlsxToStructuredDocument,
   convertXlsxToStyledHtml,
   extractExcelCellValue,
+  getXlsxSheetNames,
   buildStructuredDocument,
   exportToXlsxBuffer,
   exportToCsvString,
@@ -1987,6 +1988,47 @@ async function renderPdfToImageOutput(
   return { blob, fileName: `${baseName}.${ext}` };
 }
 
+async function renderHtmlToImageBlob(
+  htmlContent: string,
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
+  quality = 0.95
+): Promise<Blob> {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-99999px';
+  container.style.top = '0px';
+  container.style.width = '1040px';
+  container.style.maxWidth = '1040px';
+  container.style.background = '#ffffff';
+  container.style.boxSizing = 'border-box';
+  container.style.padding = '24px';
+  container.style.color = '#0f172a';
+  container.style.zIndex = '-9999';
+  container.innerHTML = htmlContent;
+  document.body.appendChild(container);
+
+  try {
+    const html2canvasModule = await import('html2canvas');
+    const html2canvas = (html2canvasModule as any).default || html2canvasModule;
+    const canvas = await html2canvas(container, {
+      scale: 2.0,
+      backgroundColor: '#ffffff',
+      logging: false,
+      useCORS: true,
+      windowWidth: 1080,
+    });
+
+    const blob: Blob = await new Promise((res, rej) =>
+      canvas.toBlob((b: Blob | null) => (b ? res(b) : rej(new Error('Canvas export failed'))), mimeType, quality)
+    );
+    return blob;
+  } finally {
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  }
+}
+
 async function renderXlsxToImageOutput(
   arrayBuffer: ArrayBuffer,
   mimeType: 'image/png' | 'image/jpeg' | 'image/webp',
@@ -2007,20 +2049,9 @@ async function renderXlsxToImageOutput(
   const sheetNames = workbook.SheetNames || ['Sheet1'];
   const mode = settings.multiPageExportMode || 'single_merged';
 
-  // If only 1 sheet in workbook
-  if (sheetNames.length === 1) {
-    onProgress(50, 'Рендеринг таблицы в изображение...');
-    const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
-    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
-    const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
-    const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
-    return await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, baseName, onProgress);
-  }
-
-  // Multi-sheet Excel workbook (e.g. 2020..2026):
   // Mode 1: ZIP Archive of all sheets as individual image files
   if (mode === 'zip_archive') {
-    onProgress(30, `Экспорт всех ${sheetNames.length} листов в ZIP-архив картинок...`);
+    onProgress(30, `Экспорт всех ${sheetNames.length} листов в ZIP-архив изображений...`);
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
 
@@ -2030,11 +2061,18 @@ async function renderXlsxToImageOutput(
       onProgress(pct, `Рендеринг листа "${sheetName}" (${sIdx + 1}/${sheetNames.length})...`);
 
       const sheetHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, sheetName);
-      const sheetDocModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sheetName);
-      const pdfBlob = await renderHtmlToPdfBlob(sheetHtml, `${baseName} - ${sheetName}`, () => {}, { docModel: sheetDocModel });
-      const pdfFile = new File([pdfBlob], `${sheetName}.pdf`, { type: 'application/pdf' });
-      
-      const { blob: sheetImgBlob } = await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, `${baseName} - ${sheetName}`, () => {});
+      let sheetImgBlob: Blob;
+      try {
+        sheetImgBlob = await renderHtmlToImageBlob(sheetHtml, mimeType, settings.imageQuality || 0.95);
+      } catch (err) {
+        console.warn('html2canvas rendering fallback:', err);
+        const sheetDocModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sheetName);
+        const pdfBlob = await renderHtmlToPdfBlob(sheetHtml, `${baseName} - ${sheetName}`, () => {}, { docModel: sheetDocModel });
+        const pdfFile = new File([pdfBlob], `${sheetName}.pdf`, { type: 'application/pdf' });
+        const res = await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, `${baseName} - ${sheetName}`, () => {});
+        sheetImgBlob = res.blob;
+      }
+
       const safeSheetName = sheetName.replace(/[/\\?%*:|"<>]/g, '_');
       zip.file(`${baseName}_${safeSheetName}.${ext}`, sheetImgBlob);
     }
@@ -2060,20 +2098,36 @@ async function renderXlsxToImageOutput(
 
     onProgress(50, `Рендеринг выбранного листа "${targetSheet}"...`);
     const sheetHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, targetSheet);
-    const sheetDocModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
-    const pdfBlob = await renderHtmlToPdfBlob(sheetHtml, `${baseName} - ${targetSheet}`, onProgress, { docModel: sheetDocModel });
-    const pdfFile = new File([pdfBlob], `${targetSheet}.pdf`, { type: 'application/pdf' });
+    let blob: Blob;
+    try {
+      blob = await renderHtmlToImageBlob(sheetHtml, mimeType, settings.imageQuality || 0.95);
+    } catch (err) {
+      console.warn('html2canvas rendering fallback:', err);
+      const sheetDocModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+      const pdfBlob = await renderHtmlToPdfBlob(sheetHtml, `${baseName} - ${targetSheet}`, onProgress, { docModel: sheetDocModel });
+      const pdfFile = new File([pdfBlob], `${targetSheet}.pdf`, { type: 'application/pdf' });
+      const res = await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, `${baseName}_${targetSheet}`, onProgress);
+      blob = res.blob;
+    }
     const safeSheetName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
-    return await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, `${baseName}_${safeSheetName}`, onProgress);
+    return { blob, fileName: `${baseName}_${safeSheetName}.${ext}` };
   }
 
-  // Mode 3: Single Merged Infographic (Все листы со всеми годами на одном сплошном изображении)
-  onProgress(45, 'Сборка всех листов книги Excel в единую инфографику...');
+  // Mode 3: Single Merged Output (Все листы на одном полотне)
+  onProgress(50, 'Рендеринг таблицы в изображение...');
   const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
-  const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
-  const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
-  const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
-  return await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, baseName, onProgress);
+  let blob: Blob;
+  try {
+    blob = await renderHtmlToImageBlob(styledHtml, mimeType, settings.imageQuality || 0.95);
+  } catch (err) {
+    console.warn('html2canvas rendering fallback:', err);
+    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
+    const pdfBlob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
+    const pdfFile = new File([pdfBlob], `${baseName}.pdf`, { type: 'application/pdf' });
+    const res = await renderPdfToImageOutput(pdfFile, mimeType, ext, { multiPageExportMode: 'single_merged' }, baseName, onProgress);
+    blob = res.blob;
+  }
+  return { blob, fileName: `${baseName}.${ext}` };
 }
 
 async function renderPdfFirstPageToImage(
@@ -3348,33 +3402,128 @@ async function convertDocument(
 
   // 2. Excel (XLSX / XLS) Source Format Processing
   if (srcFmt === 'XLSX' || srcFmt === 'XLS') {
-    onProgress(25, 'Анализ структуры и формул книги Excel...');
+    onProgress(25, 'Анализ структуры книги Excel и листов...');
     const arrayBuffer = await file.arrayBuffer();
-    const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, typeof settings.selectedPageOrSheet === 'string' ? settings.selectedPageOrSheet : undefined);
+    const sheetNames = getXlsxSheetNames(arrayBuffer);
+    const mode = settings.multiPageExportMode || 'single_merged';
 
+    const resolveTargetSheet = (sel?: string | number): string => {
+      if (typeof sel === 'string' && sheetNames.includes(sel)) return sel;
+      if (typeof sel === 'number' && sheetNames[sel - 1]) return sheetNames[sel - 1];
+      if (typeof sel === 'string') {
+        const p = parseInt(sel, 10);
+        if (!isNaN(p) && sheetNames[p - 1]) return sheetNames[p - 1];
+      }
+      return sheetNames[0] || 'Sheet1';
+    };
+
+    // PDF Export
     if (tgtFmt === 'PDF') {
-      onProgress(50, 'Рендеринг таблицы Excel в векторный PDF...');
-      const targetSheet = typeof settings.selectedPageOrSheet === 'string' ? settings.selectedPageOrSheet : undefined;
-      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, targetSheet);
+      if (mode === 'zip_archive') {
+        onProgress(35, `Экспорт ${sheetNames.length} листов в ZIP-архив PDF...`);
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const pct = Math.min(95, Math.round(35 + ((i + 1) / sheetNames.length) * 55));
+          onProgress(pct, `Генерация PDF для листа "${sName}" (${i + 1}/${sheetNames.length})...`);
+          const sHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, sName);
+          const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sName);
+          const sPdfBlob = await renderHtmlToPdfBlob(sHtml, `${baseName} - ${sName}`, () => {}, { docModel: sModel });
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.pdf`, sPdfBlob);
+        }
+        onProgress(95, 'Упаковка PDF-файлов в ZIP-архив...');
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_pdf.zip` };
+      }
+
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        onProgress(50, `Генерация PDF для выбранного листа "${targetSheet}"...`);
+        const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, targetSheet);
+        const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+        const blob = await renderHtmlToPdfBlob(styledHtml, `${baseName} - ${targetSheet}`, onProgress, { docModel });
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        return { blob, fileName: `${baseName}_${safeName}.pdf` };
+      }
+
+      onProgress(50, 'Рендеринг всех листов книги Excel в векторный PDF...');
+      const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
+      const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
       const blob = await renderHtmlToPdfBlob(styledHtml, baseName, onProgress, { docModel });
       return { blob, fileName: `${baseName}.pdf` };
     }
 
-    if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP') {
+    // Image formats (PNG, JPG, JPEG, WEBP, BMP, ICO)
+    if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP' || tgtFmt === 'ICO') {
       const imageMime = (tgtFmt === 'JPG' || tgtFmt === 'JPEG') ? 'image/jpeg' : (tgtFmt === 'WEBP' ? 'image/webp' : 'image/png');
       const ext = (tgtFmt === 'JPEG') ? 'jpg' : tgtFmt.toLowerCase();
       return await renderXlsxToImageOutput(arrayBuffer, imageMime as any, ext, settings, baseName, onProgress);
     }
 
+    // HTML Export
     if (tgtFmt === 'HTML') {
+      if (mode === 'zip_archive') {
+        onProgress(35, `Экспорт ${sheetNames.length} листов в ZIP-архив HTML...`);
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const sHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, sName);
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.html`, sHtml);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_html.zip` };
+      }
+
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        onProgress(60, `Генерация HTML для листа "${targetSheet}"...`);
+        const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName, targetSheet);
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        const blob = new Blob([styledHtml], { type: 'text/html;charset=utf-8;' });
+        return { blob, fileName: `${baseName}_${safeName}.html` };
+      }
+
       onProgress(60, 'Генерация структурированного HTML документа...');
       const styledHtml = convertXlsxToStyledHtml(arrayBuffer, baseName);
       const blob = new Blob([styledHtml], { type: 'text/html;charset=utf-8;' });
       return { blob, fileName: `${baseName}.html` };
     }
 
+    // DOCX Export
     if (tgtFmt === 'DOCX') {
+      if (mode === 'zip_archive') {
+        onProgress(35, `Экспорт ${sheetNames.length} листов в ZIP-архив Word DOCX...`);
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sName);
+          const docxBuf = await exportToDocxBuffer(sModel);
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.docx`, docxBuf);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_docx.zip` };
+      }
+
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        onProgress(60, `Формирование Word документа для листа "${targetSheet}"...`);
+        const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+        const docxBuf = await exportToDocxBuffer(sModel);
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        const blob = new Blob([docxBuf], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+        return { blob, fileName: `${baseName}_${safeName}.docx` };
+      }
+
       onProgress(60, 'Формирование таблицы в документе Word (.docx)...');
+      const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
       const docxBuf = await exportToDocxBuffer(docModel);
       const blob = new Blob([docxBuf], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -3382,33 +3531,127 @@ async function convertDocument(
       return { blob, fileName: `${baseName}.docx` };
     }
 
+    // CSV Export
     if (tgtFmt === 'CSV') {
+      if (mode === 'zip_archive') {
+        onProgress(35, `Экспорт ${sheetNames.length} листов в ZIP-архив CSV...`);
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sName);
+          const csvStr = exportToCsvString(sModel);
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.csv`, '\uFEFF' + csvStr);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_csv.zip` };
+      }
+
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        onProgress(60, `Экспорт листа "${targetSheet}" в CSV...`);
+        const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+        const csvStr = exportToCsvString(sModel);
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
+        return { blob, fileName: `${baseName}_${safeName}.csv` };
+      }
+
       onProgress(60, 'Экспорт данных в CSV с точным форматированием...');
+      const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
       const csvStr = exportToCsvString(docModel);
       const blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
       return { blob, fileName: `${baseName}.csv` };
     }
 
+    // XML Export
     if (tgtFmt === 'XML') {
-      onProgress(60, 'Формирование XML структуры...');
+      if (mode === 'zip_archive') {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sName);
+          const xmlStr = exportToXmlString(sModel);
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.xml`, xmlStr);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_xml.zip` };
+      }
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+        const xmlStr = exportToXmlString(sModel);
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        const blob = new Blob([xmlStr], { type: 'application/xml;charset=utf-8;' });
+        return { blob, fileName: `${baseName}_${safeName}.xml` };
+      }
+      const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
       const xmlStr = exportToXmlString(docModel);
       const blob = new Blob([xmlStr], { type: 'application/xml;charset=utf-8;' });
       return { blob, fileName: `${baseName}.xml` };
     }
 
+    // JSON Export
     if (tgtFmt === 'JSON') {
-      onProgress(60, 'Форматирование в JSON структуру...');
+      if (mode === 'zip_archive') {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sName);
+          const jsonStr = JSON.stringify(sModel.firstTableMatrix || [], null, 2);
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.json`, jsonStr);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_json.zip` };
+      }
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+        const jsonStr = JSON.stringify(sModel.firstTableMatrix || [], null, 2);
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        return { blob, fileName: `${baseName}_${safeName}.json` };
+      }
+      const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
       const jsonData = docModel.firstTableMatrix || [];
       const jsonStr = JSON.stringify(jsonData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       return { blob, fileName: `${baseName}.json` };
     }
 
+    // TXT / MD Export
     if (tgtFmt === 'TXT' || tgtFmt === 'MD') {
-      onProgress(60, 'Экспорт таблицы в текстовый формат...');
+      const ext = tgtFmt.toLowerCase();
+      if (mode === 'zip_archive') {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (let i = 0; i < sheetNames.length; i++) {
+          const sName = sheetNames[i];
+          const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, sName);
+          const txtStr = exportToTxtString(sModel);
+          const safeName = sName.replace(/[/\\?%*:|"<>]/g, '_');
+          zip.file(`${baseName}_${safeName}.${ext}`, '\uFEFF' + txtStr);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        return { blob: zipBlob, fileName: `${baseName}_все_листы_${ext}.zip` };
+      }
+      if (mode === 'selected_page') {
+        const targetSheet = resolveTargetSheet(settings.selectedPageOrSheet);
+        const sModel = parseXlsxToStructuredDocument(arrayBuffer, baseName, targetSheet);
+        const txtStr = exportToTxtString(sModel);
+        const safeName = targetSheet.replace(/[/\\?%*:|"<>]/g, '_');
+        const blob = new Blob(['\uFEFF' + txtStr], { type: 'text/plain;charset=utf-8;' });
+        return { blob, fileName: `${baseName}_${safeName}.${ext}` };
+      }
+      const docModel = parseXlsxToStructuredDocument(arrayBuffer, baseName);
       const txtStr = exportToTxtString(docModel);
       const blob = new Blob(['\uFEFF' + txtStr], { type: 'text/plain;charset=utf-8;' });
-      return { blob, fileName: `${baseName}.${tgtFmt.toLowerCase()}` };
+      return { blob, fileName: `${baseName}.${ext}` };
     }
   }
 
