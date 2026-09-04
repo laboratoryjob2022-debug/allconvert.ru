@@ -913,6 +913,43 @@ async function cleanupFFmpegMemFS(ffmpeg: any) {
    3. VIDEO CONVERSIONS (Native Canvas/MediaRecorder for WebM, FFmpeg.wasm for others)
    ==================================================================== */
 
+async function remuxWebmWithFFmpeg(
+  rawBlob: Blob,
+  onProgress?: (percent: number, text: string) => void
+): Promise<Blob> {
+  try {
+    if (onProgress) onProgress(98, 'Финализация WebM и создание индекса перемотки...');
+    const ffmpeg = await getFFmpegInstance();
+    if (!ffmpeg) return rawBlob;
+
+    await cleanupFFmpegMemFS(ffmpeg);
+
+    const { fetchFile } = await import('@ffmpeg/util');
+    const inName = `remux_in_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.webm`;
+    const outName = `remux_out_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.webm`;
+
+    try {
+      await ffmpeg.writeFile(inName, await fetchFile(rawBlob));
+      // -y overwrite, -i inName, -c copy (direct bitstream copy, no re-encoding),
+      // -reserve_index_space 102400 places Cues seeking index at the front of the file
+      await ffmpeg.exec(['-y', '-i', inName, '-c', 'copy', '-reserve_index_space', '102400', outName]);
+      const data = await ffmpeg.readFile(outName);
+      const dataBuffer = data instanceof Uint8Array ? data : new TextEncoder().encode(data as string);
+
+      if (dataBuffer && dataBuffer.byteLength > 0) {
+        console.log(`[WebM Remux] Успешная финализация WebM: размер ${(dataBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
+        return new Blob([dataBuffer], { type: 'video/webm' });
+      }
+    } finally {
+      try { await ffmpeg.deleteFile(inName); } catch (e) {}
+      try { await ffmpeg.deleteFile(outName); } catch (e) {}
+    }
+  } catch (remuxErr) {
+    console.warn('[WebM Remux] Ремуксинг через FFmpeg не удался, отдача исходного потока:', remuxErr);
+  }
+  return rawBlob;
+}
+
 async function convertVideoToWebmNative(
   file: File,
   baseName: string,
@@ -1005,30 +1042,16 @@ async function convertVideoToWebmNative(
 
         mediaRecorder.onstop = async () => {
           cleanup();
-          const finalBlob = new Blob(chunks, { type: 'video/webm' });
-          if (finalBlob.size === 0) {
+          const rawBlob = new Blob(chunks, { type: 'video/webm' });
+          if (rawBlob.size === 0) {
             return reject(new Error('Ошибка записи WebM: сформированный файл пуст.'));
           }
 
-          let patchedBlob = finalBlob;
-          try {
-            const durationSec = totalKnownDuration > 0
-              ? totalKnownDuration
-              : Math.max(1, (Date.now() - recordedStartTime) / 1000);
-            const durationMs = Math.round(durationSec * 1000);
-
-            if (durationMs > 0) {
-              onProgress(99, 'Внедрение метаданных длительности WebM (активация перемотки)...');
-              const fixWebmDurationModule = await import('fix-webm-duration');
-              const fixFn: any = fixWebmDurationModule.default || fixWebmDurationModule;
-              patchedBlob = await fixFn(finalBlob, durationMs, { logger: false });
-            }
-          } catch (patchErr) {
-            console.warn('[WebM Duration Patch] Не удалось внедрить длительность:', patchErr);
-          }
+          onProgress(98, 'Финализация WebM (создание индекса перемотки)...');
+          const finalBlob = await remuxWebmWithFFmpeg(rawBlob, onProgress);
 
           onProgress(100, 'Конвертация в WebM завершена!');
-          resolve({ blob: patchedBlob, fileName: `${baseName}.webm` });
+          resolve({ blob: finalBlob, fileName: `${baseName}.webm` });
         };
 
         mediaRecorder.onerror = (recorderErr: any) => {
