@@ -931,9 +931,11 @@ async function convertVideoToWebmNative(
 
     let audioCtx: AudioContext | null = null;
     let animFrameId: number | null = null;
+    let bgIntervalId: any = null;
 
     const cleanup = () => {
       if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+      if (bgIntervalId !== null) clearInterval(bgIntervalId);
       URL.revokeObjectURL(videoUrl);
       video.pause();
       video.remove();
@@ -948,6 +950,10 @@ async function convertVideoToWebmNative(
         const width = video.videoWidth || 1280;
         const height = video.videoHeight || 720;
         const duration = video.duration || 1;
+        const recordedStartTime = Date.now();
+        const totalKnownDuration = (video.duration && !isNaN(video.duration) && isFinite(video.duration) && video.duration > 0)
+          ? video.duration
+          : 0;
 
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -997,14 +1003,32 @@ async function convertVideoToWebmNative(
           }
         };
 
-        mediaRecorder.onstop = () => {
+        mediaRecorder.onstop = async () => {
           cleanup();
           const finalBlob = new Blob(chunks, { type: 'video/webm' });
           if (finalBlob.size === 0) {
             return reject(new Error('Ошибка записи WebM: сформированный файл пуст.'));
           }
+
+          let patchedBlob = finalBlob;
+          try {
+            const durationSec = totalKnownDuration > 0
+              ? totalKnownDuration
+              : Math.max(1, (Date.now() - recordedStartTime) / 1000);
+            const durationMs = Math.round(durationSec * 1000);
+
+            if (durationMs > 0) {
+              onProgress(99, 'Внедрение метаданных длительности WebM (активация перемотки)...');
+              const fixWebmDurationModule = await import('fix-webm-duration');
+              const fixFn: any = fixWebmDurationModule.default || fixWebmDurationModule;
+              patchedBlob = await fixFn(finalBlob, durationMs, { logger: false });
+            }
+          } catch (patchErr) {
+            console.warn('[WebM Duration Patch] Не удалось внедрить длительность:', patchErr);
+          }
+
           onProgress(100, 'Конвертация в WebM завершена!');
-          resolve({ blob: finalBlob, fileName: `${baseName}.webm` });
+          resolve({ blob: patchedBlob, fileName: `${baseName}.webm` });
         };
 
         mediaRecorder.onerror = (recorderErr: any) => {
@@ -1012,18 +1036,30 @@ async function convertVideoToWebmNative(
           reject(new Error(`MediaRecorder error: ${recorderErr.message || String(recorderErr)}`));
         };
 
-        const renderLoop = () => {
+        const checkAndDrawFrame = () => {
           if (video.currentTime >= duration || video.ended) {
             if (mediaRecorder.state !== 'inactive') {
               mediaRecorder.stop();
             }
-          } else {
-            ctx.drawImage(video, 0, 0, width, height);
-            const progress = Math.min(98, Math.round((video.currentTime / duration) * 100));
-            onProgress(progress, `Конвертация WebM (${progress}%)...`);
+            return;
+          }
+          ctx.drawImage(video, 0, 0, width, height);
+          const progress = Math.min(98, Math.round((video.currentTime / duration) * 100));
+          onProgress(progress, `Конвертация WebM (${progress}%)...`);
+        };
+
+        const renderLoop = () => {
+          checkAndDrawFrame();
+          if (!video.ended && video.currentTime < duration && mediaRecorder.state === 'recording') {
             animFrameId = requestAnimationFrame(renderLoop);
           }
         };
+
+        bgIntervalId = setInterval(() => {
+          if (document.hidden && mediaRecorder.state === 'recording') {
+            checkAndDrawFrame();
+          }
+        }, 1000 / 30);
 
         video.onended = () => {
           if (mediaRecorder.state !== 'inactive') {

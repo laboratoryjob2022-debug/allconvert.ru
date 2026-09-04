@@ -127,6 +127,29 @@ export const QueueTable: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const hasDocumentInQueue = processedQueue.some(
+    (item) =>
+      item.category === 'document' ||
+      ['PDF', 'DOCX', 'XLSX', 'XLS', 'CSV', 'HTML', 'TXT', 'JSON', 'XML', 'MD'].includes((item.targetFormat || '').toUpperCase())
+  );
+  const showDocBetaNotice = activeSector === 'document' || hasDocumentInQueue;
+
+  const getDocBetaNotice = (lang: string) => {
+    switch (lang) {
+      case 'en':
+        return 'Documents — Beta: some complex documents and tables may convert with layout variations.';
+      case 'zh':
+        return '文档 — Beta: 某些复杂的文档和表格转换后排版可能会有细微变化。';
+      case 'es':
+        return 'Documentos — Beta: algunos documentos y tablas complejos pueden convertirse con variaciones en el formato.';
+      case 'de':
+        return 'Dokumente — Beta: einige komplexe Dokumente und Tabellen können mit Formatierungsänderungen konvertiert werden.';
+      case 'ru':
+      default:
+        return 'Документы — Beta: некоторые сложные документы и таблицы могут конвертироваться с изменениями в оформлении.';
+    }
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-6 mb-12">
       {/* Search & Sort Controls Bar */}
@@ -184,6 +207,18 @@ export const QueueTable: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Beta Notice for Documents */}
+      {showDocBetaNotice && processedQueue.length > 0 && (
+        <div className="mb-4 px-4 py-2.5 rounded-xl bg-slate-900/90 border border-amber-500/25 shadow-sm flex items-center space-x-3 text-xs text-slate-300 backdrop-blur-md">
+          <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-400 font-mono shrink-0 uppercase tracking-wider">
+            Beta
+          </span>
+          <p className="text-slate-300 text-xs leading-relaxed">
+            {getDocBetaNotice(language || 'ru')}
+          </p>
+        </div>
+      )}
 
       {/* Main Queue Table or Mobile Cards / Empty Search Result */}
       {processedQueue.length === 0 ? (
