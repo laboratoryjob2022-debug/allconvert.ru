@@ -956,7 +956,7 @@ async function convertVideoToWebmNative(
   onProgress: (percent: number, text: string) => void
 ): Promise<{ blob: Blob; fileName: string }> {
   return new Promise((resolve, reject) => {
-    onProgress(10, 'Подготовка нативного браузерного рендера WebM...');
+    onProgress(10, 'Подготовка нативного браузерного рендера WebM в оригинальном качестве...');
 
     const video = document.createElement('video');
     video.preload = 'auto';
@@ -965,6 +965,16 @@ async function convertVideoToWebmNative(
     video.volume = 1.0;
     const videoUrl = URL.createObjectURL(file);
     video.src = videoUrl;
+
+    // Скрытое добавление в DOM для сохранения наивысшего аппаратного приоритета декодирования видеокартой
+    video.style.position = 'fixed';
+    video.style.top = '-99999px';
+    video.style.left = '-99999px';
+    video.style.width = '1px';
+    video.style.height = '1px';
+    video.style.opacity = '0';
+    video.style.pointerEvents = 'none';
+    document.body.appendChild(video);
 
     let audioCtx: AudioContext | null = null;
     let animFrameId: number | null = null;
@@ -975,7 +985,7 @@ async function convertVideoToWebmNative(
       if (bgIntervalId !== null) clearInterval(bgIntervalId);
       URL.revokeObjectURL(videoUrl);
       video.pause();
-      video.remove();
+      if (video.parentNode) video.parentNode.removeChild(video);
       if (audioCtx && audioCtx.state !== 'closed') {
         audioCtx.close().catch(() => {});
       }
@@ -983,41 +993,62 @@ async function convertVideoToWebmNative(
 
     video.onloadedmetadata = async () => {
       try {
-        onProgress(20, 'Начало записи WebM (Canvas + MediaRecorder)...');
-        const width = video.videoWidth || 1280;
-        const height = video.videoHeight || 720;
+        const width = video.videoWidth || 1920;
+        const height = video.videoHeight || 1080;
         const duration = video.duration || 1;
-        const recordedStartTime = Date.now();
-        const totalKnownDuration = (video.duration && !isNaN(video.duration) && isFinite(video.duration) && video.duration > 0)
-          ? video.duration
-          : 0;
+        const totalPixels = width * height;
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
+        onProgress(20, `Аппаратный захват WebM (${width}x${height}, оригинальное качество)...`);
 
-        if (!ctx) {
-          cleanup();
-          return reject(new Error('Не удалось получить 2D контекст Canvas'));
+        // Прямой аппаратный захват потока из декодера видеокарты (без копирования пикселей в память через Canvas)
+        let stream: MediaStream | null = null;
+        if (typeof (video as any).captureStream === 'function') {
+          try {
+            stream = (video as any).captureStream();
+          } catch (streamErr) {
+            console.warn('[WebM] video.captureStream() не удался, откат к canvas:', streamErr);
+          }
+        } else if (typeof (video as any).mozCaptureStream === 'function') {
+          try {
+            stream = (video as any).mozCaptureStream();
+          } catch (streamErr) {
+            console.warn('[WebM] video.mozCaptureStream() не удался:', streamErr);
+          }
         }
 
-        const stream = canvas.captureStream(30);
+        let canvas: HTMLCanvasElement | null = null;
+        let ctx: CanvasRenderingContext2D | null = null;
 
-        try {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-          if (AudioContextClass) {
-            audioCtx = new AudioContextClass();
-            if (audioCtx.state === 'suspended') {
-              await audioCtx.resume();
-            }
-            const source = audioCtx.createMediaElementSource(video);
-            const dest = audioCtx.createMediaStreamDestination();
-            source.connect(dest);
-            dest.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+        // Если прямой captureStream не поддержан браузером, используем Canvas
+        if (!stream) {
+          canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          ctx = canvas.getContext('2d');
+          if (!ctx) {
+            cleanup();
+            return reject(new Error('Не удалось получить 2D контекст Canvas'));
           }
-        } catch (audioErr) {
-          console.warn('Аудиодорожка недоступна для нативной трансляции:', audioErr);
+          stream = canvas.captureStream(30);
+        }
+
+        // Проверяем наличие звука в потоке, если нет — добавляем через AudioContext
+        if (stream.getAudioTracks().length === 0) {
+          try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+              audioCtx = new AudioContextClass();
+              if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+              }
+              const source = audioCtx.createMediaElementSource(video);
+              const dest = audioCtx.createMediaStreamDestination();
+              source.connect(dest);
+              dest.stream.getAudioTracks().forEach((track) => stream!.addTrack(track));
+            }
+          } catch (audioErr) {
+            console.warn('Аудиодорожка недоступна для нативной трансляции:', audioErr);
+          }
         }
 
         let mimeType = 'video/webm;codecs=vp9,opus';
@@ -1028,9 +1059,18 @@ async function convertVideoToWebmNative(
           mimeType = 'video/webm';
         }
 
+        // Высокий адаптивный битрейт для бескомпромиссного качества:
+        // 4K (>= 8M пикселей) -> 35 Мбит/с; 2K/1080p -> 18 Мбит/с; 720p -> 10 Мбит/с
+        let targetBitrate = 18000000;
+        if (totalPixels >= 3840 * 2160 * 0.8) {
+          targetBitrate = 35000000; // 35 Mbps для 4K
+        } else if (totalPixels <= 1280 * 720) {
+          targetBitrate = 10000000; // 10 Mbps для 720p
+        }
+
         const mediaRecorder = new MediaRecorder(stream, {
           mimeType,
-          videoBitsPerSecond: 10000000,
+          videoBitsPerSecond: targetBitrate,
         });
 
         const chunks: Blob[] = [];
@@ -1059,30 +1099,53 @@ async function convertVideoToWebmNative(
           reject(new Error(`MediaRecorder error: ${recorderErr.message || String(recorderErr)}`));
         };
 
-        const checkAndDrawFrame = () => {
-          if (video.currentTime >= duration || video.ended) {
-            if (mediaRecorder.state !== 'inactive') {
-              mediaRecorder.stop();
+        const updateProgress = () => {
+          if (duration > 0) {
+            const progress = Math.min(98, Math.round((video.currentTime / duration) * 100));
+            onProgress(progress, `Конвертация WebM в оригинальном качестве (${progress}%)...`);
+          }
+        };
+
+        // Если использовался Canvas fallback, отрисовываем кадры
+        if (ctx && canvas) {
+          const drawFrame = () => {
+            if (video.currentTime >= duration || video.ended) {
+              if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+              return;
             }
-            return;
-          }
-          ctx.drawImage(video, 0, 0, width, height);
-          const progress = Math.min(98, Math.round((video.currentTime / duration) * 100));
-          onProgress(progress, `Конвертация WebM (${progress}%)...`);
-        };
+            ctx!.drawImage(video, 0, 0, width, height);
+            updateProgress();
+          };
 
-        const renderLoop = () => {
-          checkAndDrawFrame();
-          if (!video.ended && video.currentTime < duration && mediaRecorder.state === 'recording') {
-            animFrameId = requestAnimationFrame(renderLoop);
-          }
-        };
+          const renderLoop = () => {
+            drawFrame();
+            if (!video.ended && video.currentTime < duration && mediaRecorder.state === 'recording') {
+              animFrameId = requestAnimationFrame(renderLoop);
+            }
+          };
 
-        bgIntervalId = setInterval(() => {
-          if (document.hidden && mediaRecorder.state === 'recording') {
-            checkAndDrawFrame();
-          }
-        }, 1000 / 30);
+          bgIntervalId = setInterval(() => {
+            if (mediaRecorder.state === 'recording') {
+              drawFrame();
+            }
+          }, 1000 / 30);
+
+          renderLoop();
+        } else {
+          // При прямом captureStream видеопоток идет аппаратно, следим за прогрессом через timeupdate и setInterval
+          video.ontimeupdate = () => {
+            updateProgress();
+          };
+
+          bgIntervalId = setInterval(() => {
+            if (mediaRecorder.state === 'recording') {
+              updateProgress();
+              if (video.currentTime >= duration || video.ended) {
+                mediaRecorder.stop();
+              }
+            }
+          }, 250);
+        }
 
         video.onended = () => {
           if (mediaRecorder.state !== 'inactive') {
@@ -1090,9 +1153,8 @@ async function convertVideoToWebmNative(
           }
         };
 
-        mediaRecorder.start(100);
+        mediaRecorder.start(250);
         await video.play();
-        renderLoop();
 
       } catch (err: any) {
         cleanup();
