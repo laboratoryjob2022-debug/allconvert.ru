@@ -976,9 +976,19 @@ async function convertVideoToWebmNative(
     video.style.pointerEvents = 'none';
     document.body.appendChild(video);
 
+    // Звук перенаправляется строго в поток записи через Web Audio API, без вывода в динамики пользователя
     let audioCtx: AudioContext | null = null;
     let animFrameId: number | null = null;
     let bgIntervalId: any = null;
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
+    } catch (e) {
+      console.warn('AudioContext init error:', e);
+    }
 
     const cleanup = () => {
       if (animFrameId !== null) cancelAnimationFrame(animFrameId);
@@ -1032,23 +1042,26 @@ async function convertVideoToWebmNative(
           stream = canvas.captureStream(30);
         }
 
-        // Проверяем наличие звука в потоке, если нет — добавляем через AudioContext
-        if (stream.getAudioTracks().length === 0) {
-          try {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass) {
-              audioCtx = new AudioContextClass();
-              if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-              }
-              const source = audioCtx.createMediaElementSource(video);
-              const dest = audioCtx.createMediaStreamDestination();
-              source.connect(dest);
-              dest.stream.getAudioTracks().forEach((track) => stream!.addTrack(track));
+        // Маршрутизация звука: направляем звук строго в записываемый поток (dest)
+        // и никогда не выводим в динамики (не подключаем к audioCtx.destination)
+        try {
+          if (audioCtx) {
+            if (audioCtx.state === 'suspended') {
+              await audioCtx.resume();
             }
-          } catch (audioErr) {
-            console.warn('Аудиодорожка недоступна для нативной трансляции:', audioErr);
+            const source = audioCtx.createMediaElementSource(video);
+            const dest = audioCtx.createMediaStreamDestination();
+            source.connect(dest);
+            // Если в stream уже есть звуковые дорожки из captureStream, удаляем их чтобы не дублировать
+            stream.getAudioTracks().forEach((t) => {
+              stream!.removeTrack(t);
+              t.stop();
+            });
+            // Добавляем изолированную дорожку, идущую строго в рекордер
+            dest.stream.getAudioTracks().forEach((track) => stream!.addTrack(track));
           }
+        } catch (audioErr) {
+          console.warn('[WebM] Аудио маршрутизация через AudioContext:', audioErr);
         }
 
         let mimeType = 'video/webm;codecs=vp9,opus';
