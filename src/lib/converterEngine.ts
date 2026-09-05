@@ -913,9 +913,24 @@ async function cleanupFFmpegMemFS(ffmpeg: any) {
    3. VIDEO CONVERSIONS (Native Canvas/MediaRecorder for WebM, FFmpeg.wasm for others)
    ==================================================================== */
 
+function formatDurationToEbml(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.floor((sec % 1) * 1000);
+  const pad = (n: number, z = 2) => String(n).padStart(z, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms, 3)}000000`;
+}
+
 async function remuxWebmWithFFmpeg(
   rawBlob: Blob,
-  onProgress?: (percent: number, text: string) => void
+  onProgress?: (percent: number, text: string) => void,
+  meta?: {
+    width?: number;
+    height?: number;
+    duration?: number;
+    baseName?: string;
+  }
 ): Promise<Blob> {
   try {
     if (onProgress) onProgress(98, 'Финализация WebM и создание индекса перемотки...');
@@ -930,14 +945,40 @@ async function remuxWebmWithFFmpeg(
 
     try {
       await ffmpeg.writeFile(inName, await fetchFile(rawBlob));
-      // -y overwrite, -i inName, -c copy (direct bitstream copy, no re-encoding),
-      // -reserve_index_space 102400 places Cues seeking index at the front of the file
-      await ffmpeg.exec(['-y', '-i', inName, '-c', 'copy', '-reserve_index_space', '102400', outName]);
+
+      const durationSec = meta?.duration && meta.duration > 0 ? meta.duration : 1;
+      const totalBytes = rawBlob.size;
+      const totalBitrate = Math.max(1000, Math.round((totalBytes * 8) / durationSec));
+      const videoBitrate = Math.max(1000, totalBitrate - 128000);
+      const durationStr = formatDurationToEbml(durationSec);
+
+      // FFmpeg ремуксинг с явной записью метатегов контейнера и потоков (BPS, DURATION, NUMBER_OF_BYTES)
+      // для корректного отображения битрейта и параметров в проводнике и плеерах
+      const ffmpegArgs = [
+        '-y',
+        '-i', inName,
+        '-c', 'copy',
+        '-reserve_index_space', '102400',
+        '-metadata', `title=${meta?.baseName || 'Video'}`,
+        '-metadata', 'encoder=Google AI Studio Converter',
+        '-metadata', `BPS=${totalBitrate}`,
+        '-metadata', `DURATION=${durationStr}`,
+        '-metadata:s:v', `BPS=${videoBitrate}`,
+        '-metadata:s:v', `DURATION=${durationStr}`,
+        '-metadata:s:v', `NUMBER_OF_BYTES=${totalBytes}`,
+        '-metadata:s:v', 'HANDLER_NAME=VideoHandler',
+        '-metadata:s:a', 'BPS=128000',
+        '-metadata:s:a', `DURATION=${durationStr}`,
+        '-metadata:s:a', 'HANDLER_NAME=AudioHandler',
+        outName
+      ];
+
+      await ffmpeg.exec(ffmpegArgs);
       const data = await ffmpeg.readFile(outName);
       const dataBuffer = data instanceof Uint8Array ? data : new TextEncoder().encode(data as string);
 
       if (dataBuffer && dataBuffer.byteLength > 0) {
-        console.log(`[WebM Remux] Успешная финализация WebM: размер ${(dataBuffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`[WebM Remux] Успешная финализация WebM: размер ${(dataBuffer.byteLength / 1024 / 1024).toFixed(2)} MB, битрейт ${(totalBitrate / 1000).toFixed(0)} kbps`);
         return new Blob([dataBuffer], { type: 'video/webm' });
       }
     } finally {
@@ -1100,8 +1141,13 @@ async function convertVideoToWebmNative(
             return reject(new Error('Ошибка записи WebM: сформированный файл пуст.'));
           }
 
-          onProgress(98, 'Финализация WebM (создание индекса перемотки)...');
-          const finalBlob = await remuxWebmWithFFmpeg(rawBlob, onProgress);
+          onProgress(98, 'Финализация WebM (создание индекса перемотки и метаданных)...');
+          const finalBlob = await remuxWebmWithFFmpeg(rawBlob, onProgress, {
+            width,
+            height,
+            duration,
+            baseName,
+          });
 
           onProgress(100, 'Конвертация в WebM завершена!');
           resolve({ blob: finalBlob, fileName: `${baseName}.webm` });
