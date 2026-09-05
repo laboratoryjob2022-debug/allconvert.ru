@@ -1003,6 +1003,69 @@ async function remuxWebmWithFFmpeg(
   return rawBlob;
 }
 
+async function convertVideoToWebmWithFallback(
+  file: File,
+  baseName: string,
+  onProgress: (percent: number, text: string) => void
+): Promise<{ blob: Blob; fileName: string }> {
+  // 1. Проверяем поддержку WebCodecs в браузере (Tier 1: Наш аппаратный GPU-движок)
+  const isWebCodecsSupported =
+    typeof window !== 'undefined' &&
+    'VideoDecoder' in window &&
+    'VideoEncoder' in window &&
+    'AudioDecoder' in window &&
+    'AudioEncoder' in window;
+
+  const fileNameLower = file.name.toLowerCase();
+  const isLikelyIsoBmff =
+    fileNameLower.endsWith('.mp4') ||
+    fileNameLower.endsWith('.mov') ||
+    fileNameLower.endsWith('.m4v') ||
+    file.type.includes('mp4') ||
+    file.type.includes('quicktime');
+
+  if (isWebCodecsSupported && isLikelyIsoBmff) {
+    try {
+      console.log('[ConverterEngine] Запуск аппаратного ускорения WebCodecs (GPU Tier 1)...');
+      onProgress(5, 'Инициализация аппаратного GPU-конвейера WebCodecs...');
+
+      const { runWebCodecsConversion } = await import('../experiments/webcodecsLabEngine');
+      const webmBlob = await runWebCodecsConversion(file, (telemetry) => {
+        let msg = telemetry.statusMessage || `Кодирование кадров (${telemetry.progress}%)...`;
+        if (telemetry.stage === 'converting') {
+          msg = `Аппаратное кодирование GPU: ${telemetry.processedFrames}/${telemetry.totalFrames || '?'} кадров (${telemetry.currentProcessingFps.toFixed(0)} FPS)`;
+        } else if (telemetry.stage === 'finalizing') {
+          msg = 'Финализация Matroska/WebM контейнера и сохранение...';
+        }
+        onProgress(telemetry.progress, msg);
+      });
+
+      console.log('[ConverterEngine] Успешно завершено через WebCodecs!');
+      return {
+        blob: webmBlob,
+        fileName: `${baseName}.webm`,
+      };
+    } catch (webcodecsError: any) {
+      console.warn(
+        '[ConverterEngine] WebCodecs завершился ошибкой или формат не поддержан GPU, переключаемся на Fallback №1 (MediaRecorder):',
+        webcodecsError
+      );
+      onProgress(10, 'WebCodecs недоступен, переключение на резервный браузерный рендер...');
+    }
+  }
+
+  // 2. Fallback №1: Проверенный нативный MediaRecorder
+  try {
+    return await convertVideoToWebmNative(file, baseName, onProgress);
+  } catch (nativeErr: any) {
+    console.warn(
+      '[ConverterEngine] Нативный MediaRecorder завершился ошибкой, переключаемся на Fallback №2 (FFmpeg WASM):',
+      nativeErr
+    );
+    throw nativeErr;
+  }
+}
+
 async function convertVideoToWebmNative(
   file: File,
   baseName: string,
@@ -1264,7 +1327,7 @@ async function convertVideo(
   onProgress: (percent: number, text: string) => void
 ): Promise<{ blob: Blob; fileName: string }> {
   if (targetFormat === 'WEBM') {
-    return convertVideoToWebmNative(file, baseName, onProgress);
+    return convertVideoToWebmWithFallback(file, baseName, onProgress);
   }
 
   onProgress(20, `Инициализация FFmpeg WASM для ${targetFormat}...`);

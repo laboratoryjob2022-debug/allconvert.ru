@@ -41,6 +41,7 @@ interface ConverterState {
   isShareOpen: boolean;
   isPreviewOpen: boolean;
   isGuideOpen: boolean;
+  isWebCodecsLabOpen: boolean;
   shareFileItem: FileItem | null;
   previewFileItem: FileItem | null;
   
@@ -98,6 +99,7 @@ interface ConverterState {
   setShareOpen: (open: boolean) => void;
   setPreviewOpen: (open: boolean) => void;
   setGuideOpen: (open: boolean) => void;
+  setWebCodecsLabOpen: (open: boolean) => void;
   
   loginWithOAuth: (provider: 'google' | 'yandex') => void;
   logout: () => void;
@@ -132,6 +134,7 @@ export const useConverterStore = create<ConverterState>()(
   isShareOpen: false,
   isPreviewOpen: false,
   isGuideOpen: false,
+  isWebCodecsLabOpen: false,
   shareFileItem: null,
   previewFileItem: null,
   
@@ -593,6 +596,7 @@ export const useConverterStore = create<ConverterState>()(
   setShareOpen: (open) => set({ isShareOpen: open, shareFileItem: open ? get().shareFileItem : null }),
   setPreviewOpen: (open) => set({ isPreviewOpen: open, previewFileItem: open ? get().previewFileItem : null }),
   setGuideOpen: (open) => set({ isGuideOpen: open }),
+  setWebCodecsLabOpen: (open) => set({ isWebCodecsLabOpen: open }),
 
   loginWithOAuth: (provider) => {
     const fakeProfile: UserProfile = {
