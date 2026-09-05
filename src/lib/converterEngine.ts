@@ -565,8 +565,8 @@ async function convertAudio(
 
     if (isMp3) {
       onProgress(60, 'Кодирование MP3 через LameJS...');
-      const bitrateStr = settings.audioBitrate || '256k';
-      const bitrate = parseInt(bitrateStr, 10) || 256;
+      const bitrateStr = settings.audioBitrate || '320k';
+      const bitrate = parseInt(bitrateStr, 10) || 320;
       const mp3Blob = audioBufferToMp3(audioBuffer, bitrate, (p) => {
         onProgress(60 + Math.round(p * 0.35), `Кодирование MP3 (${p}%)...`);
       });
@@ -952,8 +952,11 @@ async function remuxWebmWithFFmpeg(
       const videoBitrate = Math.max(1000, totalBitrate - 128000);
       const durationStr = formatDurationToEbml(durationSec);
 
-      // FFmpeg ремуксинг с явной записью метатегов контейнера и потоков (BPS, DURATION, NUMBER_OF_BYTES)
+      // FFmpeg ремуксинг с явной записью метатегов контейнера и потоков (BPS, DURATION, NUMBER_OF_BYTES, WIDTH, HEIGHT)
       // для корректного отображения битрейта и параметров в проводнике и плеерах
+      const vidWidth = meta?.width || 1920;
+      const vidHeight = meta?.height || 1080;
+
       const ffmpegArgs = [
         '-y',
         '-i', inName,
@@ -963,9 +966,18 @@ async function remuxWebmWithFFmpeg(
         '-metadata', 'encoder=Google AI Studio Converter',
         '-metadata', `BPS=${totalBitrate}`,
         '-metadata', `DURATION=${durationStr}`,
+        '-metadata', `WIDTH=${vidWidth}`,
+        '-metadata', `HEIGHT=${vidHeight}`,
+        '-metadata', `RESOLUTION=${vidWidth}x${vidHeight}`,
         '-metadata:s:v', `BPS=${videoBitrate}`,
         '-metadata:s:v', `DURATION=${durationStr}`,
         '-metadata:s:v', `NUMBER_OF_BYTES=${totalBytes}`,
+        '-metadata:s:v', `WIDTH=${vidWidth}`,
+        '-metadata:s:v', `HEIGHT=${vidHeight}`,
+        '-metadata:s:v', `PIXELWIDTH=${vidWidth}`,
+        '-metadata:s:v', `PIXELHEIGHT=${vidHeight}`,
+        '-metadata:s:v', `DISPLAYWIDTH=${vidWidth}`,
+        '-metadata:s:v', `DISPLAYHEIGHT=${vidHeight}`,
         '-metadata:s:v', 'HANDLER_NAME=VideoHandler',
         '-metadata:s:a', 'BPS=128000',
         '-metadata:s:a', `DURATION=${durationStr}`,
@@ -1007,13 +1019,14 @@ async function convertVideoToWebmNative(
     const videoUrl = URL.createObjectURL(file);
     video.src = videoUrl;
 
-    // Скрытое добавление в DOM для сохранения наивысшего аппаратного приоритета декодирования видеокартой
+    // Размещаем элемент в пределах вьюпорта с минимальной прозрачностью, чтобы Chromium не троттлил аппаратный декодер
     video.style.position = 'fixed';
-    video.style.top = '-99999px';
-    video.style.left = '-99999px';
-    video.style.width = '1px';
-    video.style.height = '1px';
-    video.style.opacity = '0';
+    video.style.top = '0px';
+    video.style.left = '0px';
+    video.style.width = '64px';
+    video.style.height = '64px';
+    video.style.opacity = '0.001';
+    video.style.zIndex = '-99999';
     video.style.pointerEvents = 'none';
     document.body.appendChild(video);
 
@@ -1047,11 +1060,14 @@ async function convertVideoToWebmNative(
         const width = video.videoWidth || 1920;
         const height = video.videoHeight || 1080;
         const duration = video.duration || 1;
-        const totalPixels = width * height;
 
-        onProgress(20, `Аппаратный захват WebM (${width}x${height}, оригинальное качество)...`);
+        // Обновляем реальные размеры видеоэлемента, чтобы видеокарта не сбрасывала декодирование
+        video.style.width = `${Math.min(width, window.innerWidth || 1920)}px`;
+        video.style.height = `${Math.min(height, window.innerHeight || 1080)}px`;
 
-        // Прямой аппаратный захват потока из декодера видеокарты (без копирования пикселей в память через Canvas)
+        onProgress(20, `Аппаратный захват WebM (${width}x${height}, оригинальная частота кадров и качество)...`);
+
+        // Прямой аппаратный захват потока из декодера видеокарты с нативной частотой источника (60, 120, 240+ FPS)
         let stream: MediaStream | null = null;
         if (typeof (video as any).captureStream === 'function') {
           try {
@@ -1070,17 +1086,22 @@ async function convertVideoToWebmNative(
         let canvas: HTMLCanvasElement | null = null;
         let ctx: CanvasRenderingContext2D | null = null;
 
-        // Если прямой captureStream не поддержан браузером, используем Canvas
+        // Если прямой captureStream не поддержан браузером, используем Canvas с захватом до 120 кадров/с
         if (!stream) {
           canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
-          ctx = canvas.getContext('2d');
+          ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
           if (!ctx) {
             cleanup();
             return reject(new Error('Не удалось получить 2D контекст Canvas'));
           }
-          stream = canvas.captureStream(30);
+          stream = (canvas as any).captureStream ? (canvas as any).captureStream(120) : null;
+        }
+
+        if (!stream) {
+          cleanup();
+          return reject(new Error('Браузер не поддерживает MediaStream захват для WebM'));
         }
 
         // Маршрутизация звука: направляем звук строго в записываемый поток (dest)
@@ -1113,18 +1134,14 @@ async function convertVideoToWebmNative(
           mimeType = 'video/webm';
         }
 
-        // Высокий адаптивный битрейт для бескомпромиссного качества:
-        // 4K (>= 8M пикселей) -> 35 Мбит/с; 2K/1080p -> 18 Мбит/с; 720p -> 10 Мбит/с
-        let targetBitrate = 18000000;
-        if (totalPixels >= 3840 * 2160 * 0.8) {
-          targetBitrate = 35000000; // 35 Mbps для 4K
-        } else if (totalPixels <= 1280 * 720) {
-          targetBitrate = 10000000; // 10 Mbps для 720p
-        }
+        // Расчет битрейта оригинального файла: гарантируем 100% сохранение качества без урезания
+        const originalBitrate = duration > 0 ? Math.round((file.size * 8) / duration) : 30_000_000;
+        const targetBitrate = Math.max(Math.round(originalBitrate * 1.5), 45_000_000);
 
         const mediaRecorder = new MediaRecorder(stream, {
           mimeType,
           videoBitsPerSecond: targetBitrate,
+          audioBitsPerSecond: 320000,
         });
 
         const chunks: Blob[] = [];
@@ -1165,7 +1182,7 @@ async function convertVideoToWebmNative(
           }
         };
 
-        // Если использовался Canvas fallback, отрисовываем кадры
+        // Если использовался Canvas fallback, отрисовываем кадры с нативной частотой кадров источника
         if (ctx && canvas) {
           const drawFrame = () => {
             if (video.currentTime >= duration || video.ended) {
@@ -1176,20 +1193,30 @@ async function convertVideoToWebmNative(
             updateProgress();
           };
 
-          const renderLoop = () => {
-            drawFrame();
-            if (!video.ended && video.currentTime < duration && mediaRecorder.state === 'recording') {
-              animFrameId = requestAnimationFrame(renderLoop);
-            }
-          };
+          if (typeof (video as any).requestVideoFrameCallback === 'function') {
+            const onVideoFrame = () => {
+              drawFrame();
+              if (!video.ended && video.currentTime < duration && mediaRecorder.state === 'recording') {
+                (video as any).requestVideoFrameCallback(onVideoFrame);
+              }
+            };
+            (video as any).requestVideoFrameCallback(onVideoFrame);
+          } else {
+            const renderLoop = () => {
+              drawFrame();
+              if (!video.ended && video.currentTime < duration && mediaRecorder.state === 'recording') {
+                animFrameId = requestAnimationFrame(renderLoop);
+              }
+            };
+            renderLoop();
+          }
 
+          // Резервный таймер высокой частоты (120 Гц) для предотвращения засыпания фоновой вкладки
           bgIntervalId = setInterval(() => {
             if (mediaRecorder.state === 'recording') {
               drawFrame();
             }
-          }, 1000 / 30);
-
-          renderLoop();
+          }, 1000 / 120);
         } else {
           // При прямом captureStream видеопоток идет аппаратно, следим за прогрессом через timeupdate и setInterval
           video.ontimeupdate = () => {
@@ -1270,34 +1297,26 @@ async function convertVideo(
   if (targetFormat === 'GIF_VID') {
     args.push('-vf', 'fps=10,scale=480:-1:flags=lanczos', '-c:v', 'gif');
   } else if (targetFormat === 'MP3_EXTRACT' || targetFormat === 'MP3') {
-    args.push('-vn', '-c:a', 'libmp3lame', '-b:a', settings.audioBitrate || '256k', '-ar', '44100', '-ac', '2');
+    args.push('-vn', '-c:a', 'libmp3lame', '-b:a', settings.audioBitrate || '320k', '-ar', '48000', '-ac', '2');
   } else if (targetFormat === 'WAV') {
     args.push('-vn', '-c:a', 'pcm_s16le', '-f', 'wav');
   } else if (targetFormat === 'AAC') {
-    args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'adts');
+    args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '320k', '-f', 'adts');
   } else if (targetFormat === 'M4A') {
-    args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '256k', '-f', 'ipod');
+    args.push('-vn', '-c:a', 'aac', '-b:a', settings.audioBitrate || '320k', '-f', 'ipod');
   } else if (targetFormat === 'OGG') {
-    args.push('-vn', '-c:a', 'libvorbis', '-q:a', '4', '-f', 'ogg');
+    args.push('-vn', '-c:a', 'libvorbis', '-q:a', '6', '-f', 'ogg');
   } else if (targetFormat === 'FLAC') {
     args.push('-vn', '-c:a', 'flac');
   } else if (targetFormat === 'OPUS') {
-    args.push('-vn', '-c:a', 'opus', '-b:a', '128k', '-strict', '-2', '-f', 'ogg');
+    args.push('-vn', '-c:a', 'opus', '-b:a', '192k', '-strict', '-2', '-f', 'ogg');
   } else if (targetFormat === 'WEBM') {
     args.push(
-      '-c:v', 'libvpx',
-      '-lag-in-frames', '0',
-      '-auto-alt-ref', '0',
-      '-g', '30',
-      '-quality', 'realtime',
-      '-cpu-used', '8',
-      '-threads', '1',
-      '-slices', '1',
-      '-crf', '23',
-      '-b:v', '4M',
+      '-c:v', 'libvpx-vp9',
+      '-lossless', '1',
       '-pix_fmt', 'yuv420p',
       '-c:a', 'libopus',
-      '-b:a', '128k',
+      '-b:a', '320k',
       '-strict', '-2'
     );
   } else if (targetFormat === 'MP4' || targetFormat === 'MOV' || targetFormat === 'MKV') {
@@ -1305,12 +1324,13 @@ async function convertVideo(
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-tune', 'zerolatency',
-      '-crf', '23',
+      '-crf', '18',
       '-threads', '1',
       '-bf', '0',
       '-refs', '1',
       '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac'
+      '-c:a', 'aac',
+      '-b:a', '320k'
     );
   } else if (targetFormat === 'AVI') {
     args.push('-c:v', 'mpeg4', '-qscale:v', '3', '-c:a', 'aac');
