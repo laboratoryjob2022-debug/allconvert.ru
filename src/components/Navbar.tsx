@@ -13,7 +13,6 @@ import {
   Share2,
   HelpCircle,
   Bookmark,
-  FlaskConical,
 } from 'lucide-react';
 
 const LANGUAGES: { code: LanguageCode; label: string; flag: string; short: string }[] = [
@@ -29,7 +28,6 @@ export const Navbar: React.FC = () => {
     totalConvertedCount,
     setSettingsOpen,
     setGuideOpen,
-    setWebCodecsLabOpen,
     theme,
     setTheme,
     language,
@@ -215,13 +213,6 @@ export const Navbar: React.FC = () => {
                 <Share2 className="w-4 h-4 text-emerald-400 shrink-0" />
               </button>
               <button
-                onClick={() => setWebCodecsLabOpen(true)}
-                className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 hover:text-white transition-all flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95"
-                title="WebCodecs Lab (Эксперимент: MP4 → WebM 60 FPS)"
-              >
-                <FlaskConical className="w-4 h-4 text-purple-400 shrink-0" />
-              </button>
-              <button
                 onClick={() => setSettingsOpen(true)}
                 className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition-all flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95"
                 title={t.settings}
@@ -288,16 +279,6 @@ export const Navbar: React.FC = () => {
 
             {renderThemeDropdown(false)}
             {renderLangDropdown(false)}
-
-            {/* WebCodecs Lab Experimental Button */}
-            <button
-              onClick={() => setWebCodecsLabOpen(true)}
-              className="px-3 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-300 hover:text-white transition-all flex items-center space-x-1.5 shadow-sm text-xs font-bold cursor-pointer hover:scale-105 active:scale-95"
-              title="WebCodecs Lab (Эксперимент: MP4 → WebM 60 FPS, нативное разрешение)"
-            >
-              <FlaskConical className="w-4 h-4 text-purple-400 shrink-0" />
-              <span className="hidden lg:inline">WebCodecs Lab</span>
-            </button>
 
             {/* Guide & Rules Link */}
             <a

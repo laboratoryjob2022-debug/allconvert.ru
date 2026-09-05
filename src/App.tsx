@@ -9,7 +9,6 @@ import { ShareModal } from './components/ShareModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { SettingsModal } from './components/SettingsModal';
 import { GuideModal } from './components/GuideModal';
-import { WebCodecsLabModal } from './experiments/WebCodecsLabModal';
 import { ToastNotification } from './components/ToastNotification';
 import { FooterAdZone } from './components/FooterAdZone';
 import { InfoSection } from './components/InfoSection';
@@ -88,8 +87,6 @@ export default function App() {
     setLanguage,
     setPresetTargetFormat,
     setActiveSector,
-    isWebCodecsLabOpen,
-    setWebCodecsLabOpen,
   } = useConverterStore();
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteStateFromPath());
   const [seoData, setSeoData] = useState<SeoConversionRoute | null>(null);
@@ -399,7 +396,6 @@ export default function App() {
       <HistoryDrawer />
       <SettingsModal />
       <GuideModal />
-      <WebCodecsLabModal isOpen={isWebCodecsLabOpen} onClose={() => setWebCodecsLabOpen(false)} />
     </div>
   );
 }

@@ -1003,11 +1003,15 @@ async function remuxWebmWithFFmpeg(
   return rawBlob;
 }
 
-async function convertVideoToWebmWithFallback(
+async function convertVideoToWebmOrMkvWithFallback(
   file: File,
+  targetFormat: 'WEBM' | 'MKV',
   baseName: string,
   onProgress: (percent: number, text: string) => void
 ): Promise<{ blob: Blob; fileName: string }> {
+  const outExt = targetFormat.toLowerCase();
+  const formatLabel = targetFormat === 'MKV' ? 'Matroska (MKV)' : 'WebM';
+
   // 1. Проверяем поддержку WebCodecs в браузере (Tier 1: Наш аппаратный GPU-движок)
   const isWebCodecsSupported =
     typeof window !== 'undefined' &&
@@ -1026,8 +1030,8 @@ async function convertVideoToWebmWithFallback(
 
   if (isWebCodecsSupported && isLikelyIsoBmff) {
     try {
-      console.log('[ConverterEngine] Запуск аппаратного ускорения WebCodecs (GPU Tier 1)...');
-      onProgress(5, 'Инициализация аппаратного GPU-конвейера WebCodecs...');
+      console.log(`[ConverterEngine] Запуск аппаратного ускорения WebCodecs для ${formatLabel} (GPU Tier 1)...`);
+      onProgress(5, `Инициализация аппаратного GPU-конвейера WebCodecs (${formatLabel})...`);
 
       const { runWebCodecsConversion } = await import('../experiments/webcodecsLabEngine');
       const webmBlob = await runWebCodecsConversion(file, (telemetry) => {
@@ -1035,35 +1039,45 @@ async function convertVideoToWebmWithFallback(
         if (telemetry.stage === 'converting') {
           msg = `Аппаратное кодирование GPU: ${telemetry.processedFrames}/${telemetry.totalFrames || '?'} кадров (${telemetry.currentProcessingFps.toFixed(0)} FPS)`;
         } else if (telemetry.stage === 'finalizing') {
-          msg = 'Финализация Matroska/WebM контейнера и сохранение...';
+          msg = `Финализация ${formatLabel} контейнера и сохранение...`;
         }
         onProgress(telemetry.progress, msg);
       });
 
-      console.log('[ConverterEngine] Успешно завершено через WebCodecs!');
+      console.log(`[ConverterEngine] Успешно завершено через WebCodecs для ${formatLabel}!`);
+      // Matroska (MKV) и WebM бинарно EBML совместимы
+      const targetBlob = targetFormat === 'MKV'
+        ? new Blob([webmBlob], { type: 'video/x-matroska' })
+        : webmBlob;
+
       return {
-        blob: webmBlob,
-        fileName: `${baseName}.webm`,
+        blob: targetBlob,
+        fileName: `${baseName}.${outExt}`,
       };
     } catch (webcodecsError: any) {
       console.warn(
-        '[ConverterEngine] WebCodecs завершился ошибкой или формат не поддержан GPU, переключаемся на Fallback №1 (MediaRecorder):',
+        `[ConverterEngine] WebCodecs завершился ошибкой или формат не поддержан GPU, переключаемся на Fallback для ${formatLabel}:`,
         webcodecsError
       );
-      onProgress(10, 'WebCodecs недоступен, переключение на резервный браузерный рендер...');
+      onProgress(10, 'WebCodecs недоступен, переключение на резервный рендер...');
     }
   }
 
-  // 2. Fallback №1: Проверенный нативный MediaRecorder
-  try {
-    return await convertVideoToWebmNative(file, baseName, onProgress);
-  } catch (nativeErr: any) {
-    console.warn(
-      '[ConverterEngine] Нативный MediaRecorder завершился ошибкой, переключаемся на Fallback №2 (FFmpeg WASM):',
-      nativeErr
-    );
-    throw nativeErr;
+  // 2. Fallback №1 для WEBM: Нативный MediaRecorder
+  if (targetFormat === 'WEBM') {
+    try {
+      return await convertVideoToWebmNative(file, baseName, onProgress);
+    } catch (nativeErr: any) {
+      console.warn(
+        '[ConverterEngine] Нативный MediaRecorder завершился ошибкой, переключаемся на Fallback №2 (FFmpeg WASM):',
+        nativeErr
+      );
+      throw nativeErr;
+    }
   }
+
+  // Для MKV без WebCodecs fallback идёт на FFmpeg
+  throw new Error('WEBCODECS_FALLBACK_TO_FFMPEG');
 }
 
 async function convertVideoToWebmNative(
@@ -1326,8 +1340,26 @@ async function convertVideo(
   baseName: string,
   onProgress: (percent: number, text: string) => void
 ): Promise<{ blob: Blob; fileName: string }> {
-  if (targetFormat === 'WEBM') {
-    return convertVideoToWebmWithFallback(file, baseName, onProgress);
+  // 1. Аппаратный конвейер WebCodecs для WEBM и MKV (Tier 1 GPU)
+  if (targetFormat === 'WEBM' || targetFormat === 'MKV') {
+    try {
+      return await convertVideoToWebmOrMkvWithFallback(file, targetFormat, baseName, onProgress);
+    } catch (tierErr: any) {
+      if (tierErr.message !== 'WEBCODECS_FALLBACK_TO_FFMPEG') {
+        throw tierErr;
+      }
+      console.log(`[ConverterEngine] Резервный переход на FFmpeg WASM для ${targetFormat}...`);
+    }
+  }
+
+  // 2. Защита от переполнения 32-битной виртуальной памяти WebAssembly (MEMFS)
+  // Архитектура wasm32 ограничена 2 ГБ памяти. Файлы > 1.75 ГБ физически не помещаются в кучу Emscripten.
+  const WASM_SAFE_MEMORY_LIMIT = 1.75 * 1024 * 1024 * 1024; // 1.75 ГБ
+  if (file.size > WASM_SAFE_MEMORY_LIMIT) {
+    const sizeInGb = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+    throw new Error(
+      `Размер файла (${sizeInGb} ГБ) превышает лимит браузерного модуля WebAssembly (1.8 ГБ) для кодирования в ${targetFormat}. Для видеофайлов более 2 ГБ используйте аппаратные форматы WebM или MKV (без ограничений по размеру).`
+    );
   }
 
   onProgress(20, `Инициализация FFmpeg WASM для ${targetFormat}...`);
