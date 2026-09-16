@@ -1,38 +1,58 @@
-🚀 AllConvert — конвертер нового поколения, который работает прямо в твоем браузере без серверов и очередей!
+# 🚀 AllConvert — Private, Browser-Based File Converter
 
-Устали от типичных онлайн-конвертеров?
+> Convert videos, audio, images, and documents 100% locally in your browser. No server uploads, no queues, no file tracking.
 
-Каждый раз одно и то же: «Файл слишком большой — купите Premium», «Вы 3-й в очереди на конвертацию», загрузка по 15 минут на чужой сервер, реклама на весь экран и главное — ваши личные документы, фото и видео улетают на чужой неизвестный сервер.
+👉 **Try it now:** [https://allconvert.ru/](https://allconvert.ru/)
 
-AllConvert устроен принципиально иначе. Это 100% клиентское веб-приложение: вся магия конвертации происходит прямо на вашем компьютере или телефоне!
+[English](README.md) | [Русский](README.ru.md)
 
-👉 Попробуйте сами: https://allconvert.ru/
+---
 
-Добавьте в закладки, чтобы нужный конвертер всегда был под рукой!
+AllConvert is a modern web application designed to handle media and document conversion directly inside your browser using **WebAssembly**, **WebCodecs**, and native Browser APIs. 
 
-<img width="1322" height="1231" alt="image" src="https://github.com/user-attachments/assets/dfb86d68-7569-45a1-98d6-2cba5ad4b931" />
-<img width="1310" height="1304" alt="image" src="https://github.com/user-attachments/assets/e9239578-3d93-40f0-a983-aa1b59abcf95" />
+Traditional online converters force you to upload your sensitive files to remote servers, put you in queues, or cap your file sizes. AllConvert runs conversion tasks **locally on your device**, ensuring complete privacy and zero data transfer.
 
-🔥 Почему AllConvert лучше других:
+## ✨ Key Features
 
-1. 🔒 100% приватность и Zero-Knowledge
+- 🔒 **100% Client-Side Privacy:** Your files **NEVER** leave your device. All decoding and encoding happen in your browser's local memory. You can even disconnect your internet after loading the page.
+- ⚡ **Hardware Acceleration:** Utilizes native **WebCodecs** for ultra-fast video processing using your system's GPU (where supported).
+- 🚫 **No Server Limits or Accounts:** No registration, no subscription fees, no arbitrary file size caps (limited only by your RAM/hardware capabilities).
+- 📦 **Batch Processing:** Select multiple files, set individual or batch target formats, and download all processed files at once in a ZIP archive.
 
-Ваши файлы НИКОГДА и ни при каких условиях не загружаются в сеть. Все процессы декодирования и кодирования идут в оперативной памяти и на видеокарте вашего браузера. Вы можете даже отключить интернет прямо во время работы — всё продолжит конвертироваться!
+---
 
-2. ⚡ Аппаратное ускорение на GPU (WebCodecs)
+## 📂 Supported Formats
 
-Мы внедрили передовой стандарт WebCodecs: видео конвертируется с использованием вычислительной мощности вашей видеокарты без зависаний, с сохранением реальных  FPS и без ограничений по размеру для аппаратных форматов.
+| Category | Formats |
+| :--- | :--- |
+| **Video** | MP4, WebM, MOV, MKV, AVI, GIF |
+| **Audio** | MP3, WAV, AAC, FLAC, OGG, M4A, OPUS *(Instant audio extraction from video)* |
+| **Images** | PNG, JPG/JPEG, WebP, AVIF, HEIC (iPhone), SVG, ICO, BMP |
+| **Documents** | PDF, DOCX, XLSX, CSV, TXT, JSON, XML, Markdown *(Beta/Experimental)* |
 
-3. 📂 Все форматы в одном окне:
+> ⚠️ **Note on Document Conversion:** Document parsing (PDF/DOCX) via WebAssembly is still under active development. Complex document structures or missing custom fonts may occasionally affect the output layout.
 
-• Видео: MP4, WebM, MKV, MOV, AVI, GIF
+---
 
-• Аудио: MP3, WAV, AAC, FLAC, OGG, M4A, OPUS (мгновенное извлечение звука из любого видео)
+## 🛠️ Built With
 
-• Изображения: PNG, JPG, WebP, AVIF, HEIC (iPhone фото), SVG, ICO, BMP
+AllConvert is an exploration of how far client-side web technologies can go:
 
-• Документы и таблицы: PDF, DOCX, XLSX, CSV, TXT, JSON, XML, Markdown
+* **React** + **TypeScript**
+* **WebAssembly (WASM)** & **FFmpeg WASM**
+* **WebCodecs API** & **Web Audio API**
+* **Canvas API** & **JSZip**
 
-4. 🚫 Никаких регистраций, подписок и лимитов
+---
 
-Никакого «Войдите через Google», ввода email или скрытых платных тарифов. Сервис готов к работе в ту же секунду, когда вы открыли вкладку.
+## 🤝 Feedback & Issues
+
+Found a bug or have a feature request? Please open an issue on GitHub with:
+1. Input and target formats.
+2. Your browser and OS version.
+3. Approximate file size.
+
+*(Please do not include private or sensitive files in your issue reports).*
+
+---
+*Created with Google AI Studio assistance. Open for community feedback!*
