@@ -58,7 +58,7 @@ export const ShareModal: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950/50">
           <div className="flex items-center space-x-2">
-            <Share2 className="w-5 h-5 text-cyan-400" />
+            <Share2 className="w-5 h-5 text-blue-400" />
             <h3 className="text-lg font-bold text-white">{t.shareFileTitle}</h3>
           </div>
           <button
@@ -77,7 +77,7 @@ export const ShareModal: React.FC = () => {
             <div className="text-sm font-bold text-white truncate mt-1">
               {fileName}
             </div>
-            <div className="text-xs text-cyan-400 font-mono mt-1">
+            <div className="text-xs text-slate-300 font-mono mt-1">
               {fileSizeStr}
             </div>
           </div>
@@ -89,16 +89,16 @@ export const ShareModal: React.FC = () => {
           <div className="space-y-3">
             <button
               onClick={handleNativeShare}
-              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs sm:text-sm shadow-xl shadow-cyan-500/20 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full py-3.5 px-4 rounded-2xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 border border-blue-400/50 transition-all flex items-center justify-center space-x-2 cursor-pointer btn-primary-action"
             >
-              <Share2 className="w-4 h-4" />
-              <span>{t.shareFileNativeBtn}</span>
+              <Share2 className="w-4 h-4 text-white" />
+              <span className="font-bold text-white">{t.shareFileNativeBtn}</span>
             </button>
 
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => downloadItem(shareFileItem.id)}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center space-x-2 border border-slate-700 transition-colors"
+                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center space-x-2 border border-slate-700 transition-colors"
               >
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>{t.downloadSelected(1)}</span>
@@ -106,17 +106,17 @@ export const ShareModal: React.FC = () => {
 
               <button
                 onClick={copySiteLink}
-                className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center space-x-1.5 border border-slate-700 transition-colors"
+                className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center space-x-1.5 border border-slate-700 transition-colors"
                 title={t.shareSiteBtn}
               >
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
+                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-300" />}
                 <span>{copied ? 'Copied' : t.shareSiteBtn}</span>
               </button>
             </div>
           </div>
 
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center space-x-3 text-xs text-emerald-300">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl flex items-center space-x-3 text-xs text-slate-300">
+            <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
             <span className="leading-relaxed">
               {t.shareFileLocalNote}
             </span>

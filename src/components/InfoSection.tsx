@@ -27,21 +27,21 @@ export const InfoSection: React.FC = () => {
       icon: Upload,
       title: t.infoStep1Title,
       desc: t.infoStep1Desc,
-      color: 'from-cyan-500 to-blue-500'
+      color: 'from-blue-600 to-indigo-600'
     },
     {
       step: '02',
       icon: Settings2,
       title: t.infoStep2Title,
       desc: t.infoStep2Desc,
-      color: 'from-purple-500 to-indigo-500'
+      color: 'from-slate-600 to-slate-700'
     },
     {
       step: '03',
       icon: Download,
       title: t.infoStep3Title,
       desc: t.infoStep3Desc,
-      color: 'from-emerald-500 to-teal-500'
+      color: 'from-emerald-600 to-teal-600'
     }
   ];
 
@@ -109,7 +109,7 @@ export const InfoSection: React.FC = () => {
             return (
               <div key={idx} className="space-y-3 p-5 rounded-2xl bg-slate-800/40 border border-slate-700/60">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
                     <Icon className="w-5 h-5" />
                   </div>
                   <span className="text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -127,7 +127,7 @@ export const InfoSection: React.FC = () => {
       {/* 2. Step-by-Step Instruction Guide */}
       <div className="space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 inline-block">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-400 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 inline-block">
             {t.infoStepsBadge}
           </span>
           <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
@@ -150,7 +150,7 @@ export const InfoSection: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${step.color} p-0.5 shadow-lg`}>
                       <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
-                        <IconComponent className="w-6 h-6 text-cyan-400" />
+                        <IconComponent className="w-6 h-6 text-blue-400" />
                       </div>
                     </div>
                     <span className="text-2xl font-black text-slate-500/50 select-none">
@@ -169,7 +169,7 @@ export const InfoSection: React.FC = () => {
       {/* 3. FAQ Section */}
       <div className="space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-purple-400 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 inline-block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 inline-block">
             {t.infoFaqBadge}
           </span>
           <h2 className="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">
@@ -193,10 +193,10 @@ export const InfoSection: React.FC = () => {
                   className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-800/40 transition-colors"
                 >
                   <span className="text-sm md:text-base font-bold text-slate-100 pr-4 flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <HelpCircle className="w-4 h-4 text-blue-400 shrink-0" />
                     {faq.q}
                   </span>
-                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180 text-cyan-400' : ''}`} />
+                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180 text-blue-400' : ''}`} />
                 </button>
                 {isOpen && (
                   <div className="px-6 pb-5 pt-1 text-xs md:text-sm text-slate-400 leading-relaxed border-t border-slate-800/40">

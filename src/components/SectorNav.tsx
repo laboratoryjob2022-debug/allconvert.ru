@@ -31,7 +31,7 @@ export const SectorNav: React.FC = () => {
   const t = getTranslation(language);
 
   const sectorTabs: SectorTab[] = [
-    { id: 'all', label: t.sectorAll, icon: Globe, color: 'text-cyan-400', badge: t.badgeAllInOne },
+    { id: 'all', label: t.sectorAll, icon: Globe, color: 'text-blue-400', badge: t.badgeAllInOne },
     { id: 'audio', label: t.sectorAudio, icon: Music, color: 'text-purple-400', badge: 'MP3 / WAV / OGG' },
     { id: 'video', label: t.sectorVideo, icon: Video, color: 'text-rose-400', badge: 'MP4 / WEBM / GIF' },
     { id: 'image', label: t.sectorImage, icon: ImageIcon, color: 'text-emerald-400', badge: 'PNG / WEBP / JPG' },
@@ -111,7 +111,7 @@ export const SectorNav: React.FC = () => {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-5 space-y-4">
       {/* Expanded Full-Width Sector Tabs */}
-      <div className="bg-slate-900/80 p-2 rounded-2xl border border-slate-800/80 backdrop-blur-md shadow-md">
+      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-md relative isolate">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full">
           {sectorTabs.map((tab) => {
             const Icon = tab.icon;
@@ -131,7 +131,7 @@ export const SectorNav: React.FC = () => {
                 <Icon className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${tab.color} shrink-0`} />
                 <span className="truncate">{tab.label}</span>
                 {count > 0 && (
-                  <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
                     {count}
                   </span>
                 )}
@@ -144,7 +144,7 @@ export const SectorNav: React.FC = () => {
       {/* Popular Conversion Directions Buttons */}
       <div className="flex flex-col gap-2.5 py-1">
         <div className="flex items-center text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm shrink-0">
-          <Zap className="w-4 h-4 text-cyan-400 mr-1.5 shrink-0" />
+          <Zap className="w-4 h-4 text-blue-500 dark:text-blue-400 mr-1.5 shrink-0" />
           <span>
             {t.popularDirectionsTitle}
           </span>
@@ -155,7 +155,7 @@ export const SectorNav: React.FC = () => {
               key={item.slug}
               href={getLocalizedPath(`/convert/${item.slug}`, language)}
               onClick={(e) => handleDirectionClick(e, item.slug)}
-              className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/60 hover:text-cyan-500 dark:hover:text-cyan-400 text-slate-800 dark:text-slate-200 transition-all font-bold text-xs sm:text-sm shadow-xs cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center"
+              className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 text-slate-800 dark:text-slate-200 transition-all font-semibold text-xs sm:text-sm shadow-xs cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center"
             >
               {formatDirectionLabel(item.from, item.to, item.suffix, language)}
             </a>

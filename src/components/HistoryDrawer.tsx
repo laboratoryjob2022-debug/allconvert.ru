@@ -49,7 +49,7 @@ export const HistoryDrawer: React.FC = () => {
         {/* Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
           <div className="flex items-center space-x-2">
-            <History className="w-5 h-5 text-cyan-400" />
+            <History className="w-5 h-5 text-blue-400" />
             <h3 className="text-lg font-bold text-white">Conversion Task Log</h3>
           </div>
           <button
@@ -83,12 +83,12 @@ export const HistoryDrawer: React.FC = () => {
                   <div className="text-xs font-bold text-white truncate max-w-[220px]">
                     {rec.fileName}
                   </div>
-                  <div className="flex items-center space-x-2 text-[11px] font-mono text-cyan-400">
+                  <div className="flex items-center space-x-2 text-[11px] font-mono text-slate-300">
                     <span className="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300">
                       {rec.originalFormat}
                     </span>
                     <ArrowRight className="w-3 h-3 text-slate-500" />
-                    <span className="px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-800 text-cyan-300 font-bold">
+                    <span className="px-1.5 py-0.2 rounded bg-blue-950/60 border border-blue-800/60 text-blue-300 font-semibold">
                       {rec.targetFormat}
                     </span>
                   </div>

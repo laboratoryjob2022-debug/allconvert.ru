@@ -24,8 +24,8 @@ export const GuideModal: React.FC = () => {
         {/* Modal Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950 shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-sm">
-              <HelpCircle className="w-5 h-5 text-cyan-300" />
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-300 shadow-sm">
+              <HelpCircle className="w-5 h-5 text-blue-300" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white">
@@ -69,7 +69,7 @@ export const GuideModal: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 shadow-md flex flex-col space-y-2">
                 <div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-cyan-400 text-slate-950 font-black text-[11px] mb-2 shadow-sm">
+                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-blue-600 text-white font-bold text-[11px] mb-2 shadow-sm">
                     1
                   </span>
                   <div className="font-extrabold text-slate-100 text-sm mb-1">{t.guideStep1Title}</div>
@@ -81,7 +81,7 @@ export const GuideModal: React.FC = () => {
 
               <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 shadow-md flex flex-col space-y-2">
                 <div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-cyan-400 text-slate-950 font-black text-[11px] mb-2 shadow-sm">
+                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-blue-600 text-white font-bold text-[11px] mb-2 shadow-sm">
                     2
                   </span>
                   <div className="font-extrabold text-slate-100 text-sm mb-1">{t.guideStep2Title}</div>
@@ -93,7 +93,7 @@ export const GuideModal: React.FC = () => {
 
               <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 shadow-md flex flex-col space-y-2">
                 <div>
-                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-emerald-400 text-slate-950 font-black text-[11px] mb-2 shadow-sm">
+                  <span className="inline-block px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white font-bold text-[11px] mb-2 shadow-sm">
                     3
                   </span>
                   <div className="font-extrabold text-slate-100 text-sm mb-1">{t.guideStep3Title}</div>
@@ -107,8 +107,8 @@ export const GuideModal: React.FC = () => {
 
           {/* Section 2: Smart Sectors & Isolated Batch Management */}
           <div className="p-4.5 rounded-2xl bg-slate-800 border border-slate-700 shadow-md space-y-3">
-            <h3 className="text-base font-extrabold text-cyan-400 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-cyan-400" />
+            <h3 className="text-base font-extrabold text-blue-400 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-blue-400" />
               <span>{t.guideSectorsTitle}</span>
             </h3>
             <div className="space-y-2 text-xs text-slate-300 font-medium leading-relaxed">
@@ -143,7 +143,7 @@ export const GuideModal: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-medium">
               <div className="p-3.5 rounded-xl bg-slate-800 border border-slate-700">
-                <div className="font-extrabold text-cyan-400 mb-1 text-xs">🖼 {t.sectorImage}:</div>
+                <div className="font-extrabold text-blue-400 mb-1 text-xs">🖼 {t.sectorImage}:</div>
                 <div className="text-slate-300 font-mono text-[11px]">PNG, JPG / JPEG, WEBP, GIF, BMP, ICO, AVIF, PDF</div>
               </div>
               <div className="p-3.5 rounded-xl bg-slate-800 border border-slate-700">
@@ -170,7 +170,7 @@ export const GuideModal: React.FC = () => {
           </div>
           <button
             onClick={() => setGuideOpen(false)}
-            className="px-6 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-md shadow-cyan-400/20"
+            className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-md shadow-blue-500/25 border border-blue-400/50 btn-primary-action"
           >
             {t.understoodBtn}
           </button>

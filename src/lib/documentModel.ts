@@ -6,11 +6,48 @@
  */
 
 import XLSX from 'xlsx-js-style';
-import { Document, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, WidthType, BorderStyle } from 'docx';
+import {
+  Document,
+  Paragraph,
+  TextRun,
+  Table,
+  TableRow,
+  TableCell,
+  HeadingLevel,
+  WidthType,
+  BorderStyle,
+  ImageRun,
+  AlignmentType,
+  HorizontalPositionRelativeFrom,
+  VerticalPositionRelativeFrom,
+  TextWrappingType,
+  PageBreak
+} from 'docx';
 
 // --- TYPE DEFINITIONS ---
 
-export type BlockType = 'heading' | 'paragraph' | 'list' | 'table' | 'code' | 'page-break';
+export type BlockType = 'heading' | 'paragraph' | 'list' | 'table' | 'code' | 'page-break' | 'image';
+
+export type ImageRole = 'emblem' | 'stamp' | 'signature' | 'inline' | 'background';
+
+export interface ImageBlock extends DocumentBlockBase {
+  type: 'image';
+  data: Uint8Array;
+  format: 'png' | 'jpg';
+  width: number;
+  height: number;
+  x?: number;
+  role: ImageRole;
+  alignment?: 'left' | 'center' | 'right';
+  floating?: {
+    x: number;
+    y: number;
+    behindDocument?: boolean;
+    allowOverlap?: boolean;
+  };
+  altText?: string;
+  pageNumber?: number;
+}
 
 export interface DocumentBlockBase {
   type: BlockType;
@@ -60,7 +97,7 @@ export interface PageBreakBlock extends DocumentBlockBase {
   pageNumber: number;
 }
 
-export type DocumentBlock = HeadingBlock | ParagraphBlock | ListBlock | TableBlock | CodeBlock | PageBreakBlock;
+export type DocumentBlock = HeadingBlock | ParagraphBlock | ListBlock | TableBlock | CodeBlock | PageBreakBlock | ImageBlock;
 
 export interface DocumentPage {
   pageNumber: number;
@@ -262,8 +299,15 @@ export function parseSpatialItemsToBlocks(items: RawSpatialItem[], pageWidth = 5
 
 // --- PARSER: PDF Raw Items -> Structured Document Model ---
 
-export function parsePdfPageToBlocks(items: RawPdfItem[], pageNum: number, pageWidth: number, pageHeight: number): DocumentBlock[] {
-  if (!items || items.length === 0) return [];
+export function parsePdfPageToBlocks(
+  items: RawPdfItem[],
+  pageNum: number,
+  pageWidth: number,
+  pageHeight: number,
+  imageBlocks: ImageBlock[] = []
+): DocumentBlock[] {
+  if ((!items || items.length === 0) && (!imageBlocks || imageBlocks.length === 0)) return [];
+  if (!items || items.length === 0) return [...imageBlocks];
 
   // Pre-process items: split any item containing multi-column gaps, tabs, or parameter-value pairs
   const expandedItems: RawPdfItem[] = [];
@@ -388,9 +432,27 @@ export function parsePdfPageToBlocks(items: RawPdfItem[], pageNum: number, pageW
     blocks.push(...nonTableBlocks);
   }
 
-  // Sort all page blocks by top-to-bottom Y position
+  // Sort all textual/tabular page blocks by top-to-bottom Y position (descending Y in PDF coordinates)
   blocks.sort((a, b) => b.y - a.y);
-  return blocks;
+
+  if (!imageBlocks || imageBlocks.length === 0) {
+    return blocks;
+  }
+
+  // Organize visual elements logically:
+  // - Emblems (header logos) placed at the top of the block flow
+  // - Stamps and signatures placed at their exact spatial anchor or at the end
+  // - Inline images placed at their proportional position
+  const emblemBlocks = imageBlocks.filter(b => b.role === 'emblem');
+  const stampAndSigBlocks = imageBlocks.filter(b => b.role === 'stamp' || b.role === 'signature');
+  const otherImageBlocks = imageBlocks.filter(b => b.role !== 'emblem' && b.role !== 'stamp' && b.role !== 'signature');
+
+  return [
+    ...emblemBlocks,
+    ...blocks,
+    ...otherImageBlocks,
+    ...stampAndSigBlocks,
+  ];
 }
 
 function parseTableFromSpatialItems(tableItems: RawPdfItem[]): TableBlock | null {
@@ -1412,6 +1474,10 @@ export function exportToHtmlString(doc: StructuredDocument): string {
         bodyContent += `    </tr>\n`;
       }
       bodyContent += `  </tbody>\n</table>\n`;
+    } else if (b.type === 'image') {
+      const base64 = uint8ArrayToBase64(b.data);
+      const align = b.alignment || (b.role === 'emblem' ? 'center' : 'left');
+      bodyContent += `<div style="text-align: ${align}; margin: 16px 0;"><img src="data:image/${b.format || 'png'};base64,${base64}" style="max-width: ${Math.round(b.width)}px; height: auto;" alt="${escapeHtml(b.altText || b.role)}" /></div>\n`;
     } else if (b.type === 'page-break') {
       bodyContent += `<hr class="page-break" />\n`;
     }
@@ -1493,6 +1559,8 @@ export function exportToXmlString(doc: StructuredDocument): string {
           lines.push('      </row>');
         }
         lines.push('    </table>');
+      } else if (b.type === 'image') {
+        lines.push(`    <image role="${b.role}" width="${b.width}" height="${b.height}" alt="${escapeHtml(b.altText || b.role)}" />`);
       }
     }
   }
@@ -1529,6 +1597,11 @@ export function exportToTxtString(doc: StructuredDocument): string {
         lines.push(r.join('\t'));
       }
       lines.push('');
+    } else if (b.type === 'image') {
+      if (b.role === 'emblem') lines.push('[Эмблема / Логотип шапки документа]');
+      else if (b.role === 'stamp') lines.push('[М.П. / Оттиск печати организации]');
+      else if (b.role === 'signature') lines.push('[Подпись / Факсимиле]');
+      else lines.push('[Изображение]');
     } else if (b.type === 'page-break') {
       lines.push('');
       lines.push(`--- Page ${b.pageNumber} ---`);
@@ -1537,6 +1610,15 @@ export function exportToTxtString(doc: StructuredDocument): string {
   }
 
   return lines.join('\n');
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 /**
@@ -1644,6 +1726,77 @@ export async function exportToDocxBuffer(doc: StructuredDocument): Promise<Uint8
         })
       );
       children.push(new Paragraph({ text: '', spacing: { after: 180 } }));
+    } else if (b.type === 'image') {
+      if (b.role === 'emblem') {
+        const maxW = 380;
+        const scale = b.width > maxW ? maxW / b.width : 1;
+        const imgW = Math.max(20, Math.round(b.width * scale));
+        const imgH = Math.max(20, Math.round(b.height * scale));
+        children.push(
+          new Paragraph({
+            alignment: b.alignment === 'center' ? AlignmentType.CENTER : b.alignment === 'right' ? AlignmentType.RIGHT : AlignmentType.LEFT,
+            children: [
+              new ImageRun({
+                data: b.data,
+                transformation: { width: imgW, height: imgH },
+                type: b.format === 'jpg' ? 'jpg' : 'png',
+              })
+            ],
+            spacing: { before: 60, after: 140 }
+          })
+        );
+      } else if (b.role === 'stamp' || b.role === 'signature') {
+        const imgW = Math.min(Math.max(Math.round(b.width), 35), 240);
+        const imgH = Math.min(Math.max(Math.round(b.height), 20), 240);
+        const xOffset = Math.round((b.floating?.x ?? b.x ?? 150) * 12700);
+        const yOffset = Math.round((b.floating?.y ?? b.y ?? 450) * 12700);
+
+        children.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: b.data,
+                transformation: { width: imgW, height: imgH },
+                type: b.format === 'jpg' ? 'jpg' : 'png',
+                floating: {
+                  horizontalPosition: {
+                    relative: HorizontalPositionRelativeFrom.PAGE,
+                    offset: xOffset,
+                  },
+                  verticalPosition: {
+                    relative: VerticalPositionRelativeFrom.PAGE,
+                    offset: yOffset,
+                  },
+                  wrap: { type: TextWrappingType.NONE },
+                  allowOverlap: true,
+                  behindDocument: false,
+                }
+              })
+            ],
+            spacing: { after: 0 }
+          })
+        );
+      } else {
+        const maxW = 460;
+        const scale = b.width > maxW ? maxW / b.width : 1;
+        const imgW = Math.max(30, Math.round(b.width * scale));
+        const imgH = Math.max(20, Math.round(b.height * scale));
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                data: b.data,
+                transformation: { width: imgW, height: imgH },
+                type: b.format === 'jpg' ? 'jpg' : 'png',
+              })
+            ],
+            spacing: { before: 120, after: 120 }
+          })
+        );
+      }
+    } else if (b.type === 'page-break') {
+      children.push(new Paragraph({ children: [new PageBreak()] }));
     }
   }
 

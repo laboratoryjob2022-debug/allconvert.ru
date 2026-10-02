@@ -21,7 +21,7 @@ export const THEMES: ThemeOption[] = [
     nameRu: 'Тёмная Студия',
     nameEn: 'Dark Studio',
     colorHex: '#070a12',
-    accentHex: '#22d3ee',
+    accentHex: '#3b82f6',
     bgHex: 'bg-[#070a12]',
   },
   {

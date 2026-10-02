@@ -35,7 +35,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
           >
             <img src="/favicon.svg" alt="AllConvert" className="w-7 h-7 shrink-0" />
             <span className="font-extrabold text-slate-100 text-base tracking-tight">
-              All<span className="text-cyan-400">Convert</span>
+              All<span className="text-blue-500">Convert</span>
             </span>
           </a>
           <span className="hidden md:inline text-slate-700">|</span>
@@ -49,7 +49,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
           <a
             href={getLocalizedPath('/privacy', language)}
             onClick={(e) => handleLinkClick(e, '/privacy')}
-            className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="hover:text-blue-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>{t.privacyPolicy}</span>
@@ -57,7 +57,7 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
           <a
             href={getLocalizedPath('/terms', language)}
             onClick={(e) => handleLinkClick(e, '/terms')}
-            className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="hover:text-blue-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <FileText className="w-4 h-4 text-purple-400" />
             <span>{t.termsOfService}</span>
@@ -65,9 +65,9 @@ export const FooterAdZone: React.FC<FooterAdZoneProps> = ({ onNavigateRoute }) =
           <a
             href={getLocalizedPath('/about', language)}
             onClick={(e) => handleLinkClick(e, '/about')}
-            className="hover:text-cyan-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="hover:text-blue-400 transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <Info className="w-4 h-4 text-cyan-400" />
+            <Info className="w-4 h-4 text-blue-400" />
             <span>{t.aboutUsAndContacts}</span>
           </a>
         </div>

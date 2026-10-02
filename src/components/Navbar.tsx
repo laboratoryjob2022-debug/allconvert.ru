@@ -52,7 +52,7 @@ export const Navbar: React.FC = () => {
         className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white transition-all flex items-center justify-center sm:justify-start space-x-1.5 ${isMobile ? 'text-xs' : ''}`}
         title="Change UI Theme"
       >
-        <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
+        <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 shrink-0" />
         <span
           className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-white/20 shrink-0"
           style={{ backgroundColor: currentTheme.accentHex }}
@@ -85,7 +85,7 @@ export const Navbar: React.FC = () => {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors ${
                       isSelected
-                        ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30'
+                        ? 'bg-blue-600/20 text-blue-300 font-bold border border-blue-500/30'
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                     }`}
                   >
@@ -96,7 +96,7 @@ export const Navbar: React.FC = () => {
                       />
                       <span>{language === 'ru' ? item.nameRu : item.nameEn}</span>
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
+                    {isSelected && <Check className="w-4 h-4 text-blue-400 shrink-0" />}
                   </button>
                 );
               })}
@@ -185,7 +185,7 @@ export const Navbar: React.FC = () => {
             >
               <img src="/favicon.svg" alt="AllConvert" className="w-7 h-7 shrink-0" />
               <h1 className="text-base font-bold text-white tracking-tight truncate">
-                All<span className="text-cyan-400 font-extrabold">Convert</span>
+                All<span className="text-blue-500 font-extrabold">Convert</span>
               </h1>
             </a>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -197,10 +197,10 @@ export const Navbar: React.FC = () => {
                   window.history.pushState({}, '', guidePath);
                   window.dispatchEvent(new Event('popstate'));
                 }}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-cyan-400 hover:text-cyan-300 transition-all flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 hover:text-white transition-all flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 active:scale-95"
                 title={t.guideTitle}
               >
-                <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
+                <HelpCircle className="w-4 h-4 text-slate-400 shrink-0" />
               </a>
               <button
                 onClick={() => {
@@ -248,13 +248,13 @@ export const Navbar: React.FC = () => {
             }}
             className="flex items-center space-x-3 cursor-pointer hover:opacity-90 transition-opacity"
           >
-            <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-700/80 p-1 shadow-lg shadow-cyan-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="w-10 h-10 rounded-2xl bg-slate-900 border border-slate-700/80 p-1 shadow-md shadow-blue-500/10 flex items-center justify-center shrink-0 overflow-hidden">
               <img src="/favicon.svg" alt="AllConvert Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center flex-wrap gap-2">
                 <h1 className="text-lg font-bold text-white tracking-tight">
-                  All<span className="text-cyan-400 font-extrabold">Convert</span>
+                  All<span className="text-blue-500 font-extrabold">Convert</span>
                 </h1>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-sm">
                   <ShieldCheck className="w-3.5 h-3.5 mr-1" />
@@ -289,10 +289,10 @@ export const Navbar: React.FC = () => {
                 window.history.pushState({}, '', guidePath);
                 window.dispatchEvent(new Event('popstate'));
               }}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-cyan-300 hover:text-white transition-all flex items-center space-x-1.5 shadow-sm text-xs font-bold cursor-pointer hover:scale-105 active:scale-95"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 hover:text-white transition-all flex items-center space-x-1.5 shadow-sm text-xs font-semibold cursor-pointer hover:scale-105 active:scale-95"
               title={t.guideTitle}
             >
-              <HelpCircle className="w-4 h-4 text-cyan-400 shrink-0" />
+              <HelpCircle className="w-4 h-4 text-slate-400 shrink-0" />
               <span className="hidden md:inline">{t.guideBtn}</span>
             </a>
 

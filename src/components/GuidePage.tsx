@@ -32,11 +32,11 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-8 space-y-8 text-slate-100 font-sans">
       {/* Top Banner / Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-700/80 p-6 md:p-10 shadow-2xl backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border border-slate-800 p-6 md:p-10 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-              <HelpCircle className="w-4 h-4 text-cyan-400" />
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-bold uppercase tracking-wider">
+              <HelpCircle className="w-4 h-4 text-blue-400" />
               <span>{t.guideTitle}</span>
             </div>
             <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight leading-tight">
@@ -53,7 +53,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
               e.preventDefault();
               onNavigateHome();
             }}
-            className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 text-slate-950 font-black text-sm transition-all shadow-xl shadow-cyan-500/20 hover:scale-105 active:scale-95 flex items-center space-x-2 shrink-0 cursor-pointer"
+            className="px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all shadow-md shadow-blue-900/30 hover:scale-105 active:scale-95 flex items-center space-x-2 shrink-0 cursor-pointer"
           >
             <span>{t.startConvertingNow}</span>
             <ArrowRight className="w-4 h-4" />
@@ -91,7 +91,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
           {/* Step 1 */}
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors">
             <div>
-              <span className="inline-block px-3 py-1 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs mb-3 shadow-md">
+              <span className="inline-block px-3 py-1 rounded-xl bg-blue-600 text-white font-bold text-xs mb-3 shadow-md">
                 1
               </span>
               <h3 className="font-extrabold text-slate-100 text-base mb-1.5">{t.guideStep1Title}</h3>
@@ -99,7 +99,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
                 {t.guideStep1Desc}
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-800 text-[11px] text-cyan-400 font-mono">
+            <div className="pt-2 border-t border-slate-800 text-[11px] text-blue-400 font-mono">
               {t.guideStep1Sub}
             </div>
           </div>
@@ -107,7 +107,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
           {/* Step 2 */}
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors">
             <div>
-              <span className="inline-block px-3 py-1 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs mb-3 shadow-md">
+              <span className="inline-block px-3 py-1 rounded-xl bg-blue-600 text-white font-bold text-xs mb-3 shadow-md">
                 2
               </span>
               <h3 className="font-extrabold text-slate-100 text-base mb-1.5">{t.guideStep2Title}</h3>
@@ -115,7 +115,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
                 {t.guideStep2Desc}
               </p>
             </div>
-            <div className="pt-2 border-t border-slate-800 text-[11px] text-cyan-400 font-mono">
+            <div className="pt-2 border-t border-slate-800 text-[11px] text-blue-400 font-mono">
               {t.guideStep2Sub}
             </div>
           </div>
@@ -123,7 +123,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
           {/* Step 3 */}
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-md flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors">
             <div>
-              <span className="inline-block px-3 py-1 rounded-xl bg-emerald-400 text-slate-950 font-black text-xs mb-3 shadow-md">
+              <span className="inline-block px-3 py-1 rounded-xl bg-emerald-600 text-white font-bold text-xs mb-3 shadow-md">
                 3
               </span>
               <h3 className="font-extrabold text-slate-100 text-base mb-1.5">{t.guideStep3Title}</h3>
@@ -140,13 +140,13 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
 
       {/* 3. Flexible Queue & Sector Tabs */}
       <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
-        <h2 className="text-lg font-extrabold text-cyan-400 flex items-center gap-2.5">
-          <Layers className="w-5 h-5 text-cyan-400" />
+        <h2 className="text-lg font-extrabold text-blue-400 flex items-center gap-2.5">
+          <Layers className="w-5 h-5 text-blue-400" />
           <span>{t.guideSectorsTitle}</span>
         </h2>
         <div className="space-y-3 text-xs sm:text-sm text-slate-300 font-medium">
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-start space-x-3">
-            <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-slate-100 block mb-0.5">{t.guideSectorsItem1Title}</span>
               <span>{t.guideSectorsItem1}</span>
@@ -154,7 +154,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-start space-x-3">
-            <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-slate-100 block mb-0.5">{t.guideSectorsItem2Title}</span>
               <span>{t.guideSectorsItem2}</span>
@@ -162,7 +162,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-start space-x-3">
-            <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-slate-100 block mb-0.5">{t.guideSectorsItem3Title}</span>
               <span>{t.guideSectorsItem3}</span>
@@ -172,13 +172,13 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
       </div>
 
       {/* 4. Strict Batch Selection Compatibility Matrix */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-purple-950/30 border border-cyan-500/40 shadow-xl space-y-4">
+      <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-400/40 text-blue-300 flex items-center justify-center shrink-0">
             <Filter className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-extrabold text-cyan-300">
+            <h2 className="text-lg font-extrabold text-white">
               {t.guideSmartBatchTitle}
             </h2>
             <p className="text-xs text-slate-400 font-mono">
@@ -194,7 +194,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
         {/* Category Matrix Table */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
           <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
-            <div className="flex items-center space-x-2 text-cyan-400 font-bold text-xs mb-1">
+            <div className="flex items-center space-x-2 text-blue-400 font-bold text-xs mb-1">
               <ImageIcon className="w-4 h-4" />
               <span>{t.guideCategoryImages}</span>
             </div>
@@ -264,12 +264,12 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
       </div>
 
       {/* Recommended File Sizes Section */}
-      <div className="p-6 rounded-3xl bg-slate-900 border border-cyan-500/40 shadow-xl space-y-4">
+      <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-400/40 text-blue-300 flex items-center justify-center shrink-0">
             <HardDrive className="w-5 h-5" />
           </div>
-          <h2 className="text-lg font-extrabold text-cyan-300">
+          <h2 className="text-lg font-extrabold text-white">
             {t.guideRecommendedSizesTitle}
           </h2>
         </div>
@@ -278,7 +278,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
           <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-start space-x-2.5">
-            <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+            <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <p className="text-xs text-slate-200 font-medium">
               {t.guideSizeImagesDocs}
             </p>
@@ -301,12 +301,12 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
       {/* 7. Supported Formats Showcase */}
       <div className="space-y-4">
         <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-          <FileCheck2 className="w-5 h-5 text-purple-400" />
+          <FileCheck2 className="w-4 h-4 text-purple-400" />
           <span>{t.guideFormatsTitle}</span>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-medium">
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
-            <div className="font-black text-cyan-400 text-sm flex items-center gap-2">
+            <div className="font-black text-blue-400 text-sm flex items-center gap-2">
               <ImageIcon className="w-4 h-4" />
               <span>{t.sectorImage}</span>
             </div>
@@ -363,7 +363,7 @@ export const GuidePage: React.FC<GuidePageProps> = ({ onNavigateHome }) => {
               e.preventDefault();
               onNavigateHome();
             }}
-            className="inline-flex items-center space-x-2 px-8 py-3.5 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-sm transition-all shadow-lg shadow-cyan-400/20 hover:scale-105 active:scale-95 cursor-pointer"
+            className="inline-flex items-center space-x-2 px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all shadow-md shadow-blue-900/30 hover:scale-105 active:scale-95 cursor-pointer"
           >
             <span>{t.startConvertingNow}</span>
             <ArrowRight className="w-4 h-4" />

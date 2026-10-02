@@ -281,7 +281,7 @@ export default function App() {
   return (
     <div
       data-theme={theme || 'studio-light'}
-      className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950 transition-colors duration-300"
+      className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white"
     >
       {/* Main Navigation Bar */}
       <Navbar />
@@ -297,7 +297,7 @@ export default function App() {
             <>
               <button
                 onClick={() => handleNavigateRoute('')}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-blue-400 transition-colors cursor-pointer"
               >
                 {t.homeBreadcrumb}
               </button>
@@ -348,15 +348,15 @@ export default function App() {
                 {queue.length === 0 && (
                   <div className="w-full max-w-7xl mx-auto px-4 mt-8">
                     {/* Top Highlight Badge Banner */}
-                    <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-blue-500/10 border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
+                    <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-md shadow-emerald-500/10">
-                          <Lock className="w-6 h-6 animate-pulse" />
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-md">
+                          <Lock className="w-6 h-6" />
                         </div>
                         <div>
                           <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
                             <span>{t.noAuthTitle}</span>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-black uppercase tracking-wider">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold uppercase tracking-wider">
                               100% FREE
                             </span>
                           </h2>
@@ -366,12 +366,12 @@ export default function App() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 shadow-sm">
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 shadow-sm">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                           {t.noGoogleAuth}
                         </span>
-                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 shadow-sm">
-                          <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-4 h-4 text-blue-400" />
                           {t.zeroTelemetry}
                         </span>
                       </div>

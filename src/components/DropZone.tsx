@@ -75,7 +75,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
       {/* Central Hero Header for Main Page or Tool Page */}
       <div className="text-center max-w-3xl mx-auto mb-6 flex flex-col items-center justify-start pt-1">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 mb-3 border border-blue-200/60 dark:border-blue-800/50">
-          <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          <Zap className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
           <span>
             {localizedSeo
               ? `${t.onlineConverterBadge} ${localizedSeo.fromFormat} ➔ ${localizedSeo.toFormat}`
@@ -98,13 +98,12 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
         onClick={() => fileInputRef.current?.click()}
         className={`relative group cursor-pointer rounded-3xl p-8 sm:p-12 text-center transition-all duration-300 border-2 border-dashed overflow-hidden shadow-2xl ${
           isDragging
-            ? 'border-cyan-400 bg-cyan-950/40 shadow-cyan-500/20 scale-[1.01]'
+            ? 'border-blue-500 bg-blue-950/30 shadow-blue-900/20 scale-[1.01]'
             : 'border-slate-800 hover:border-slate-700 bg-slate-900/40 hover:bg-slate-900/60'
         }`}
       >
-        {/* Glowing Background Radial Effects */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/15 transition-all" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/15 transition-all" />
+        {/* Soft Background Radial Effects */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/10 transition-all" />
 
         <input
           type="file"
@@ -116,11 +115,11 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
 
         <div className="relative z-10 flex flex-col items-center justify-center max-w-2xl mx-auto">
           {/* Animated Icon Container */}
-          <div className="w-20 h-20 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:border-cyan-500/50 transition-all duration-300">
+          <div className="w-20 h-20 rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center mb-6 shadow-xl group-hover:scale-105 group-hover:border-blue-500/50 transition-all duration-300">
             {isDetecting ? (
-              <FileCheck2 className="w-10 h-10 text-cyan-400 animate-bounce" />
+              <FileCheck2 className="w-10 h-10 text-blue-400 animate-bounce" />
             ) : (
-              <UploadCloud className="w-10 h-10 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
+              <UploadCloud className="w-10 h-10 text-slate-300 group-hover:text-blue-400 transition-colors" />
             )}
           </div>
 
@@ -128,16 +127,16 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
             {t.dropzoneHint}
           </h2>
           <p className="text-sm text-slate-400 max-w-lg mb-6 leading-relaxed">
-            {t.dropSubtitlePrefix}<kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-400 text-xs font-mono">ctrl + v</kbd>{t.dropSubtitleSuffix}
+            {t.dropSubtitlePrefix}<kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono">ctrl + v</kbd>{t.dropSubtitleSuffix}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-sm shadow-xl shadow-cyan-500/20 transition-all flex items-center space-x-2 cursor-pointer group-hover:scale-105 active:scale-95"
+              className="px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-sm shadow-md shadow-blue-500/25 border border-blue-400/50 transition-all flex items-center space-x-2 cursor-pointer group-hover:scale-102 active:scale-95 btn-primary-action"
             >
-              <FolderPlus className="w-4 h-4" />
-              <span>{t.chooseFilesBtn}</span>
+              <FolderPlus className="w-4 h-4 text-white" />
+              <span className="font-bold text-white">{t.chooseFilesBtn}</span>
             </button>
             <div className="flex items-center space-x-1.5 px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300 font-mono">
               <Clipboard className="w-3.5 h-3.5 text-slate-400" />
@@ -156,7 +155,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ seoData }) => {
               <span>{t.magicByte}</span>
             </div>
             <div className="flex items-center space-x-1.5">
-              <HardDrive className="w-4 h-4 text-cyan-400" />
+              <HardDrive className="w-4 h-4 text-blue-400" />
               <span>{t.unlimitedSize}</span>
             </div>
           </div>

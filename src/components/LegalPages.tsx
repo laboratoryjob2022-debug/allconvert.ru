@@ -17,7 +17,7 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
       {/* Back button */}
       <button
         onClick={onNavigateHome}
-        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-400 hover:text-cyan-400 mb-6 transition-colors cursor-pointer group"
+        className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-400 hover:text-blue-400 mb-6 transition-colors cursor-pointer group"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
         <span>{t.homeBreadcrumb}</span>
@@ -153,7 +153,7 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
                 <ServerOff className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-white text-base">{t.aboutAdv2Title}</h3>
@@ -164,19 +164,19 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ pageType, onNavigateHome
           </div>
 
           {/* Contacts Section */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-900/30 via-slate-800/50 to-purple-900/30 border border-slate-700/60 space-y-4">
-            <div className="flex items-center space-x-3 text-cyan-400 font-bold text-lg">
+          <div className="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-4">
+            <div className="flex items-center space-x-3 text-blue-400 font-bold text-lg">
               <Mail className="w-6 h-6 shrink-0" />
               <h2>{t.contactHeading}</h2>
             </div>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
               {t.contactDesc}
             </p>
-            <div className="inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-950/80 border border-cyan-500/40 text-cyan-300 font-mono text-sm sm:text-base font-bold shadow-md">
+            <div className="inline-flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-950/80 border border-blue-500/30 text-blue-300 font-mono text-sm sm:text-base font-bold shadow-md">
               <span className="text-slate-400 font-sans font-normal text-xs">{t.contactEmailLabel}</span>
               <a
                 href="mailto:info@allconvert.ru"
-                className="hover:underline hover:text-cyan-200 transition-colors"
+                className="hover:underline hover:text-blue-200 transition-colors"
               >
                 info@allconvert.ru
               </a>

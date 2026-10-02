@@ -22,8 +22,15 @@ import {
   RawSpatialItem,
   serializeDocumentModelToMeta,
   tryDeserializeDocumentModelFromMeta,
-  DocumentBlock
+  DocumentBlock,
+  ImageBlock
 } from './documentModel';
+import {
+  extractVisualElementsFromPdfPage,
+  isStampInk,
+  applyInkTransparency,
+  canvasToPngBytes
+} from './pdfVisualExtractor';
 import * as lamejs from 'lamejs';
 // @ts-ignore
 import MPEGMode from 'lamejs/src/js/MPEGMode.js';
@@ -1705,9 +1712,20 @@ async function parsePdfToStructuredDocument(file: File, baseName: string, onProg
   const pagesBlocks = [];
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-    onProgress(Math.min(85, Math.round(20 + (pageNum / numPages) * 60)), `Reconstructing document structure (Page ${pageNum}/${numPages})...`);
+    onProgress(Math.min(85, Math.round(20 + (pageNum / numPages) * 60)), `Извлечение эмблем, печатей, подписей и структуры (Стр. ${pageNum}/${numPages})...`);
     const page = await pdfDocument.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.0 });
+
+    // Extract visual elements (emblems in header, stamps, signatures, diagrams)
+    let visualBlocks: ImageBlock[] = [];
+    try {
+      visualBlocks = await extractVisualElementsFromPdfPage(page, viewport, pageNum, (msg) => {
+        onProgress(Math.min(85, Math.round(20 + (pageNum / numPages) * 60)), msg);
+      });
+    } catch (vErr) {
+      console.warn(`[VisualExtractor] Error extracting visuals from page ${pageNum}:`, vErr);
+    }
+
     const textContent = await page.getTextContent();
     const items: RawPdfItem[] = [];
 
@@ -1728,7 +1746,7 @@ async function parsePdfToStructuredDocument(file: File, baseName: string, onProg
       });
     }
 
-    const pageBlocks = parsePdfPageToBlocks(items, pageNum, viewport.width, viewport.height);
+    const pageBlocks = parsePdfPageToBlocks(items, pageNum, viewport.width, viewport.height, visualBlocks);
     pagesBlocks.push(pageBlocks);
   }
 
@@ -2126,6 +2144,73 @@ async function parseImageOcrToStructuredDocument(
         text: l,
       });
     }
+  }
+
+  // Detect and extract colored stamp (seal) from scanned image
+  try {
+    const imgBitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(imgBitmap, 0, 0);
+      const startY = Math.round(canvas.height * 0.40);
+      const imgData = ctx.getImageData(0, startY, canvas.width, canvas.height - startY);
+      const data = imgData.data;
+      let minX = canvas.width, maxX = 0, minY = canvas.height - startY, maxY = 0;
+      let stampPixelCount = 0;
+
+      for (let y = 0; y < canvas.height - startY; y += 2) {
+        const row = y * canvas.width * 4;
+        for (let x = 0; x < canvas.width; x += 2) {
+          const idx = row + x * 4;
+          if (isStampInk(data[idx], data[idx + 1], data[idx + 2])) {
+            stampPixelCount++;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (stampPixelCount >= 150 && maxX > minX && maxY > minY) {
+        const cropW = (maxX - minX) + 16;
+        const cropH = (maxY - minY) + 16;
+        const cropX = Math.max(0, minX - 8);
+        const cropY = startY + Math.max(0, minY - 8);
+
+        const stampCanvas = document.createElement('canvas');
+        stampCanvas.width = cropW;
+        stampCanvas.height = cropH;
+        const sCtx = stampCanvas.getContext('2d');
+        if (sCtx) {
+          sCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          applyInkTransparency(sCtx, cropW, cropH);
+          const stampBytes = await canvasToPngBytes(stampCanvas);
+          blocks.push({
+            type: 'image',
+            y: blocks.length + 10,
+            data: stampBytes,
+            format: 'png',
+            width: Math.min(180, Math.round(cropW * (180 / Math.max(cropW, cropH)))),
+            height: Math.min(180, Math.round(cropH * (180 / Math.max(cropW, cropH)))),
+            x: Math.round(cropX * (500 / canvas.width)),
+            role: 'stamp',
+            floating: {
+              x: Math.round(cropX * (500 / canvas.width)),
+              y: Math.round(cropY * (700 / canvas.height)),
+              allowOverlap: true,
+              behindDocument: false,
+            },
+            altText: 'Печать организации',
+          });
+        }
+      }
+    }
+  } catch (imgStampErr) {
+    console.warn('Image stamp detection skipped:', imgStampErr);
   }
 
   return buildStructuredDocument([blocks], baseName);
@@ -4027,7 +4112,7 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'DOCX') {
-      onProgress(80, 'Packaging structured Word document (.docx)...');
+      onProgress(80, 'Формирование документа Word с эмблемами, печатями и таблицами (.docx)...');
       const docxBuf = await exportToDocxBuffer(docModel);
       const blob = new Blob([docxBuf], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

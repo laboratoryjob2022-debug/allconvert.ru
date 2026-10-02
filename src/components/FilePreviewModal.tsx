@@ -33,7 +33,7 @@ export const FilePreviewModal: React.FC = () => {
         <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950/50">
           <div>
             <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-              <FileCheck className="w-5 h-5 text-cyan-400" />
+              <FileCheck className="w-5 h-5 text-blue-400" />
               <span>Converted Preview: {previewFileItem.convertedName}</span>
             </h3>
             <p className="text-xs text-slate-400 mt-1">
@@ -76,21 +76,21 @@ export const FilePreviewModal: React.FC = () => {
             <div className="w-full max-w-2xl flex flex-col items-center">
               {showVideoFallback ? (
                 <div className="w-full p-8 bg-slate-950 border border-slate-800 rounded-2xl flex flex-col items-center text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-4 text-cyan-400">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center mb-4 text-blue-400">
                     <FileVideo className="w-8 h-8" />
                   </div>
                   <h4 className="text-base font-bold text-slate-100 mb-2">
                     Готовый видеофайл ({previewFileItem.targetFormat})
                   </h4>
                   <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
-                    Формат <span className="text-cyan-400 font-semibold">{previewFileItem.targetFormat}</span> не поддерживается для прямого встроенного воспроизведения стандартным браузерным HTML5 плеером. Файл успешно обработан и готов к скачиванию.
+                    Формат <span className="text-blue-400 font-semibold">{previewFileItem.targetFormat}</span> не поддерживается для прямого встроенного воспроизведения стандартным браузерным HTML5 плеером. Файл успешно обработан и готов к скачиванию.
                   </p>
                   <button
                     onClick={() => downloadItem(previewFileItem.id)}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-bold text-xs flex items-center space-x-2 shadow-lg shadow-cyan-500/20 hover:scale-105 transition-transform"
+                    className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs flex items-center space-x-2 shadow-md shadow-blue-500/25 border border-blue-400/50 transition-all btn-primary-action"
                   >
-                    <Download className="w-4 h-4" />
-                    <span>Скачать {previewFileItem.convertedName}</span>
+                    <Download className="w-4 h-4 text-white" />
+                    <span className="font-bold text-white">Скачать {previewFileItem.convertedName}</span>
                   </button>
                 </div>
               ) : (
@@ -117,7 +117,7 @@ export const FilePreviewModal: React.FC = () => {
         <div className="p-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-between">
           <button
             onClick={() => openShareModal(previewFileItem)}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-semibold text-xs flex items-center space-x-1.5 border border-slate-700"
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-xs flex items-center space-x-1.5 border border-slate-700"
           >
             <Share2 className="w-4 h-4" />
             <span>Generate Ephemeral Link</span>
@@ -125,10 +125,10 @@ export const FilePreviewModal: React.FC = () => {
 
           <button
             onClick={() => downloadItem(previewFileItem.id)}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-xs flex items-center space-x-2 shadow-lg shadow-cyan-500/20"
+            className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs flex items-center space-x-2 shadow-md shadow-blue-500/25 border border-blue-400/50 transition-all btn-primary-action"
           >
-            <Download className="w-4 h-4" />
-            <span>Download File</span>
+            <Download className="w-4 h-4 text-white" />
+            <span className="font-bold text-white">Download File</span>
           </button>
         </div>
       </div>
