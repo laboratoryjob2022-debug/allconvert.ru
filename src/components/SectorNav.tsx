@@ -111,8 +111,8 @@ export const SectorNav: React.FC = () => {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 mt-5 space-y-4">
       {/* Expanded Full-Width Sector Tabs */}
-      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-md relative isolate">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full">
+      <div className="bg-white dark:bg-slate-900 p-1.5 sm:p-2 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs relative isolate">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2 w-full">
           {sectorTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSector === tab.id;
@@ -122,16 +122,22 @@ export const SectorNav: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveSector(tab.id)}
-                className={`flex items-center justify-center space-x-2 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 text-center ${
+                className={`flex items-center justify-center space-x-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all cursor-pointer active:scale-95 text-center ${
                   isActive
-                    ? 'bg-slate-800 text-white shadow-lg shadow-black/40 border border-slate-700/80'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800/80 shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold border border-transparent'
                 }`}
               >
                 <Icon className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${tab.color} shrink-0`} />
                 <span className="truncate">{tab.label}</span>
                 {count > 0 && (
-                  <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                  <span
+                    className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive
+                        ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
                     {count}
                   </span>
                 )}
@@ -144,18 +150,18 @@ export const SectorNav: React.FC = () => {
       {/* Popular Conversion Directions Buttons */}
       <div className="flex flex-col gap-2.5 py-1">
         <div className="flex items-center text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm shrink-0">
-          <Zap className="w-4 h-4 text-blue-500 dark:text-blue-400 mr-1.5 shrink-0" />
+          <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-1.5 shrink-0" />
           <span>
             {t.popularDirectionsTitle}
           </span>
         </div>
-        <div className="flex flex-wrap items-start gap-2 min-h-[76px] sm:min-h-[92px]">
+        <div className="flex flex-wrap items-start gap-2 min-h-[72px] sm:min-h-[84px]">
           {currentDirections.map((item) => (
             <a
               key={item.slug}
               href={getLocalizedPath(`/convert/${item.slug}`, language)}
               onClick={(e) => handleDirectionClick(e, item.slug)}
-              className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 text-slate-800 dark:text-slate-200 transition-all font-semibold text-xs sm:text-sm shadow-xs cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 text-slate-700 dark:text-slate-200 transition-all font-medium text-xs sm:text-sm shadow-xs cursor-pointer active:scale-95 flex items-center justify-center"
             >
               {formatDirectionLabel(item.from, item.to, item.suffix, language)}
             </a>

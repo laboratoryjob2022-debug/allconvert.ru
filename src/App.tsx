@@ -125,6 +125,12 @@ export default function App() {
   // Update meta tags and converter preset target format when route or language changes
   useEffect(() => {
     document.documentElement.lang = language || 'ru';
+    document.documentElement.setAttribute('data-theme', theme || 'studio-light');
+    if (theme === 'studio-dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
 
     let canonicalLink = document.querySelector('link[rel="canonical"]');
     if (!canonicalLink) {
@@ -261,7 +267,7 @@ export default function App() {
       ogTitle.setAttribute('content', localizedData.title);
       ogDesc.setAttribute('content', localizedData.metaDescription);
     }
-  }, [routeState, language, setPresetTargetFormat, setActiveSector, t]);
+  }, [routeState, language, theme, setPresetTargetFormat, setActiveSector, t]);
 
   const handleNavigateRoute = (target: string) => {
     let newPath = '/';
@@ -281,28 +287,28 @@ export default function App() {
   return (
     <div
       data-theme={theme || 'studio-light'}
-      className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white"
+      className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#070a12] dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white"
     >
       {/* Main Navigation Bar */}
       <Navbar />
 
       {/* Top Breadcrumbs - Unified across all pages to prevent CLS */}
       <div className="w-full max-w-7xl mx-auto px-4 pt-4 pb-1 min-h-[40px] flex items-center">
-        <nav className="flex items-center text-sm font-medium text-slate-400 space-x-2">
+        <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 space-x-2">
           {routeState.type === 'home' ? (
-            <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
+            <span className="font-semibold text-slate-800 dark:text-white bg-white dark:bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-200/90 dark:border-slate-700/60 shadow-xs">
               {t.homeBreadcrumb}
             </span>
           ) : (
             <>
               <button
                 onClick={() => handleNavigateRoute('')}
-                className="hover:text-blue-400 transition-colors cursor-pointer"
+                className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
               >
                 {t.homeBreadcrumb}
               </button>
-              <span className="text-slate-600">/</span>
-              <span className="font-semibold text-slate-100 dark:text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/60 shadow-xs">
+              <span className="text-slate-400 dark:text-slate-600">/</span>
+              <span className="font-semibold text-slate-800 dark:text-white bg-white dark:bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-200/90 dark:border-slate-700/60 shadow-xs">
                 {seoData && t.toDirection(seoData.fromFormat, seoData.toFormat)}
                 {routeState.type === 'privacy' && t.privacyPolicy}
                 {routeState.type === 'terms' && t.termsOfService}
@@ -352,30 +358,30 @@ export default function App() {
                 {queue.length === 0 && (
                   <div className="w-full max-w-7xl mx-auto px-4 mt-8">
                     {/* Top Highlight Badge Banner */}
-                    <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg backdrop-blur-md">
+                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-md">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-2xs">
                           <Lock className="w-6 h-6" />
                         </div>
                         <div>
-                          <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                             <span>{t.noAuthTitle}</span>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold uppercase tracking-wider">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-bold uppercase tracking-wider">
                               100% FREE
                             </span>
                           </h2>
-                          <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-2xl leading-relaxed">
                             {t.noAuthDesc}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 shadow-sm">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           {t.noGoogleAuth}
                         </span>
-                        <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 shadow-sm">
-                          <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                        <span className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs">
+                          <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           {t.zeroTelemetry}
                         </span>
                       </div>
