@@ -328,14 +328,18 @@ export default function App() {
             {/* Sector Navigation Tabs */}
             <SectorNav />
 
-            {/* Drag and Drop Zone */}
+            {/* Upload Zone: Independent, 2x smaller, NOT fused inside queue blocks */}
             <DropZone seoData={seoData} />
 
-            {/* Batch Queue Controls (Visible when files exist) */}
-            <BatchControls />
-
-            {/* Interactive Queue Table */}
-            <QueueTable />
+            {/* Unified Conversion Queue Territory matching screenshot (Only when queue has items) */}
+            {queue.length > 0 && (
+              <div className="w-full max-w-7xl mx-auto px-4 mt-4 mb-12">
+                <div className="bg-[#f8fafc] border border-slate-200/90 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4 text-slate-800">
+                  <BatchControls />
+                  <QueueTable />
+                </div>
+              </div>
+            )}
 
             {/* Dynamic SEO Landing Page Section if route is active */}
             {seoData ? (
