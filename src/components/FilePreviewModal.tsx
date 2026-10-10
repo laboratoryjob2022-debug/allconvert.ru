@@ -1,9 +1,16 @@
 import React from 'react';
 import { useConverterStore } from '../store/useConverterStore';
-import { X, Download, Share2, FileCheck, FileVideo, AlertCircle } from 'lucide-react';
+import { X, Download, Share2, FileCheck, FileVideo, FileText, CheckCircle2, Sparkles, RefreshCw } from 'lucide-react';
 
 export const FilePreviewModal: React.FC = () => {
-  const { isPreviewOpen, previewFileItem, setPreviewOpen, openShareModal, downloadItem } = useConverterStore();
+  const {
+    isPreviewOpen,
+    previewFileItem,
+    setPreviewOpen,
+    openShareModal,
+    downloadItem,
+    reconvertItem
+  } = useConverterStore();
 
   const [objectUrl, setObjectUrl] = React.useState<string>('');
   const [videoError, setVideoError] = React.useState<boolean>(false);
@@ -25,10 +32,11 @@ export const FilePreviewModal: React.FC = () => {
 
   const isAviFormat = previewFileItem.targetFormat?.toUpperCase() === 'AVI';
   const showVideoFallback = isAviFormat || videoError;
+  const isPdf = previewFileItem.targetFormat?.toUpperCase() === 'PDF';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950/50">
           <div>
@@ -49,7 +57,7 @@ export const FilePreviewModal: React.FC = () => {
         </div>
 
         {/* Modal Body / Media Render */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col items-center justify-center bg-slate-950/30">
+        <div className="p-6 overflow-y-auto flex-1 flex flex-col items-center justify-start bg-slate-950/30 space-y-4">
           {previewFileItem.category === 'image' && objectUrl && (
             <div className="flex flex-col md:flex-row items-center justify-center gap-6 w-full">
               <div className="flex flex-col items-center">
@@ -105,10 +113,30 @@ export const FilePreviewModal: React.FC = () => {
           )}
 
           {previewFileItem.category === 'document' && (
-            <div className="w-full max-w-2xl p-6 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-slate-300 max-h-80 overflow-y-auto">
-              <div className="text-slate-500 mb-2 font-sans font-bold uppercase tracking-wider">Document Output Preview</div>
-              <p>Converted Blob size: {(previewFileItem.convertedBlob.size / 1024).toFixed(2)} KB</p>
-              <p className="mt-2 text-slate-400">File ready for download or ephemeral link sharing.</p>
+            <div className="w-full max-w-3xl space-y-4">
+              {isPdf && objectUrl ? (
+                <div className="space-y-4 w-full">
+                  <div className="w-full h-80 sm:h-96 rounded-2xl border border-slate-700/80 overflow-hidden shadow-xl bg-slate-950 relative">
+                    <object
+                      data={objectUrl}
+                      type="application/pdf"
+                      className="w-full h-full"
+                    >
+                      <div className="p-6 text-center text-slate-400">
+                        <FileText className="w-12 h-12 text-blue-400 mx-auto mb-2" />
+                        <p>Встроенный предпросмотр PDF</p>
+                      </div>
+                    </object>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-slate-300 max-h-80 overflow-y-auto">
+                  <div className="text-slate-500 mb-2 font-sans font-bold uppercase tracking-wider">Document Output Preview</div>
+                  <p>Converted Blob size: {(previewFileItem.convertedBlob.size / 1024).toFixed(2)} KB</p>
+                  <p className="mt-2 text-slate-400">File ready for download or ephemeral link sharing.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -125,7 +153,7 @@ export const FilePreviewModal: React.FC = () => {
 
           <button
             onClick={() => downloadItem(previewFileItem.id)}
-            className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs flex items-center space-x-2 shadow-md shadow-blue-500/25 border border-blue-400/50 transition-all btn-primary-action"
+            className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs flex items-center space-x-2 shadow-md shadow-blue-500/25 border border-blue-400/50 transition-all btn-primary-action cursor-pointer"
           >
             <Download className="w-4 h-4 text-white" />
             <span className="font-bold text-white">Download File</span>
@@ -135,4 +163,3 @@ export const FilePreviewModal: React.FC = () => {
     </div>
   );
 };
-

@@ -2758,8 +2758,8 @@ async function renderHtmlToPdfBlob(
         curY -= mb;
       };
 
-      // 1. Draw Header if extracted from DOCX header XML
-      if (options?.headerHtml) {
+      // 1. Draw Header if extracted from DOCX header XML and not already in htmlContent
+      if (options?.headerHtml && !htmlContent.includes(options.headerHtml.slice(0, 40))) {
         const pDom = new DOMParser();
         const headerDoc = pDom.parseFromString(options.headerHtml, 'text/html');
         const headerText = (headerDoc.body.textContent || '').trim();
@@ -2776,10 +2776,44 @@ async function renderHtmlToPdfBlob(
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
 
-      const processHtmlNode = (node: Element) => {
+      const processHtmlNode = async (node: Element) => {
         const tag = node.tagName.toLowerCase();
 
-        if (tag === 'table') {
+        if (tag === 'img') {
+          const src = node.getAttribute('src') || '';
+          if (src.startsWith('data:image/')) {
+            try {
+              const mime = src.substring(5, src.indexOf(';'));
+              const base64Data = src.substring(src.indexOf(',') + 1);
+              const binaryString = atob(base64Data);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              const embeddedImage = (mime.includes('jpeg') || mime.includes('jpg'))
+                ? await pdfDoc.embedJpg(bytes)
+                : await pdfDoc.embedPng(bytes);
+
+              if (embeddedImage) {
+                const imgDims = embeddedImage.scale(1);
+                const maxImgWidth = Math.min(contentWidth, 340);
+                const scale = imgDims.width > maxImgWidth ? maxImgWidth / imgDims.width : 1;
+                const renderW = imgDims.width * scale;
+                const renderH = imgDims.height * scale;
+                ensureSpace(renderH + 8);
+                currentPage.drawImage(embeddedImage, {
+                  x: marginX + Math.max(0, (contentWidth - renderW) / 2),
+                  y: curY - renderH,
+                  width: renderW,
+                  height: renderH,
+                });
+                curY -= (renderH + 8);
+              }
+            } catch (imgErr) {
+              console.warn('Failed to embed HTML img in vector PDF:', imgErr);
+            }
+          }
+        } else if (tag === 'table') {
           const rows = Array.from(node.querySelectorAll('tr'));
           if (rows.length === 0) return;
 
@@ -2893,8 +2927,17 @@ async function renderHtmlToPdfBlob(
 
           const fontSize = 8.5;
           const cellLineHeight = 11.5;
-          const padX = 4;
-          const padY = 3.5;
+          const padX = 5;
+          const padY = 4;
+
+          // Check if table is a borderless layout table (company header or signature block)
+          const isHeaderLayout = effectiveGrid.length <= 2 && effectiveGrid.some(row =>
+            row.some(c => c.includes('ИНН') || c.includes('КПП') || c.includes('ОГРН') || c.includes('Тел/факс') || c.includes('Американаш') || c.includes('www.') || c.includes('http'))
+          );
+          const isSignatureLayout = effectiveGrid.length <= 4 && effectiveGrid.some(row =>
+            row.some(c => c.includes('(подпись') || c.includes('(дата)') || c.includes('инженер') || c.includes('технолог') || c.includes('руководитель'))
+          );
+          const isBorderless = isHeaderLayout || isSignatureLayout || node.getAttribute('border') === '0';
 
           effectiveGrid.forEach((row, rIdx) => {
             const isHeader = rIdx === 0 || row.some((c, cI) => cI > 0 && (c.includes('Наименование') || c.includes('Результат')));
@@ -2905,7 +2948,8 @@ async function renderHtmlToPdfBlob(
             );
 
             const maxLines = Math.max(1, ...wrappedCells.map((wc) => wc.length));
-            const rowHeight = Math.max(16, maxLines * cellLineHeight + padY * 2);
+            // Add safe vertical headroom so text lines never touch or cross bottom border
+            const rowHeight = Math.max(18, maxLines * cellLineHeight + padY * 2 + 2);
 
             ensureSpace(rowHeight);
 
@@ -2913,35 +2957,45 @@ async function renderHtmlToPdfBlob(
             for (let c = 0; c < effectiveCols; c++) {
               const w = colWidths[c];
 
-              // Cell Background
-              if (isHeader) {
-                currentPage.drawRectangle({
-                  x: cellX,
-                  y: curY - rowHeight,
-                  width: w,
-                  height: rowHeight,
-                  color: rgb(0.94, 0.95, 0.97),
-                  borderColor: rgb(0.35, 0.4, 0.48),
-                  borderWidth: 0.5,
-                });
-              } else {
-                currentPage.drawRectangle({
-                  x: cellX,
-                  y: curY - rowHeight,
-                  width: w,
-                  height: rowHeight,
-                  color: rgb(1, 1, 1),
-                  borderColor: rgb(0.45, 0.5, 0.58),
-                  borderWidth: 0.5,
-                });
+              // Cell Background & Border (drawn only if not a borderless layout table)
+              if (!isBorderless) {
+                if (isHeader) {
+                  currentPage.drawRectangle({
+                    x: cellX,
+                    y: curY - rowHeight,
+                    width: w,
+                    height: rowHeight,
+                    color: rgb(0.95, 0.96, 0.98),
+                    borderColor: rgb(0.2, 0.25, 0.3),
+                    borderWidth: 0.75,
+                  });
+                } else {
+                  currentPage.drawRectangle({
+                    x: cellX,
+                    y: curY - rowHeight,
+                    width: w,
+                    height: rowHeight,
+                    color: rgb(1, 1, 1),
+                    borderColor: rgb(0.25, 0.3, 0.35),
+                    borderWidth: 0.5,
+                  });
+                }
               }
 
               // Cell Text Lines
               let textY = curY - padY - fontSize * 0.85;
+              const isCenterCol = (colWidths[c] <= 55) || (isHeader && (effectiveGrid[0]?.[c]?.trim() === '№' || effectiveGrid[0]?.[c]?.trim() === '#'));
               for (const line of wrappedCells[c]) {
                 if (line) {
+                  let lineX = cellX + padX;
+                  if (isCenterCol || isHeader) {
+                    try {
+                      const textW = font.widthOfTextAtSize(line, fontSize);
+                      lineX = cellX + Math.max(padX, (w - textW) / 2);
+                    } catch {}
+                  }
                   currentPage.drawText(line, {
-                    x: cellX + padX,
+                    x: lineX,
                     y: textY,
                     size: fontSize,
                     font,
@@ -2961,34 +3015,42 @@ async function renderHtmlToPdfBlob(
         } else if (tag === 'p' || tag.startsWith('h') || tag === 'li') {
           if (node.closest('table')) return;
 
+          // Check if paragraph contains images (e.g. emblems or charts)
+          const imgChild = node.querySelector('img');
+          if (imgChild) {
+            await processHtmlNode(imgChild);
+          }
+
           const clone = node.cloneNode(true) as HTMLElement;
           clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+          clone.querySelectorAll('img').forEach(img => img.remove());
           const text = (clone.textContent || '').trim();
           if (!text) return;
 
-          const isTitle = tag === 'h1' || tag === 'h2' || tag === 'h3' || text.startsWith('Протокол');
+          const isTitle = tag === 'h1' || tag === 'h2' || tag === 'h3' || text.startsWith('Протокол') || text.startsWith('ПРОТОКОЛ') || text.startsWith('Результаты испытаний');
           const isNote = text.startsWith('Примечание') || text.startsWith('Климатические');
-          const isSubCaption = text.startsWith('(подпись') || text.startsWith('(должность');
+          const isSubCaption = text.startsWith('(подпись') || text.startsWith('(должность') || text.startsWith('(дата');
 
           if (isTitle) {
-            drawParagraph(text, true, 12, 6);
+            drawParagraph(text, true, 11.5, 6, 'center');
           } else if (isNote) {
-            drawParagraph(text, false, 9, 5);
+            drawParagraph(text, false, 8.5, 4, 'left');
           } else if (isSubCaption) {
-            drawParagraph(text, false, 7.5, 6);
+            drawParagraph(text, false, 7.5, 5, 'left');
           } else {
             const hasStrong = !!node.querySelector('strong, b') || node.tagName === 'STRONG' || node.tagName === 'B';
-            drawParagraph(text, hasStrong, 9.5, 4);
+            const isCentered = (node as HTMLElement).style?.textAlign === 'center' || node.getAttribute('align') === 'center';
+            drawParagraph(text, hasStrong, 9.5, 4, isCentered ? 'center' : 'left');
           }
         } else {
           for (const child of Array.from(node.children)) {
-            processHtmlNode(child);
+            await processHtmlNode(child);
           }
         }
       };
 
       for (const child of Array.from(doc.body.children)) {
-        processHtmlNode(child);
+        await processHtmlNode(child);
       }
 
       // Draw footer (if extracted from DOCX footer XML)
@@ -3665,6 +3727,135 @@ async function extractHtmlFromDocx(file: File, onProgress: (p: number, t: string
   return bodyHtml;
 }
 
+async function renderDocxWithDocxPreviewToPdf(
+  file: File,
+  baseName: string,
+  onProgress?: (p: number, t: string) => void
+): Promise<Blob> {
+  onProgress?.(20, 'Рендеринг DOCX через движок высокой точности OpenXML...');
+  const docxPreviewModule = await import('docx-preview');
+  const docxPreview = (docxPreviewModule as any).default || docxPreviewModule;
+  const { jsPDF } = await import('jspdf');
+  const html2canvasModule = await import('html2canvas');
+  const html2canvas = (html2canvasModule as any).default || html2canvasModule;
+
+  const arrayBuffer = await file.arrayBuffer();
+
+  const container = document.createElement('div');
+  container.className = 'docx-render-sandbox';
+  container.style.position = 'fixed';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '1200px';
+  container.style.minHeight = '1000px';
+  container.style.background = '#ffffff';
+  container.style.zIndex = '-9999';
+  container.style.visibility = 'visible';
+  container.style.pointerEvents = 'none';
+
+  const styleContainer = document.createElement('style');
+  document.head.appendChild(styleContainer);
+  document.body.appendChild(container);
+
+  try {
+    onProgress?.(35, 'Построение стилей, колонок и таблиц OpenXML...');
+    await docxPreview.renderAsync(arrayBuffer, container, styleContainer, {
+      className: 'docx',
+      inWrapper: true,
+      ignoreWidth: false,
+      ignoreHeight: false,
+      ignoreFonts: false,
+      breakPages: true,
+      ignoreLastRenderedPageBreak: false,
+      experimental: true,
+      trimXml: true,
+      useBase64URL: true,
+    });
+
+    const imgs = Array.from(container.querySelectorAll('img'));
+    if (imgs.length > 0) {
+      await Promise.all(
+        imgs.map((img) => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            setTimeout(resolve, 2000);
+          });
+        })
+      );
+    }
+
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+
+    await new Promise((r) => setTimeout(r, 120));
+
+    let pageSections = Array.from(container.querySelectorAll('section.docx')) as HTMLElement[];
+    if (pageSections.length === 0) {
+      const wrapper = container.querySelector('.docx-wrapper') as HTMLElement;
+      if (wrapper && wrapper.children.length > 0) {
+        pageSections = Array.from(wrapper.children) as HTMLElement[];
+      } else {
+        pageSections = [container];
+      }
+    }
+
+    onProgress?.(50, `Генерация страниц PDF (всего ${pageSections.length} стр.)...`);
+
+    let pdf: any = null;
+
+    for (let i = 0; i < pageSections.length; i++) {
+      const sec = pageSections[i];
+      const pageNum = i + 1;
+      const pct = Math.min(95, Math.round(50 + (pageNum / pageSections.length) * 45));
+      onProgress?.(pct, `Отрисовка страницы ${pageNum} из ${pageSections.length}...`);
+
+      const rect = sec.getBoundingClientRect();
+      const secWidth = rect.width || sec.offsetWidth || 794;
+      const secHeight = rect.height || sec.offsetHeight || 1123;
+      const isLandscape = secWidth > secHeight;
+
+      const canvas = await html2canvas(sec, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+      const ptWidth = secWidth * 0.75;
+      const ptHeight = secHeight * 0.75;
+
+      if (!pdf) {
+        pdf = new jsPDF({
+          orientation: isLandscape ? 'landscape' : 'portrait',
+          unit: 'pt',
+          format: [ptWidth, ptHeight],
+          compress: true,
+        });
+        pdf.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
+      } else {
+        pdf.addPage([ptWidth, ptHeight], isLandscape ? 'landscape' : 'portrait');
+        pdf.addImage(imgData, 'JPEG', 0, 0, ptWidth, ptHeight, undefined, 'FAST');
+      }
+    }
+
+    onProgress?.(95, 'Финализация PDF документа...');
+    const pdfBlob = pdf.output('blob');
+    return pdfBlob;
+  } finally {
+    if (container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+    if (styleContainer.parentNode) {
+      styleContainer.parentNode.removeChild(styleContainer);
+    }
+  }
+}
+
 async function createDocxFromText(text: string, baseName: string, onProgress: (p: number, t: string) => void): Promise<Blob> {
   onProgress(60, 'Generating Microsoft Word .docx...');
   const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } = await import('docx');
@@ -4176,14 +4367,11 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'PNG' || tgtFmt === 'JPG' || tgtFmt === 'JPEG' || tgtFmt === 'WEBP' || tgtFmt === 'BMP') {
-      const [headerFooter, tableGrids, docModel] = await Promise.all([
-        extractDocxHeadersAndFootersHtml(file),
+      const [tableGrids, docModel] = await Promise.all([
         extractDocxTableGrids(file),
         extractDocxToStructuredDocument(file, baseName, onProgress)
       ]);
       const pdfBlob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress, {
-        headerHtml: headerFooter.headerHtml,
-        footerHtml: headerFooter.footerHtml,
         tableGrids,
         docModel,
       });
@@ -4195,14 +4383,12 @@ async function convertDocument(
     }
 
     if (tgtFmt === 'PDF') {
-      const [headerFooter, tableGrids, docModel] = await Promise.all([
-        extractDocxHeadersAndFootersHtml(file),
+      onProgress(35, 'Генерация векторного PDF документа с нативным текстом...');
+      const [tableGrids, docModel] = await Promise.all([
         extractDocxTableGrids(file),
         extractDocxToStructuredDocument(file, baseName, onProgress)
       ]);
       const blob = await renderHtmlToPdfBlob(docxHtml, baseName, onProgress, {
-        headerHtml: headerFooter.headerHtml,
-        footerHtml: headerFooter.footerHtml,
         tableGrids,
         docModel,
       });
