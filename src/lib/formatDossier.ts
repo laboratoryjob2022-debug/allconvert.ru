@@ -302,7 +302,136 @@ const FORMAT_DATA: Record<string, Record<string, FormatProfile>> = {
   },
 
   // Image Formats
+  HEIC: {
+    ru: {
+      name: 'HEIC',
+      fullName: 'High Efficiency Image Container (HEIF / HEIC)',
+      developer: 'MPEG (Moving Picture Experts Group) & Apple',
+      year: '2015 (стандарт) / 2017 (внедрение Apple в iOS 11)',
+      definition: 'Формат HEIC (High Efficiency Image Container) — высокоэффективный контейнер растровых изображений, разработанный экспертной группой MPEG на базе алгоритмов видеокодека HEVC (H.265). В 2017 году компания Apple сделала его форматом по умолчанию для камер iPhone и iPad в iOS 11. HEIC обеспечивает сжатие в 2 раза эффективнее устаревшего JPEG при превосходной резкости и естественной цветопередаче.',
+      applications: 'Смартфоны Apple iPhone и iPad (начиная с iOS 11), смартфоны на Android 10+, портретная фотосъемка с эффектом глубины резкости, хранение "Живых фото" (Live Photos) и серийной съемки.',
+      technicalSpecs: {
+        compression: 'Высокоэффективное сжатие HEVC (H.265) intra-frame (Lossy и Lossless)',
+        bitDepthOrColor: 'До 16-bit цвета (поддержка Wide Color Gamut Display P3 и HDR)',
+        sampleRateOrResolution: 'До 8192×4320 пикселей, сетки изображений (Image Grid)',
+        channelsOrAlpha: 'RGB + 16-битный альфа-канал, карты глубины (Depth Map), серии кадров',
+        standards: 'ISO/IEC 23008-12 (MPEG-H Part 12 / HEIF)',
+      },
+      pros: [
+        'Занимает вдвое меньше места, чем классический JPEG при лучшей четкости',
+        'Встроенное сохранение карт глубины резкости (Depth Map) для настройки портретов',
+        'Поддержка 16-битной глубины цвета и расширенного динамического диапазона HDR',
+        'Хранение серий кадров (Burst) и видеофрагментов (Live Photos) в одном файле',
+      ],
+      cons: [
+        'Проблемы совместимости с Windows (требуются дополнительные платные кодеки)',
+        'Многие сайты, маркетплейсы и старые графические редакторы не принимают файлы .heic',
+      ],
+    },
+    en: {
+      name: 'HEIC',
+      fullName: 'High Efficiency Image Container (HEIF / HEIC)',
+      developer: 'MPEG (Moving Picture Experts Group) & Apple adoption',
+      year: '2015 (Standard) / 2017 (Apple iOS 11 default)',
+      definition: 'HEIC (High Efficiency Image Container) is the modern raster image container developed by MPEG using HEVC (H.265) intra-frame compression. Adopted by Apple in 2017 as the default photo standard for iPhone and iPad, HEIC cuts file size by ~50% compared to legacy JPEG while delivering richer dynamic range and sharper detail.',
+      applications: 'Apple iPhone and iPad camera photos, modern Android 10+ devices, mobile portrait photography with depth mapping, Apple Live Photos, and burst sequences.',
+      technicalSpecs: {
+        compression: 'High Efficiency Video Coding (HEVC / H.265) intra-frame (Lossy & Lossless)',
+        bitDepthOrColor: 'Up to 16-bit color depth with Display P3 wide gamut and HDR support',
+        sampleRateOrResolution: 'Up to 8192×4320 pixels, tiled image grids, and arbitrary resolutions',
+        channelsOrAlpha: 'RGB + 16-bit Alpha transparency, embedded Depth Maps, and burst frames',
+        standards: 'ISO/IEC 23008-12 (MPEG-H Part 12 / HEIF standard)',
+      },
+      pros: [
+        'Reduces storage footprint by ~50% versus traditional JPEG at superior clarity',
+        'Preserves portrait mode depth maps for post-capture bokeh adjustment',
+        'True 16-bit deep color support preventing posterization and banding',
+        'Encapsulates multi-image bursts and Live Photos in a single file',
+      ],
+      cons: [
+        'Requires manual HEVC codec installation to open natively on Windows',
+        'Legacy image viewers, marketplaces, and older photo editors reject .heic',
+      ],
+    },
+    zh: {
+      name: 'HEIC',
+      fullName: '高效率图像容器 (High Efficiency Image Container - HEIF / HEIC)',
+      developer: 'MPEG 国际标准化组织与苹果公司 (Apple)',
+      year: '2015年 (国际标准制定) / 2017年 (苹果 iOS 11 默认采用)',
+      definition: 'HEIC 是由 MPEG 组织基于 HEVC (H.265) 视频编码技术制定的下一代图像容器。2017 年苹果公司在 iOS 11 中将其确立为 iPhone 和 iPad 相机的默认拍照格式。其核心优势在于：在画质完全媲美甚至超越 JPEG 的前提下，文件体积缩减约 50%，并完整保存景深数据与实况照片。',
+      applications: '苹果 iPhone / iPad 全系智能设备拍照、现代 Android 10+ 手机、人像虚化景深拍摄、苹果 Live Photos 实况照片及连拍归档。',
+      technicalSpecs: {
+        compression: 'HEVC (H.265) 帧内高效率编码压缩（支持高品质有损与无损编码）',
+        bitDepthOrColor: '最高支持 16 位色彩深度，完整覆盖 Display P3 广色域与高动态范围 HDR',
+        sampleRateOrResolution: '最高支持 8192×4320 像素及任意瓦片式拼接高分辨率',
+        channelsOrAlpha: 'RGB 色彩通道 + 16 位 Alpha 透明通道，内嵌 Depth Map 景深图与连拍序列',
+        standards: 'ISO/IEC 23008-12 (MPEG-H 第 12 部分) 国际工业标准',
+      },
+      pros: [
+        '文件体积仅为传统 JPEG 的一半，为手机和云存储节省海量空间',
+        '完整保存人像模式的深度信息 (Depth Map)，支持后期重新调节虚化光圈',
+        '原生支持高达 16 位的色彩深度，天空与光影渐变过渡极度丝滑细腻',
+        '单文件即可同时封装连拍照片组、音频与 Live Photos 动态视频微片段',
+      ],
+      cons: [
+        'Windows 10/11 系统原生无法直接预览，需在应用商店单独安装 HEVC 解码扩展',
+        '大量电商上传表单、办公软件及老版设计软件不识别 .heic 格式',
+      ],
+    },
+    es: {
+      name: 'HEIC',
+      fullName: 'High Efficiency Image Container (HEIF / HEIC)',
+      developer: 'MPEG (Moving Picture Experts Group) y adopción de Apple',
+      year: '2015 (Estándar ISO) / 2017 (Apple iOS 11)',
+      definition: 'HEIC es el contenedor de imágenes de alta eficiencia creado por el grupo MPEG utilizando la compresión del códec HEVC (H.265). Adoptado por Apple en 2017 para iOS 11, reduce el peso de las fotos al 50% frente a JPEG conservando una nitidez superior, soporte HDR y mapas de profundidad.',
+      applications: 'Cámaras de iPhone y iPad, dispositivos Android modernos, fotografía de retrato con bokeh, Live Photos y capturas en ráfaga.',
+      technicalSpecs: {
+        compression: 'Compresión de vídeo de alta eficiencia HEVC (H.265) intra-frame (Lossy y Lossless)',
+        bitDepthOrColor: 'Hasta 16 bits de color con soporte Display P3 y HDR de alto rango dinámico',
+        sampleRateOrResolution: 'Hasta 8192×4320 píxeles y resoluciones arbitrarias',
+        channelsOrAlpha: 'RGB + canal alfa de transparencia de 16 bits, mapa de profundidad integrado',
+        standards: 'ISO/IEC 23008-12 (MPEG-H Parte 12 / HEIF)',
+      },
+      pros: [
+        'Ahorra un 50% de espacio en memoria respecto a fotos JPEG',
+        'Guarda mapas de profundidad para ajustar el enfoque en retratos',
+        'Soporta color profundo de hasta 16 bits sin bandas cromáticas',
+        'Guarda Live Photos y ráfagas en un solo archivo',
+      ],
+      cons: [
+        'Windows requiere códecs adicionales de pago para abrir archivos .heic',
+        'Muchas páginas web y programas antiguos no aceptan el formato',
+      ],
+    },
+    de: {
+      name: 'HEIC',
+      fullName: 'High Efficiency Image Container (HEIF / HEIC)',
+      developer: 'MPEG (Moving Picture Experts Group) & Apple',
+      year: '2015 (ISO-Standard) / 2017 (Apple iOS 11)',
+      definition: 'HEIC ist das moderne Bildformat der MPEG-Gruppe basierend auf dem HEVC-Videocodec (H.265). 2017 führte Apple HEIC als Standard-Fotoformat in iOS 11 ein. Es halbiert den Speicherbedarf gegenüber JPEG bei gleichzeitig höherer Schärfe, 16-Bit Farbtiefe und Unterstützung für Tiefenkarten.',
+      applications: 'Apple iPhone & iPad Kameras (ab iOS 11), Android 10+ Smartphones, Porträtfotografie mit Tiefenunschärfe, Live Photos und Serienaufnahmen.',
+      technicalSpecs: {
+        compression: 'Hocheffiziente HEVC (H.265) Intra-Frame-Kompression (Lossy & Lossless)',
+        bitDepthOrColor: 'Bis zu 16-Bit Farbtiefe mit Display P3 Farbraum und HDR-Unterstützung',
+        sampleRateOrResolution: 'Bis zu 8192×4320 Pixel und Kachelraster-Verbund',
+        channelsOrAlpha: 'RGB + 16-Bit Alphakanal, integrierte Tiefenkarten (Depth Map)',
+        standards: 'ISO/IEC 23008-12 (HEIF-Standard)',
+      },
+      pros: [
+        'Ca. 50% geringerer Speicherbedarf als JPEG bei gleicher oder besserer Bildschärfe',
+        'Speichert Tiefeninformationen für nachträgliche Schärfentiefe-Anpassungen',
+        'Unterstützt 16-Bit Farbtiefe gegen Farbabstufungen bei Himmelsverläufen',
+        'Bündelt Bildserien und Live Photos in einer einzelnen Datei',
+      ],
+      cons: [
+        'Erfordert unter Windows oft zusätzliche HEVC-Erweiterungen',
+        'Wird von vielen klassischen Fotobearbeitungsprogrammen und Webformularen nicht unterstützt',
+      ],
+    },
+  },
+
   AVIF: {
+
     ru: {
       name: 'AVIF',
       fullName: 'AV1 Image File Format',
@@ -1236,6 +1365,8 @@ function generateFormatPairFAQs(
     let diffA = '';
     if (isAudio && fromUpper === 'WAV' && toUpper === 'MP3') {
       diffA = 'WAV — это несжатый студийный аудиоформат без потерь (Lossless), хранящий оригинальную волну PCM со 100% точностью, но занимающий огромный объем (~10 МБ на минуту). MP3 — это сжатый формат (Lossy), который устраняет неслышимые для человека частоты и уменьшает размер файла в 10–12 раз, обеспечивая универсальную воспроизводимость на любых смартфонах, магнитолах и плеерах.';
+    } else if (isImage && (fromUpper === 'HEIC' || fromUpper === 'HEIF') && (toUpper === 'JPG' || toUpper === 'JPEG')) {
+      diffA = 'HEIC — современный высокоэффективный контейнер от Apple и MPEG на базе кодека HEVC (H.265). Он занимает в 2 раза меньше места, чем JPEG, поддерживает карты глубины резкости (Depth Map) и 16-битный цвет, однако многие программы на Windows, сайты и маркетплейсы не умеют открывать .heic. Конвертация в JPG гарантирует открытие снимков с iPhone на 100% любых устройств и систем без установки платных кодеков.';
     } else if (isImage && fromUpper === 'AVIF' && toUpper === 'JPG') {
       diffA = 'AVIF — новейший открытый формат веб-изображений на базе кодека AV1, который обеспечивает феноменальное сжатие, но не открывается во многих старых программах и редакторах (Photoshop до 2022 года, стандартные просмотрщики Windows). JPG — универсальный мировой стандарт, гарантирующий открытие изображения на 100% компьютеров, смартфонов и сайтов маркетплейсов.';
     } else if (isImage && fromUpper === 'WEBP' && toUpper === 'PNG') {
@@ -1396,8 +1527,16 @@ export function getDetailedConversionDossier(
   const supportedLangs = ['ru', 'en', 'zh', 'es', 'de'];
   const effectiveLang = supportedLangs.includes(lang) ? lang : 'ru';
 
-  const fromUpper = (fromFormat || '').toUpperCase().trim();
-  const toUpper = (toFormat || '').toUpperCase().trim();
+  const normalizeKey = (raw: string): string => {
+    const key = (raw || '').toUpperCase().trim();
+    if (key === 'HEIF') return 'HEIC';
+    if (key === 'JPEG') return 'JPG';
+    if (key.includes('DOCX') || key.includes('WORD')) return 'DOCX';
+    return key;
+  };
+
+  const fromUpper = normalizeKey(fromFormat);
+  const toUpper = normalizeKey(toFormat);
 
   const fromProfile =
     FORMAT_DATA[fromUpper]?.[effectiveLang] ||
