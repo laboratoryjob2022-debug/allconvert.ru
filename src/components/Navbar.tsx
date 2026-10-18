@@ -49,18 +49,20 @@ export const Navbar: React.FC = () => {
           setThemeMenuOpen(!isThemeMenuOpen);
           setLangMenuOpen(false);
         }}
-        className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center sm:justify-start space-x-1.5 shadow-xs font-medium cursor-pointer active:scale-95 ${isMobile ? 'text-xs' : ''}`}
+        className={`${
+          isMobile ? 'h-8 px-2.5 text-xs' : 'h-9 px-3 text-xs'
+        } rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center sm:justify-start space-x-1.5 shadow-xs font-semibold cursor-pointer active:scale-95`}
         title="Change UI Theme"
       >
-        <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+        <Palette className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
         <span
-          className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-slate-300 dark:border-white/20 shrink-0"
+          className="w-2.5 h-2.5 rounded-full border border-slate-300 dark:border-white/20 shrink-0"
           style={{ backgroundColor: currentTheme.accentHex }}
         />
-        <span className="text-xs font-medium hidden md:inline truncate max-w-[100px]">
+        <span className="text-xs font-semibold hidden md:inline truncate max-w-[90px]">
           {language === 'ru' ? currentTheme.nameRu.split(' ')[0] : currentTheme.nameEn.split(' ')[0]}
         </span>
-        <ChevronDown className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-400 shrink-0" />
+        <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
       </button>
 
       {isThemeMenuOpen && (
@@ -69,9 +71,9 @@ export const Navbar: React.FC = () => {
             className="fixed inset-0 z-40"
             onClick={() => setThemeMenuOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 animate-fade-in max-h-96 overflow-y-auto">
+          <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 animate-fade-in max-h-96 overflow-y-auto">
             <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-3 py-1.5 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
-              {t.theme} (10 Тем)
+              {t.theme}
             </div>
             <div className="space-y-1">
               {THEMES.map((item) => {
@@ -83,7 +85,7 @@ export const Navbar: React.FC = () => {
                       setTheme(item.id);
                       setThemeMenuOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
                       isSelected
                         ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-500/30'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
@@ -114,12 +116,14 @@ export const Navbar: React.FC = () => {
           setLangMenuOpen(!isLangMenuOpen);
           setThemeMenuOpen(false);
         }}
-        className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center sm:justify-start space-x-1.5 shadow-xs font-medium cursor-pointer active:scale-95 ${isMobile ? 'text-xs' : ''}`}
+        className={`${
+          isMobile ? 'h-8 px-2.5 text-xs' : 'h-9 px-3 text-xs'
+        } rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center sm:justify-start space-x-1.5 shadow-xs font-semibold cursor-pointer active:scale-95`}
         title="Language / Язык"
       >
         <span className="text-sm shrink-0">{currentLang.flag}</span>
         <span className="text-xs font-bold uppercase">{currentLang.short}</span>
-        <ChevronDown className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-400 shrink-0" />
+        <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
       </button>
 
       {isLangMenuOpen && (
@@ -128,7 +132,7 @@ export const Navbar: React.FC = () => {
             className="fixed inset-0 z-40"
             onClick={() => setLangMenuOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 animate-fade-in">
+          <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 animate-fade-in">
             <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-3 py-1.5 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
               {t.language}
             </div>
@@ -145,9 +149,9 @@ export const Navbar: React.FC = () => {
                       window.history.pushState({}, '', targetPath + window.location.search + window.location.hash);
                       window.dispatchEvent(new Event('popstate'));
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-500/30'
+                        ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-500/30'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
@@ -155,7 +159,7 @@ export const Navbar: React.FC = () => {
                       <span className="text-sm">{item.flag}</span>
                       <span>{item.label}</span>
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                    {isSelected && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />}
                   </button>
                 );
               })}
@@ -171,7 +175,7 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Mobile Layout (< sm) */}
         <div className="flex flex-col gap-2 sm:hidden">
-          {/* Row 1: Brand Title + Share & Settings */}
+          {/* Row 1: Brand Title + Help, Bookmark, Share, Settings */}
           <div className="flex items-center justify-between gap-2 w-full">
             <a
               href={getLocalizedPath('/', language)}
@@ -197,24 +201,46 @@ export const Navbar: React.FC = () => {
                   window.history.pushState({}, '', guidePath);
                   window.dispatchEvent(new Event('popstate'));
                 }}
-                className="p-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
+                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
                 title={t.guideTitle}
               >
                 <HelpCircle className="w-4 h-4 text-slate-500 shrink-0" />
               </a>
               <button
                 onClick={() => {
+                  showToast(t.bookmarkToast, 'info');
+                }}
+                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
+                title={t.bookmarkBtn}
+              >
+                <Bookmark className="w-4 h-4 text-amber-500 shrink-0" />
+              </button>
+              <button
+                onClick={async () => {
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: t.appName,
+                        text: t.appSub,
+                        url: window.location.href,
+                      });
+                      showToast(t.linkCopied, 'success');
+                      return;
+                    } catch (e) {
+                      // cancelled
+                    }
+                  }
                   navigator.clipboard.writeText(window.location.href);
                   showToast(t.linkCopied, 'success');
                 }}
-                className="p-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
-                title="Share / Copy Link"
+                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
+                title={t.shareSiteBtn}
               >
                 <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               </button>
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="p-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
+                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer active:scale-95"
                 title={t.settings}
               >
                 <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />
@@ -224,7 +250,7 @@ export const Navbar: React.FC = () => {
 
           {/* Row 2: Badge + Theme & Language */}
           <div className="flex items-center justify-between gap-2 w-full pt-1.5 border-t border-slate-200/80 dark:border-slate-800/60">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs shrink-0 truncate max-w-[55%]">
+            <span className="inline-flex items-center h-8 px-2.5 rounded-xl text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs shrink-0 truncate max-w-[55%]">
               <ShieldCheck className="w-3.5 h-3.5 mr-1 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <span className="truncate">{t.noAuthBadge}</span>
             </span>
@@ -248,7 +274,7 @@ export const Navbar: React.FC = () => {
             }}
             className="flex items-center space-x-3 cursor-pointer hover:opacity-90 transition-opacity"
           >
-            <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700/80 p-1 shadow-xs flex items-center justify-center shrink-0 overflow-hidden">
               <img src="/favicon.svg" alt="AllConvert Logo" className="w-full h-full object-contain" />
             </div>
             <div>
@@ -256,7 +282,7 @@ export const Navbar: React.FC = () => {
                 <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                   All<span className="text-blue-600 font-extrabold">Convert</span>
                 </h1>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs">
                   <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
                   {t.noAuthBadge}
                 </span>
@@ -271,7 +297,7 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2">
             {/* Total Converted Badge */}
             {totalConvertedCount > 0 && (
-              <div className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300 shadow-xs font-medium">
+              <div className="hidden lg:flex items-center space-x-1.5 h-9 px-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 text-xs text-slate-700 dark:text-slate-200 shadow-xs font-semibold">
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <span>{t.convertedCount(totalConvertedCount)}</span>
               </div>
@@ -289,7 +315,7 @@ export const Navbar: React.FC = () => {
                 window.history.pushState({}, '', guidePath);
                 window.dispatchEvent(new Event('popstate'));
               }}
-              className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center space-x-1.5 shadow-xs text-xs font-semibold cursor-pointer active:scale-95"
+              className="h-9 px-3 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center space-x-1.5 shadow-xs text-xs font-semibold cursor-pointer active:scale-95"
               title={t.guideTitle}
             >
               <HelpCircle className="w-4 h-4 text-slate-500 shrink-0" />
@@ -301,10 +327,10 @@ export const Navbar: React.FC = () => {
               onClick={() => {
                 showToast(t.bookmarkToast, 'info');
               }}
-              className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 transition-all flex items-center space-x-1.5 shadow-xs text-xs font-semibold cursor-pointer active:scale-95"
+              className="h-9 px-3 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center space-x-1.5 shadow-xs text-xs font-semibold cursor-pointer active:scale-95"
               title={t.bookmarkBtn}
             >
-              <Bookmark className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
+              <Bookmark className="w-4 h-4 text-amber-500 shrink-0" />
               <span className="hidden sm:inline">{t.bookmarkBtn}</span>
             </button>
 
@@ -327,7 +353,7 @@ export const Navbar: React.FC = () => {
                 navigator.clipboard.writeText(window.location.href);
                 showToast(t.linkCopied, 'success');
               }}
-              className="p-2.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center space-x-1 cursor-pointer active:scale-95 shadow-xs"
+              className="w-9 h-9 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-95 shadow-xs"
               title={t.shareSiteBtn}
             >
               <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -336,7 +362,7 @@ export const Navbar: React.FC = () => {
             {/* Settings Button */}
             <button
               onClick={() => setSettingsOpen(true)}
-              className="p-2.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center space-x-1 cursor-pointer active:scale-95 shadow-xs"
+              className="w-9 h-9 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-95 shadow-xs"
               title={t.settings}
             >
               <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />
