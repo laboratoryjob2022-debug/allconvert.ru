@@ -12,6 +12,7 @@ import { GuideModal } from './components/GuideModal';
 import { ToastNotification } from './components/ToastNotification';
 import { FooterAdZone } from './components/FooterAdZone';
 import { YandexDesktopAd } from './components/YandexDesktopAd';
+import { YandexMobileTopAd } from './components/YandexMobileTopAd';
 import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
 import { LegalPages } from './components/LegalPages';
@@ -91,6 +92,7 @@ export default function App() {
   } = useConverterStore();
   const [routeState, setRouteState] = useState<RouteState>(() => getRouteStateFromPath());
   const [seoData, setSeoData] = useState<SeoConversionRoute | null>(null);
+  const [isMobileAdVisible, setIsMobileAdVisible] = useState(false);
 
   // Sync language from URL path prefix on mount and whenever URL changes
   useEffect(() => {
@@ -288,8 +290,16 @@ export default function App() {
   return (
     <div
       data-theme={theme || 'studio-light'}
-      className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#070a12] dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white overflow-x-clip"
+      className={`min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#070a12] dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white overflow-x-clip transition-[padding] duration-200 ${
+        isMobileAdVisible ? 'pt-[60px] min-[1640px]:pt-0' : 'pt-0'
+      }`}
     >
+      {/* Mobile Top Sticky Banner (<= 60px) */}
+      <YandexMobileTopAd
+        routeType={routeState.type}
+        onVisibilityChange={setIsMobileAdVisible}
+      />
+
       {/* Main Navigation Bar */}
       <Navbar />
 
