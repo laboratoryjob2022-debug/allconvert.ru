@@ -11,6 +11,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { GuideModal } from './components/GuideModal';
 import { ToastNotification } from './components/ToastNotification';
 import { FooterAdZone } from './components/FooterAdZone';
+import { YandexDesktopAd } from './components/YandexDesktopAd';
 import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
 import { LegalPages } from './components/LegalPages';
@@ -287,115 +288,120 @@ export default function App() {
   return (
     <div
       data-theme={theme || 'studio-light'}
-      className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#070a12] dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white"
+      className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#070a12] dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white overflow-x-clip"
     >
       {/* Main Navigation Bar */}
       <Navbar />
 
-      {/* Top Breadcrumbs - Unified across all pages to prevent CLS */}
-      <div className="w-full max-w-7xl mx-auto px-4 pt-4 pb-1 min-h-[40px] flex items-center">
-        <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 space-x-2">
-          {routeState.type === 'home' ? (
-            <span className="font-semibold text-slate-800 dark:text-white bg-white dark:bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-200/90 dark:border-slate-700/60 shadow-xs">
-              {t.homeBreadcrumb}
-            </span>
-          ) : (
-            <>
-              <button
-                onClick={() => handleNavigateRoute('')}
-                className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
-              >
-                {t.homeBreadcrumb}
-              </button>
-              <span className="text-slate-400 dark:text-slate-600">/</span>
+      {/* Central Content Area with Sticky Side Gutter for Desktop Ads */}
+      <div className="relative w-full max-w-7xl mx-auto flex-1 flex flex-col">
+        <YandexDesktopAd routeType={routeState.type} />
+
+        {/* Top Breadcrumbs - Unified across all pages to prevent CLS */}
+        <div className="w-full px-4 pt-4 pb-1 min-h-[40px] flex items-center">
+          <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 space-x-2">
+            {routeState.type === 'home' ? (
               <span className="font-semibold text-slate-800 dark:text-white bg-white dark:bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-200/90 dark:border-slate-700/60 shadow-xs">
-                {seoData && t.toDirection(seoData.fromFormat, seoData.toFormat)}
-                {routeState.type === 'privacy' && t.privacyPolicy}
-                {routeState.type === 'terms' && t.termsOfService}
-                {routeState.type === 'about' && t.aboutUsAndContacts}
-                {routeState.type === 'guide' && t.guideTitle}
+                {t.homeBreadcrumb}
               </span>
-            </>
-          )}
-        </nav>
-      </div>
-
-      {/* Main Content Container */}
-      <main className="flex-1 pb-16">
-        {routeState.type === 'guide' ? (
-          <GuidePage onNavigateHome={() => handleNavigateRoute('')} />
-        ) : routeState.type === 'privacy' || routeState.type === 'terms' || routeState.type === 'about' ? (
-          <LegalPages
-            pageType={routeState.type}
-            onNavigateHome={() => handleNavigateRoute('')}
-          />
-        ) : (
-          <>
-            {/* Sector Navigation Tabs */}
-            <SectorNav />
-
-            {/* Upload Zone: Independent, 2x smaller, NOT fused inside queue blocks */}
-            <DropZone seoData={seoData} />
-
-            {/* Unified Conversion Queue Territory matching screenshot (Only when queue has items) */}
-            {queue.length > 0 && (
-              <div className="w-full max-w-7xl mx-auto px-4 mt-4 mb-12">
-                <div className="bg-[#f8fafc] border border-slate-200/90 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4 text-slate-800">
-                  <BatchControls />
-                  <QueueTable />
-                </div>
-              </div>
-            )}
-
-            {/* Dynamic SEO Landing Page Section if route is active */}
-            {seoData ? (
-              <div className="w-full max-w-7xl mx-auto px-4">
-                <SeoConversionPage seoData={seoData} onNavigateRoute={handleNavigateRoute} />
-              </div>
             ) : (
               <>
-                {/* Empty State Features / Hero Showcase when queue is empty */}
-                {queue.length === 0 && (
-                  <div className="w-full max-w-7xl mx-auto px-4 mt-8">
-                    {/* Top Highlight Badge Banner */}
-                    <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-2xs">
-                          <Lock className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                            <span>{t.noAuthTitle}</span>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-bold uppercase tracking-wider">
-                              100% FREE
-                            </span>
-                          </h2>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                            {t.noAuthDesc}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          {t.noGoogleAuth}
-                        </span>
-                        <span className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs">
-                          <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          {t.zeroTelemetry}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Detailed Info Section: Step-by-Step Guide, Benefits Showcase, and FAQ */}
-                <InfoSection />
+                <button
+                  onClick={() => handleNavigateRoute('')}
+                  className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                >
+                  {t.homeBreadcrumb}
+                </button>
+                <span className="text-slate-400 dark:text-slate-600">/</span>
+                <span className="font-semibold text-slate-800 dark:text-white bg-white dark:bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-200/90 dark:border-slate-700/60 shadow-xs">
+                  {seoData && t.toDirection(seoData.fromFormat, seoData.toFormat)}
+                  {routeState.type === 'privacy' && t.privacyPolicy}
+                  {routeState.type === 'terms' && t.termsOfService}
+                  {routeState.type === 'about' && t.aboutUsAndContacts}
+                  {routeState.type === 'guide' && t.guideTitle}
+                </span>
               </>
             )}
-          </>
-        )}
-      </main>
+          </nav>
+        </div>
+
+        {/* Main Content Container */}
+        <main className="flex-1 pb-16">
+          {routeState.type === 'guide' ? (
+            <GuidePage onNavigateHome={() => handleNavigateRoute('')} />
+          ) : routeState.type === 'privacy' || routeState.type === 'terms' || routeState.type === 'about' ? (
+            <LegalPages
+              pageType={routeState.type}
+              onNavigateHome={() => handleNavigateRoute('')}
+            />
+          ) : (
+            <>
+              {/* Sector Navigation Tabs */}
+              <SectorNav />
+
+              {/* Upload Zone: Independent, 2x smaller, NOT fused inside queue blocks */}
+              <DropZone seoData={seoData} />
+
+              {/* Unified Conversion Queue Territory matching screenshot (Only when queue has items) */}
+              {queue.length > 0 && (
+                <div className="w-full max-w-7xl mx-auto px-4 mt-4 mb-12">
+                  <div className="bg-[#f8fafc] border border-slate-200/90 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4 text-slate-800">
+                    <BatchControls />
+                    <QueueTable />
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic SEO Landing Page Section if route is active */}
+              {seoData ? (
+                <div className="w-full max-w-7xl mx-auto px-4">
+                  <SeoConversionPage seoData={seoData} onNavigateRoute={handleNavigateRoute} />
+                </div>
+              ) : (
+                <>
+                  {/* Empty State Features / Hero Showcase when queue is empty */}
+                  {queue.length === 0 && (
+                    <div className="w-full max-w-7xl mx-auto px-4 mt-8">
+                      {/* Top Highlight Badge Banner */}
+                      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                            <Lock className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                              <span>{t.noAuthTitle}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-bold uppercase tracking-wider">
+                                100% FREE
+                              </span>
+                            </h2>
+                            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                              {t.noAuthDesc}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            {t.noGoogleAuth}
+                          </span>
+                          <span className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs">
+                            <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            {t.zeroTelemetry}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detailed Info Section: Step-by-Step Guide, Benefits Showcase, and FAQ */}
+                  <InfoSection />
+                </>
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
       <FooterAdZone onNavigateRoute={handleNavigateRoute} />
 
