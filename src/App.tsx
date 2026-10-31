@@ -12,6 +12,7 @@ import { GuideModal } from './components/GuideModal';
 import { ToastNotification } from './components/ToastNotification';
 import { FooterAdZone } from './components/FooterAdZone';
 import { YandexDesktopAd } from './components/YandexDesktopAd';
+import { YandexDesktopLeftAd } from './components/YandexDesktopLeftAd';
 import { YandexMobileTopAd } from './components/YandexMobileTopAd';
 import { InfoSection } from './components/InfoSection';
 import { SeoConversionPage } from './components/SeoConversionPage';
@@ -303,8 +304,9 @@ export default function App() {
       {/* Main Navigation Bar */}
       <Navbar />
 
-      {/* Central Content Area with Sticky Side Gutter for Desktop Ads */}
+      {/* Central Content Area with Sticky Side Gutters for Desktop Ads (Left & Right) */}
       <div className="relative w-full max-w-7xl mx-auto flex-1 flex flex-col">
+        <YandexDesktopLeftAd routeType={routeState.type} />
         <YandexDesktopAd routeType={routeState.type} />
 
         {/* Top Breadcrumbs - Unified across all pages to prevent CLS */}
